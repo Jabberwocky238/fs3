@@ -1,0 +1,16 @@
+{
+  "users": [
+    {
+      "user_id": "alice",
+      "enabled": true,
+      "access_key": "alice-ak",
+      "secret_key": "alice-sk",
+      "groups": [
+        "groupA"
+      ],
+      "attrs": {}
+    }
+  ],
+  "policy_groups": [],
+  "bucket_metadata": []
+}

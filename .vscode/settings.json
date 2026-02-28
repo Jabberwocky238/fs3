@@ -1,0 +1,10 @@
+{
+  "rust-analyzer.check.allTargets": true,
+  "rust-analyzer.cargo.features": [
+    "default",
+    "storage-k8sconfigmap",
+    "storage-sqlite",
+    "storage-postgres"
+  ],
+  "rust-analyzer.check.command": "clippy",
+}
