@@ -4,7 +4,7 @@ mod helpers;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn signature_auth_check() {
-    let (base, handle) = helpers::start_test_server("signature").await;
+    let (base, handle) = helpers::start_test_server("signature", None).await;
 
     let bad = helpers::minio_client(&base, "wrong-ak", "wrong-sk");
     let bad_put = bad

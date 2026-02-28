@@ -6,7 +6,7 @@ use reqwest::StatusCode;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn presign_upload_download_and_multipart() {
-    let (base, handle) = helpers::start_test_server("presign").await;
+    let (base, handle) = helpers::start_test_server("presign", None).await;
     let minio = helpers::minio_client(&base, "alice-ak", "alice-sk");
     let http = reqwest::Client::new();
 

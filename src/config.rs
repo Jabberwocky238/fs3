@@ -40,6 +40,15 @@ impl Default for MountOptions {
     }
 }
 
+impl MountOptions {
+    pub fn memory() -> Self {
+        Self {
+            mode: MountMode::Memory,
+            path: String::new(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, Default, PartialEq, Eq, clap::ValueEnum)]
 #[serde(rename_all = "lowercase")]
 pub enum MountMode {

@@ -6,7 +6,7 @@ use minio::s3::types::S3Api;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn minio_client_smoke() {
-    let (base, handle) = helpers::start_test_server("minio").await;
+    let (base, handle) = helpers::start_test_server("minio", None).await;
     let client = helpers::minio_client(&base, "alice-ak", "alice-sk");
 
     let bucket = "docs";

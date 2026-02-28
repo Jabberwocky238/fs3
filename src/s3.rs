@@ -98,6 +98,15 @@ async fn handle_any(
 }
 
 async fn handle_bucket(state: &S3Server, method: Method, bucket: String, q: S3Query) -> Response {
+    // Single-bucket mode: reject create/delete
+    if !state.cfg.multi_bucket_enabled && matches!(method, Method::PUT | Method::DELETE) {
+        return s3_error(
+            StatusCode::FORBIDDEN,
+            "AccessDenied",
+            "Bucket creation and deletion are disabled in single-bucket mode",
+        );
+    }
+
     match method {
         Method::HEAD => {
             if state.mounts.has_bucket(&bucket) {
