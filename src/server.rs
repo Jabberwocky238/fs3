@@ -21,6 +21,8 @@ use crate::storage::types::UserRecord;
 
 // ── S3Server ────────────────────────────────────────────────────────────
 
+const DEFAULT_BUCKET: &str = "default";
+
 #[derive(Debug, Clone)]
 pub struct SignedToken {
     pub op: String,
@@ -121,10 +123,19 @@ impl S3Server {
     }
 
     pub async fn from_config(cfg: Config) -> Result<Self> {
+        if cfg.user_enabled && !cfg.multi_bucket_enabled {
+            anyhow::bail!("user_enabled requires multi_bucket_enabled to be true");
+        }
+
         info!(mode = ?cfg.mount.mode, path = %cfg.mount.path, "initializing mounts");
-        let mounts = Arc::from(
+        let mounts: Arc<dyn MountManager> = Arc::from(
             new_mount(&cfg.mount).context("init mounts")?,
         );
+
+        if !cfg.multi_bucket_enabled {
+            mounts.ensure_bucket(DEFAULT_BUCKET).context("ensure default bucket")?;
+            info!("single bucket mode, default bucket ensured");
+        }
 
         let seed = StorageSnapshot {
             users: vec![UserRecord {
@@ -163,8 +174,7 @@ impl S3Server {
     }
 
     pub async fn serve(self) -> Result<()> {
-        let ctrl_router: Router = ctrl_gw_router(self.clone())
-            .merge(crate::s3::router(self.clone()));
+        let ctrl_router: Router = ctrl_gw_router(self.clone());
         let open_router: Router = open_gw_router(self.clone());
 
         let ctrl_addr = normalize_listen(&self.cfg.listen_inner);
@@ -209,7 +219,12 @@ fn normalize_outer(addr: &str) -> String {
     if addr.is_empty() {
         "http://localhost:3001".to_string()
     } else {
-        addr.trim_end_matches('/').to_string()
+        let s = addr.trim_end_matches('/');
+        if s.starts_with("http://") || s.starts_with("https://") {
+            s.to_string()
+        } else {
+            format!("http://{s}")
+        }
     }
 }
 
@@ -217,7 +232,8 @@ fn ctrl_gw_router(state: S3Server) -> Router {
     use axum::routing::get;
     Router::new()
         .route("/healthz", get(|| async { "ok" }))
-        .with_state(state)
+        .merge(crate::api::router(state.clone()))
+        .merge(crate::s3::router(state))
 }
 
 fn open_gw_router(state: S3Server) -> Router {
@@ -225,30 +241,62 @@ fn open_gw_router(state: S3Server) -> Router {
     use axum::response::IntoResponse;
     use axum::routing::get;
 
-    async fn open_gw_with_user(
-        State(state): State<S3Server>,
-        Path((user, bucket, object_path)): Path<(String, String, String)>,
+    let (user_on, bucket_on) = (state.cfg.user_enabled, state.cfg.multi_bucket_enabled);
+
+    async fn h_user_bucket(
+        State(s): State<S3Server>,
+        Path((user, bucket, obj)): Path<(String, String, String)>,
     ) -> impl IntoResponse {
-        serve_open_gw(&state, &user, &bucket, &object_path).await
+        serve_open_gw(&s, &user, &bucket, &obj).await
     }
 
-    async fn open_gw_no_user(
-        State(state): State<S3Server>,
-        Path((bucket, object_path)): Path<(String, String)>,
+    async fn h_user(
+        State(s): State<S3Server>,
+        Path((user, obj)): Path<(String, String)>,
     ) -> impl IntoResponse {
-        serve_open_gw(&state, "", &bucket, &object_path).await
+        serve_open_gw(&s, &user, DEFAULT_BUCKET, &obj).await
     }
 
-    if state.cfg.user_enabled {
-        info!("open gateway route: /{{user}}/{{bucket}}/{{object_path}}");
-        Router::new()
-            .route("/{user}/{bucket}/{*object_path}", get(open_gw_with_user))
-            .with_state(state)
-    } else {
-        info!("open gateway route: /{{bucket}}/{{object_path}}");
-        Router::new()
-            .route("/{bucket}/{*object_path}", get(open_gw_no_user))
-            .with_state(state)
+    async fn h_bucket(
+        State(s): State<S3Server>,
+        Path((bucket, obj)): Path<(String, String)>,
+    ) -> impl IntoResponse {
+        serve_open_gw(&s, "", &bucket, &obj).await
+    }
+
+    async fn h_plain(
+        State(s): State<S3Server>,
+        Path(obj): Path<String>,
+    ) -> impl IntoResponse {
+        serve_open_gw(&s, "", DEFAULT_BUCKET, &obj).await
+    }
+
+    match (user_on, bucket_on) {
+        (true, true) => {
+            info!("open gateway route: /{{user}}/{{bucket}}/{{object_path}}");
+            Router::new()
+                .route("/{user}/{bucket}/{*object_path}", get(h_user_bucket))
+                .with_state(state)
+        }
+        (true, false) => {
+            info!("open gateway route: /{{user}}/{{object_path}}");
+            Router::new()
+                .route("/{user}/{*object_path}", get(h_user))
+                .with_state(state)
+        }
+        (false, true) => {
+            info!("open gateway route: /{{bucket}}/{{object_path}}");
+            Router::new()
+                .route("/{bucket}/{*object_path}", get(h_bucket))
+                .with_state(state)
+        }
+        (false, false) => {
+            info!("open gateway route: /{{object_path}}");
+            Router::new()
+                .route("/", get(h_plain))
+                .route("/{*object_path}", get(h_plain))
+                .with_state(state)
+        }
     }
 }
 

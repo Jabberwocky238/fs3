@@ -4,10 +4,10 @@ mod helpers;
 use minio::s3::builders::ObjectToDelete;
 use minio::s3::types::S3Api;
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn minio_client_smoke() {
-    let server = helpers::start_test_server("minio").await;
-    let client = helpers::minio_client(&server.base, "alice-ak", "alice-sk");
+    let (base, handle) = helpers::start_test_server("minio").await;
+    let client = helpers::minio_client(&base, "alice-ak", "alice-sk");
 
     let bucket = "docs";
     let key = "team-a/minio-rust-sdk.txt";
@@ -45,4 +45,6 @@ async fn minio_client_smoke() {
         .send()
         .await
         .expect("delete_object failed");
+
+    handle.abort();
 }

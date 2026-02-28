@@ -1,3 +1,4 @@
+pub mod api;
 pub mod authentic;
 pub mod config;
 pub mod mount;

@@ -64,14 +64,14 @@ release-full:
 
 # ── run ─────────────────────────────────────────────────────────────
 
-run: build-default
-	./fs3$(SUFFIX)
+run: 
+	cargo run
 
-run-minimal: build-minimal
-	./fs3-minimal$(SUFFIX)
+run-minimal: 
+	cargo run --no-default-features
 
-run-sqlite: build-full
-	./fs3-full$(SUFFIX)
+run-full: 
+	cargo run --no-default-features --features $(FEAT_FULL)
 
 # ── test / check ────────────────────────────────────────────────────
 

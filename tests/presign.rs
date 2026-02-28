@@ -4,14 +4,14 @@ mod helpers;
 use minio::s3::types::S3Api;
 use reqwest::StatusCode;
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn presign_upload_download_and_multipart() {
-    let server = helpers::start_test_server("presign").await;
-    let minio = helpers::minio_client(&server.base, "alice-ak", "alice-sk");
+    let (base, handle) = helpers::start_test_server("presign").await;
+    let minio = helpers::minio_client(&base, "alice-ak", "alice-sk");
     let http = reqwest::Client::new();
 
     let presign_up = http
-        .post(format!("{}/api/presign/upload", server.base))
+        .post(format!("{}/api/presign/upload", base))
         .json(&serde_json::json!({
             "bucket":"docs",
             "key":"team-a/presign-upload.txt",
@@ -59,7 +59,7 @@ async fn presign_upload_download_and_multipart() {
         .expect("minio put download source failed");
 
     let presign_down = http
-        .post(format!("{}/api/presign/download", server.base))
+        .post(format!("{}/api/presign/download", base))
         .json(&serde_json::json!({
             "bucket":"docs",
             "key":"team-a/presign-download.txt",
@@ -87,7 +87,7 @@ async fn presign_upload_download_and_multipart() {
     );
 
     let init = http
-        .post(format!("{}/api/multipart/init", server.base))
+        .post(format!("{}/api/multipart/init", base))
         .json(&serde_json::json!({"bucket":"docs","key":"team-a/multi.bin"}))
         .send()
         .await
@@ -98,7 +98,7 @@ async fn presign_upload_download_and_multipart() {
 
     for (pn, body) in [(1, "abc"), (2, "def")] {
         let part = http
-            .post(format!("{}/api/multipart/presign-part", server.base))
+            .post(format!("{}/api/multipart/presign-part", base))
             .json(&serde_json::json!({
                 "upload_id": upload_id,
                 "part_number": pn,
@@ -121,7 +121,7 @@ async fn presign_upload_download_and_multipart() {
     }
 
     let complete = http
-        .post(format!("{}/api/multipart/complete", server.base))
+        .post(format!("{}/api/multipart/complete", base))
         .json(&serde_json::json!({"upload_id": upload_id, "parts": [1,2]}))
         .send()
         .await
@@ -140,4 +140,6 @@ async fn presign_upload_download_and_multipart() {
         .expect("read multipart object bytes failed")
         .to_bytes();
     assert_eq!(merged_bytes.as_ref(), b"abcdef");
+
+    handle.abort();
 }

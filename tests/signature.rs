@@ -2,11 +2,11 @@
 use minio::s3::types::S3Api;
 mod helpers;
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn signature_auth_check() {
-    let server = helpers::start_test_server("signature").await;
+    let (base, handle) = helpers::start_test_server("signature").await;
 
-    let bad = helpers::minio_client(&server.base, "wrong-ak", "wrong-sk");
+    let bad = helpers::minio_client(&base, "wrong-ak", "wrong-sk");
     let bad_put = bad
         .put_object_content("docs", "auth/bad.txt", "x".to_string())
         .send()
@@ -14,7 +14,7 @@ async fn signature_auth_check() {
         .err();
     assert!(bad_put.is_some(), "bad credentials should fail");
 
-    let good = helpers::minio_client(&server.base, "alice-ak", "alice-sk");
+    let good = helpers::minio_client(&base, "alice-ak", "alice-sk");
     good.put_object_content("docs", "auth/good.txt", "signed-ok".to_string())
         .send()
         .await
@@ -32,4 +32,6 @@ async fn signature_auth_check() {
         .expect("read object body failed")
         .to_bytes();
     assert_eq!(body.as_ref(), b"signed-ok");
+
+    handle.abort();
 }

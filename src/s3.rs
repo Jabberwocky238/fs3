@@ -15,6 +15,7 @@ use crate::mount::{MountError, ObjectInfo};
 use crate::server::S3Server;
 #[cfg(feature = "multi-user")]
 use crate::storage::UserStore;
+use crate::server::SignedToken;
 
 pub fn router(state: S3Server) -> Router {
     Router::new()
@@ -65,6 +66,12 @@ async fn handle_any(
     body: Bytes,
 ) -> Response {
     debug!(%method, %path, "s3 request");
+
+    // Presigned token path — bypass normal auth
+    if let Some(ref token_id) = q.token {
+        return handle_presigned_request(&state, token_id, method, body).await;
+    }
+
     if let Err(e) = authorize(&state, &headers, &q).await {
         warn!(%method, %path, code = e.1, "auth rejected");
         return s3_error(e.0, e.1, e.2);
@@ -311,6 +318,7 @@ struct S3Query {
     location: Option<String>,
     #[serde(rename = "X-Amz-Credential")]
     x_amz_credential: Option<String>,
+    token: Option<String>,
 }
 
 impl S3Query {
@@ -322,6 +330,7 @@ impl S3Query {
             && self.max_keys.is_none()
             && self.location.is_none()
             && self.x_amz_credential.is_none()
+            && self.token.is_none()
     }
 }
 
@@ -495,4 +504,86 @@ fn find_crlf(b: &[u8], start: usize) -> Option<usize> {
         i += 1;
     }
     None
+}
+
+async fn handle_presigned_request(
+    state: &S3Server,
+    token_id: &str,
+    method: Method,
+    body: Bytes,
+) -> Response {
+    let token = {
+        let map = state.presigned.lock().await;
+        match map.get(token_id) {
+            Some(t) => t.clone(),
+            None => return s3_error(StatusCode::FORBIDDEN, "AccessDenied", "Invalid presign token"),
+        }
+    };
+
+    if Utc::now() > token.expires_at {
+        state.presigned.lock().await.remove(token_id);
+        return s3_error(StatusCode::FORBIDDEN, "AccessDenied", "Presign token expired");
+    }
+
+    match token.op.as_str() {
+        "upload" => {
+            if method != Method::PUT {
+                return s3_error(StatusCode::METHOD_NOT_ALLOWED, "MethodNotAllowed", "Expected PUT");
+            }
+            match state.mounts.put(&token.bucket, &token.key, &body) {
+                Ok(_) => {
+                    state.presigned.lock().await.remove(token_id);
+                    let etag = etag_bytes(&body);
+                    (StatusCode::OK, [("etag", format!("\"{}\"", etag))]).into_response()
+                }
+                Err(e) => mount_to_s3_error(e),
+            }
+        }
+        "download" => {
+            if method != Method::GET {
+                return s3_error(StatusCode::METHOD_NOT_ALLOWED, "MethodNotAllowed", "Expected GET");
+            }
+            match state.mounts.open(&token.bucket, &token.key) {
+                Ok((mut f, _obj)) => {
+                    let mut buf = Vec::new();
+                    if let Err(e) = f.read_to_end(&mut buf) {
+                        return s3_error(StatusCode::INTERNAL_SERVER_ERROR, "InternalError", &e.to_string());
+                    }
+                    (StatusCode::OK, buf).into_response()
+                }
+                Err(e) => mount_to_s3_error(e),
+            }
+        }
+        "upload-part" => handle_presigned_part(state, &token, token_id, method, body).await,
+        _ => s3_error(StatusCode::BAD_REQUEST, "InvalidRequest", "Unknown presign op"),
+    }
+}
+
+async fn handle_presigned_part(
+    state: &S3Server,
+    token: &SignedToken,
+    token_id: &str,
+    method: Method,
+    body: Bytes,
+) -> Response {
+    if method != Method::PUT {
+        return s3_error(StatusCode::METHOD_NOT_ALLOWED, "MethodNotAllowed", "Expected PUT");
+    }
+
+    let uploads = state.uploads.lock().await;
+    let upload = match uploads.get(&token.upload_id) {
+        Some(u) => u,
+        None => return s3_error(StatusCode::NOT_FOUND, "NoSuchUpload", "Upload not found"),
+    };
+
+    let part_path = upload.dir.join(format!("{}.part", token.part_number));
+    drop(uploads);
+
+    if let Err(e) = std::fs::write(&part_path, &body) {
+        return s3_error(StatusCode::INTERNAL_SERVER_ERROR, "InternalError", &e.to_string());
+    }
+
+    state.presigned.lock().await.remove(token_id);
+    let etag = etag_bytes(&body);
+    (StatusCode::OK, [("etag", format!("\"{}\"", etag))]).into_response()
 }

@@ -6,6 +6,7 @@ pub struct Config {
     pub listen_inner: String,
     pub listen_outer: String,
     pub user_enabled: bool,
+    pub multi_bucket_enabled: bool,
     pub mount: MountOptions,
     pub storage: StorageOptions,
 }
@@ -16,6 +17,7 @@ impl Default for Config {
             listen_inner: "localhost:3000".to_string(),
             listen_outer: "localhost:3001".to_string(),
             user_enabled: false,
+            multi_bucket_enabled: false,
             mount: MountOptions::default(),
             storage: StorageOptions::default(),
         }
