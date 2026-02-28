@@ -96,12 +96,12 @@ impl UserStore for ConfigMapStore {
 #[async_trait::async_trait]
 impl PolicyStore for ConfigMapStore {
     async fn list_policy_groups(&self) -> Result<Vec<PolicyGroup>, StorageError> {
-        Ok(self.read_snapshot().await?.policy_groups)
+        Ok(self.read_snapshot().await?.policies)
     }
 
     async fn save_policy_groups(&self, groups: Vec<PolicyGroup>) -> Result<(), StorageError> {
         let mut snap = self.read_snapshot().await?;
-        snap.policy_groups = groups;
+        snap.policies = groups;
         self.write_snapshot(&snap).await
     }
 }

@@ -70,8 +70,8 @@ impl PostgresStore {
         }
         #[cfg(feature = "policy")]
         {
-            if self.list_policy_groups().await?.is_empty() && !seed.policy_groups.is_empty() {
-                self.save_policy_groups(seed.policy_groups).await?;
+            if self.list_policy_groups().await?.is_empty() && !seed.policies.is_empty() {
+                self.save_policy_groups(seed.policies).await?;
             }
         }
         if self.list_bucket_metadata().await?.is_empty() && !seed.bucket_metadata.is_empty() {

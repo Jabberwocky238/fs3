@@ -539,6 +539,7 @@ async fn handle_presigned_request(
             if method != Method::PUT {
                 return s3_error(StatusCode::METHOD_NOT_ALLOWED, "MethodNotAllowed", "Expected PUT");
             }
+            let _ = state.mounts.ensure_bucket(&token.bucket);
             match state.mounts.put(&token.bucket, &token.key, &body) {
                 Ok(_) => {
                     state.presigned.lock().await.remove(token_id);

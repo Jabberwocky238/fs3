@@ -91,7 +91,7 @@ impl PolicyStore for JsonFileStore {
             .lock
             .lock()
             .map_err(|e| StorageError::Io(e.to_string()))?;
-        Ok(self.load()?.policy_groups)
+        Ok(self.load()?.policies)
     }
 
     async fn save_policy_groups(&self, groups: Vec<PolicyGroup>) -> Result<(), StorageError> {
@@ -100,7 +100,7 @@ impl PolicyStore for JsonFileStore {
             .lock()
             .map_err(|e| StorageError::Io(e.to_string()))?;
         let mut snap = self.load()?;
-        snap.policy_groups = groups;
+        snap.policies = groups;
         self.save(&snap)
     }
 }

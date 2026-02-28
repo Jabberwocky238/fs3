@@ -41,12 +41,12 @@ impl UserStore for InMemoryStore {
 impl PolicyStore for InMemoryStore {
     async fn list_policy_groups(&self) -> Result<Vec<PolicyGroup>, StorageError> {
         let snapshot = self.snapshot.lock().await;
-        Ok(snapshot.policy_groups.clone())
+        Ok(snapshot.policies.clone())
     }
 
     async fn save_policy_groups(&self, groups: Vec<PolicyGroup>) -> Result<(), StorageError> {
         let mut snapshot = self.snapshot.lock().await;
-        snapshot.policy_groups = groups;
+        snapshot.policies = groups;
         Ok(())
     }
 }

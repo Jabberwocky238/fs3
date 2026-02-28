@@ -26,7 +26,7 @@ pub struct BucketMetadata {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StorageSnapshot {
     pub users: Vec<UserRecord>,
-    pub policy_groups: Vec<PolicyGroup>,
+    pub policies: Vec<PolicyGroup>,
     pub bucket_metadata: Vec<BucketMetadata>,
 }
 
@@ -34,7 +34,7 @@ impl Default for StorageSnapshot {
     fn default() -> Self {
         Self {
             users: Vec::new(),
-            policy_groups: Vec::new(),
+            policies: Vec::new(),
             bucket_metadata: Vec::new(),
         }
     }

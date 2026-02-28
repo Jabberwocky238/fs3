@@ -92,7 +92,7 @@ impl S3Server {
 
         let seed = StorageSnapshot {
             users: vec![admin_user],
-            policy_groups: vec![],
+            policies: vec![],
             bucket_metadata: vec![],
         };
         info!(kind = ?cfg.storage.kind, "initializing storage backend");

@@ -29,7 +29,6 @@ impl Default for Config {
 pub struct MountOptions {
     pub mode: MountMode,
     pub path: String,
-    pub is_public: bool,
 }
 
 impl Default for MountOptions {
@@ -37,7 +36,6 @@ impl Default for MountOptions {
         Self {
             mode: MountMode::Filesystem,
             path: "./".into(),
-            is_public: false,
         }
     }
 }
@@ -47,7 +45,6 @@ impl MountOptions {
         Self {
             mode: MountMode::Memory,
             path: String::new(),
-            is_public: false,
         }
     }
 }
@@ -58,23 +55,6 @@ pub enum MountMode {
     #[default]
     Memory,
     Filesystem,
-}
-
-#[derive(Debug, Clone, Default, Deserialize, Serialize)]
-#[serde(default)]
-pub struct PolicyGroup {
-    pub name: String,
-    pub users: Vec<String>,
-    pub rules: Vec<PolicyRule>,
-}
-
-#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq, Eq)]
-#[serde(default)]
-pub struct PolicyRule {
-    pub bucket: String,
-    pub prefix: String,
-    pub allow: bool,
-    pub users: Vec<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
