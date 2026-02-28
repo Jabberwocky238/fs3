@@ -10,13 +10,13 @@ use crate::storage::PolicyStore;
 #[cfg(feature = "multi-user")]
 use crate::storage::UserStore;
 #[cfg(feature = "storage-k8sconfigmap")]
-use crate::storage::configmap::ConfigMapStore;
-use crate::storage::json::JsonFileStore;
-use crate::storage::memory::InMemoryStore;
+use crate::storage::impl_configmap::ConfigMapStore;
+use crate::storage::impl_json::JsonFileStore;
+use crate::storage::impl_memory::InMemoryStore;
 #[cfg(feature = "storage-postgres")]
-use crate::storage::postgres::PostgresStore;
+use crate::storage::impl_postgres::PostgresStore;
 #[cfg(feature = "storage-sqlite")]
-use crate::storage::sqlite::SqliteStore;
+use crate::storage::impl_sqlite::SqliteStore;
 #[cfg(feature = "multi-user")]
 use crate::storage::types::UserRecord;
 use crate::storage::types::{BucketMetadata, StorageError, StorageSnapshot};

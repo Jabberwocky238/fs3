@@ -25,13 +25,13 @@ pub trait BucketMetaStore: Send + Sync {
 }
 
 pub mod factory;
-pub mod json;
+pub mod impl_json;
 pub mod types;
-pub mod memory;
+pub mod impl_memory;
 
 #[cfg(feature = "storage-k8sconfigmap")]
-pub mod configmap;
+pub mod impl_configmap;
 #[cfg(feature = "storage-postgres")]
-pub mod postgres;
+pub mod impl_postgres;
 #[cfg(feature = "storage-sqlite")]
-pub mod sqlite;
+pub mod impl_sqlite;
