@@ -99,6 +99,7 @@ impl Default for StorageOptions {
 #[serde(rename_all = "lowercase")]
 pub enum StorageKind {
     #[default]
+    Memory,
     Json,
     Sqlite,
     Postgres,

@@ -27,6 +27,7 @@ pub trait BucketMetaStore: Send + Sync {
 pub mod factory;
 pub mod json;
 pub mod types;
+pub mod memory;
 
 #[cfg(feature = "storage-k8sconfigmap")]
 pub mod configmap;

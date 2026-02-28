@@ -4,9 +4,26 @@ mod helpers;
 use minio::s3::builders::ObjectToDelete;
 use minio::s3::types::S3Api;
 
+use helpers::free_port;
+use s3_mount_gateway_rust::config::{Config, MountOptions, StorageKind, StorageOptions};
+
 #[tokio::test(flavor = "multi_thread")]
 async fn minio_client_smoke() {
-    let (base, handle) = helpers::start_test_server("minio", None).await;
+    let inner_port = free_port();
+    let outer_port = free_port();
+    let conf = Config {
+        listen_inner: format!("127.0.0.1:{inner_port}"),
+        listen_outer: format!("127.0.0.1:{outer_port}"),
+        multi_bucket_enabled: true,
+        mount: MountOptions::memory(),
+        storage: StorageOptions {
+            kind: StorageKind::Memory,
+            ..StorageOptions::default()
+        },
+        ..Default::default()
+    };
+
+    let (base, handle) = helpers::start_test_server("minio", Some(conf)).await;
     let client = helpers::minio_client(&base, "alice-ak", "alice-sk");
 
     let bucket = "docs";

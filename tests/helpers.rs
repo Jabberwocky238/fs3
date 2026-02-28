@@ -26,13 +26,11 @@ pub async fn start_test_server(
             Config {
                 listen_inner: format!("127.0.0.1:{inner_port}"),
                 listen_outer: format!("127.0.0.1:{outer_port}"),
-                multi_bucket_enabled: true,
+                multi_bucket_enabled: false,
                 mount: MountOptions::memory(),
                 storage: StorageOptions {
-                    kind: StorageKind::Json,
-                    json_path: root.join("storage.json").to_string_lossy().to_string(),
-                    dsn: String::new(),
-                    configmap_name: String::new(),
+                    kind: StorageKind::Memory,
+                    ..StorageOptions::default()
                 },
                 ..Default::default()
             }
@@ -61,7 +59,7 @@ pub fn minio_client(base: &str, access_key: &str, secret_key: &str) -> Client {
         .expect("build minio client failed")
 }
 
-fn free_port() -> u16 {
+pub fn free_port() -> u16 {
     TcpListener::bind("127.0.0.1:0")
         .expect("bind ephemeral port failed")
         .local_addr()
