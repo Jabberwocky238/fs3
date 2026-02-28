@@ -172,17 +172,16 @@ impl UserStore for PostgresStore {
 #[async_trait::async_trait]
 impl PolicyStore for PostgresStore {
     async fn list_policy_groups(&self) -> Result<Vec<PolicyGroup>, StorageError> {
-        let rows = sqlx::query_as::<_, (String, bool, String, String)>(
-            "SELECT name, enabled, users_json::text, rules_json::text FROM policy_groups",
+        let rows = sqlx::query_as::<_, (String, String, String)>(
+            "SELECT name, users_json::text, rules_json::text FROM policy_groups",
         )
         .fetch_all(&self.pool)
         .await
         .map_err(|e| StorageError::Db(e.to_string()))?;
         let mut out = Vec::with_capacity(rows.len());
-        for (name, enabled, users_json, rules_json) in rows {
+        for (name, users_json, rules_json) in rows {
             out.push(PolicyGroup {
                 name,
-                enabled,
                 users: serde_json::from_str(&users_json)
                     .map_err(|e| StorageError::Serde(e.to_string()))?,
                 rules: serde_json::from_str(&rules_json)
@@ -201,16 +200,15 @@ impl PolicyStore for PostgresStore {
         for g in &groups {
             let changed = current_map
                 .get(&g.name)
-                .map(|x| x.enabled != g.enabled || x.users != g.users || x.rules != g.rules)
+                .map(|x| x.users != g.users || x.rules != g.rules)
                 .unwrap_or(true);
             if changed {
                 let users_json = serde_json::to_string(&g.users)
                     .map_err(|e| StorageError::Serde(e.to_string()))?;
                 let rules_json = serde_json::to_string(&g.rules)
                     .map_err(|e| StorageError::Serde(e.to_string()))?;
-                let res = sqlx::query("INSERT INTO policy_groups(name, enabled, users_json, rules_json) VALUES($1,$2,$3::jsonb,$4::jsonb) ON CONFLICT(name) DO UPDATE SET enabled=EXCLUDED.enabled, users_json=EXCLUDED.users_json, rules_json=EXCLUDED.rules_json")
+                let res = sqlx::query("INSERT INTO policy_groups(name, users_json, rules_json) VALUES($1,$2::jsonb,$3::jsonb) ON CONFLICT(name) DO UPDATE SET users_json=EXCLUDED.users_json, rules_json=EXCLUDED.rules_json")
                     .bind(&g.name)
-                    .bind(g.enabled)
                     .bind(users_json)
                     .bind(rules_json)
                     .execute(&self.pool)

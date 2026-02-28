@@ -2,20 +2,19 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
-use axum::response::Response;
 use axum::Router;
+use axum::response::Response;
 use chrono::{DateTime, Utc};
-use clap::Parser;
 use tokio::net::TcpListener;
 use tokio::sync::{Mutex, RwLock};
 use tracing::{debug, info, warn};
 
-use crate::config::{Config, MountMode};
+use crate::config::Config;
 use crate::mount::{MountManager, new_mount};
 use crate::policy::PolicyEngine;
-use crate::storage::factory::{self, StorageBackend};
 #[cfg(feature = "policy")]
 use crate::storage::PolicyStore;
+use crate::storage::factory::{self, StorageBackend};
 use crate::storage::types::StorageSnapshot;
 use crate::storage::types::UserRecord;
 
@@ -46,66 +45,10 @@ pub struct S3Server {
     pub policy: Arc<RwLock<PolicyEngine>>,
     pub store: Arc<StorageBackend>,
     pub cfg: Config,
+    pub listen_inner: String,
     pub listen_outer: String,
     pub presigned: Arc<Mutex<HashMap<String, SignedToken>>>,
     pub uploads: Arc<Mutex<HashMap<String, MultipartUpload>>>,
-}
-
-#[derive(Parser)]
-#[command(name = "fs3", about = "S3-compatible mount gateway")]
-struct Cli {
-    /// Config file path (JSON)
-    #[arg(short, long)]
-    config: Option<String>,
-
-    /// Inner listen address
-    #[arg(short, long)]
-    listen: Option<String>,
-
-    /// Outer listen address
-    #[arg(long)]
-    listen_outer: Option<String>,
-
-    /// Mount mode
-    #[arg(short, long, value_enum)]
-    mount: Option<MountMode>,
-
-    /// Mount path
-    #[arg(long)]
-    mount_path: Option<String>,
-}
-
-pub async fn run_from_cli() -> Result<()> {
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "info".parse().unwrap()),
-        )
-        .init();
-
-    let cli = Cli::parse();
-
-    let mut cfg = match cli.config {
-        Some(ref path) => {
-            info!(path = %path, "loading config file");
-            load_config(path)?
-        }
-        None => {
-            info!("no config file specified, using defaults");
-            Config::default()
-        }
-    };
-
-    if let Some(v) = cli.listen { cfg.listen_inner = v; }
-    if let Some(v) = cli.listen_outer { cfg.listen_outer = v; }
-    if let Some(v) = cli.mount { cfg.mount.mode = v; }
-    if let Some(v) = cli.mount_path { cfg.mount.path = v; }
-
-    info!(listen_inner = %cfg.listen_inner, listen_outer = %cfg.listen_outer,
-          mount_mode = ?cfg.mount.mode, storage_kind = ?cfg.storage.kind,
-          user_enabled = cfg.user_enabled, "resolved config");
-
-    S3Server::from_config(cfg).await?.serve().await
 }
 
 pub async fn run_with_config_path(path: &str) -> Result<()> {
@@ -123,29 +66,32 @@ impl S3Server {
     }
 
     pub async fn from_config(cfg: Config) -> Result<Self> {
-        if cfg.user_enabled && !cfg.multi_bucket_enabled {
+        if cfg.multi_user_enabled && !cfg.multi_bucket_enabled {
             anyhow::bail!("user_enabled requires multi_bucket_enabled to be true");
         }
 
         info!(mode = ?cfg.mount.mode, path = %cfg.mount.path, "initializing mounts");
-        let mounts: Arc<dyn MountManager> = Arc::from(
-            new_mount(&cfg.mount).context("init mounts")?,
-        );
+        let mounts: Arc<dyn MountManager> =
+            Arc::from(new_mount(&cfg.mount).context("init mounts")?);
 
         if !cfg.multi_bucket_enabled {
-            mounts.ensure_bucket(DEFAULT_BUCKET).context("ensure default bucket")?;
+            mounts
+                .ensure_bucket(DEFAULT_BUCKET)
+                .context("ensure default bucket")?;
             info!("single bucket mode, default bucket ensured");
         }
 
+        let admin_user = UserRecord {
+            user_id: "fs3_admin".into(),
+            enabled: true,
+            access_key: "fs3_admin-ak".into(),
+            secret_key: "fs3_admin-sk".into(),
+            groups: vec!["fs3_admin".into()],
+            attrs: std::collections::HashMap::new(),
+        };
+
         let seed = StorageSnapshot {
-            users: vec![UserRecord {
-                user_id: "alice".into(),
-                enabled: true,
-                access_key: "alice-ak".into(),
-                secret_key: "alice-sk".into(),
-                groups: vec!["groupA".into()],
-                attrs: std::collections::HashMap::new(),
-            }],
+            users: vec![admin_user],
             policy_groups: vec![],
             bucket_metadata: vec![],
         };
@@ -161,12 +107,14 @@ impl S3Server {
         #[cfg(not(feature = "policy"))]
         let groups = vec![];
 
+        let listen_inner = normalize_outer(&cfg.listen_inner);
         let listen_outer = normalize_outer(&cfg.listen_outer);
         Ok(S3Server {
             mounts,
             policy: Arc::new(RwLock::new(PolicyEngine::new(&groups))),
             store,
             cfg,
+            listen_inner,
             listen_outer,
             presigned: Arc::new(Mutex::new(Default::default())),
             uploads: Arc::new(Mutex::new(Default::default())),
@@ -186,10 +134,8 @@ impl S3Server {
         info!("control gateway listening on {}", ctrl_addr);
         info!("open gateway listening on {}", open_addr);
 
-        let ctrl_task =
-            tokio::spawn(async move { axum::serve(ctrl_listener, ctrl_router).await });
-        let open_task =
-            tokio::spawn(async move { axum::serve(open_listener, open_router).await });
+        let ctrl_task = tokio::spawn(async move { axum::serve(ctrl_listener, ctrl_router).await });
+        let open_task = tokio::spawn(async move { axum::serve(open_listener, open_router).await });
 
         tokio::select! {
             res = ctrl_task => { res??; }
@@ -201,9 +147,9 @@ impl S3Server {
 
 // ── helpers ────────────────────────────────────────────────────────────
 
-fn load_config(path: &str) -> Result<Config> {
-    let data = std::fs::read_to_string(path)
-        .with_context(|| format!("reading config file: {}", path))?;
+pub fn load_config(path: &str) -> Result<Config> {
+    let data =
+        std::fs::read_to_string(path).with_context(|| format!("reading config file: {}", path))?;
     serde_json::from_str(&data).context("parsing config JSON")
 }
 
@@ -241,7 +187,7 @@ fn open_gw_router(state: S3Server) -> Router {
     use axum::response::IntoResponse;
     use axum::routing::get;
 
-    let (user_on, bucket_on) = (state.cfg.user_enabled, state.cfg.multi_bucket_enabled);
+    let (user_on, bucket_on) = (state.cfg.multi_user_enabled, state.cfg.multi_bucket_enabled);
 
     async fn h_user_bucket(
         State(s): State<S3Server>,
@@ -264,10 +210,7 @@ fn open_gw_router(state: S3Server) -> Router {
         serve_open_gw(&s, "", &bucket, &obj).await
     }
 
-    async fn h_plain(
-        State(s): State<S3Server>,
-        Path(obj): Path<String>,
-    ) -> impl IntoResponse {
+    async fn h_plain(State(s): State<S3Server>, Path(obj): Path<String>) -> impl IntoResponse {
         serve_open_gw(&s, "", DEFAULT_BUCKET, &obj).await
     }
 

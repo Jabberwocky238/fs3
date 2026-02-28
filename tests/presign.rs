@@ -24,7 +24,7 @@ async fn presign_upload_download_and_multipart() {
     };
 
     let (base, handle) = helpers::start_test_server("presign", Some(conf)).await;
-    let minio = helpers::minio_client(&base, "alice-ak", "alice-sk");
+    let minio = helpers::minio_client(&base, "fs3_admin-ak", "fs3_admin-sk");
     let http = reqwest::Client::new();
 
     let presign_up = http

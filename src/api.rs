@@ -73,7 +73,7 @@ async fn presign_upload(
 
     let url = format!(
         "{}/{}/{}?token={}",
-        state.listen_outer, req.bucket, req.key, token_id
+        state.listen_inner, req.bucket, req.key, token_id
     );
     info!(%url, "presign upload created");
     (StatusCode::OK, Json(serde_json::json!({ "url": url }))).into_response()
@@ -98,7 +98,7 @@ async fn presign_download(
 
     let url = format!(
         "{}/{}/{}?token={}",
-        state.listen_outer, req.bucket, req.key, token_id
+        state.listen_inner, req.bucket, req.key, token_id
     );
     info!(%url, "presign download created");
     (StatusCode::OK, Json(serde_json::json!({ "url": url }))).into_response()
@@ -163,7 +163,7 @@ async fn multipart_presign_part(
 
     let url = format!(
         "{}/{}/{}?token={}",
-        state.listen_outer, upload.bucket, upload.key, token_id
+        state.listen_inner, upload.bucket, upload.key, token_id
     );
     drop(uploads);
 

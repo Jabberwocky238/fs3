@@ -23,7 +23,7 @@ async fn single_bucket_mode() {
         ..Default::default()
     };
     let (base, handle) = helpers::start_test_server("single", Some(conf)).await;
-    let client = helpers::minio_client(&base, "alice-ak", "alice-sk");
+    let client = helpers::minio_client(&base, "fs3_admin-ak", "fs3_admin-sk");
 
     // Creating a bucket should fail
     let create_err = client

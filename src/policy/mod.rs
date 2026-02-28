@@ -15,9 +15,6 @@ impl PolicyEngine {
     pub fn allowed(&self, user: &str, bucket: &str, key: &str) -> bool {
         let mut allowed = false;
         for g in &self.groups {
-            if !g.enabled {
-                continue;
-            }
             if !match_user(&g.users, user) {
                 continue;
             }

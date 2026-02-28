@@ -41,7 +41,7 @@ pub async fn start_test_server(
         .await
         .expect("init S3Server failed");
 
-    let base = format!("http://{}", server.listen_outer);
+    let base = format!("http://{}", server.cfg.listen_inner);
     let handle = tokio::spawn(async move {
         let _ = server.serve().await;
     });

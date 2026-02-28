@@ -14,7 +14,7 @@ async fn signature_auth_check() {
         .err();
     assert!(bad_put.is_some(), "bad credentials should fail");
 
-    let good = helpers::minio_client(&base, "alice-ak", "alice-sk");
+    let good = helpers::minio_client(&base, "fs3_admin-ak", "fs3_admin-sk");
     good.put_object_content("docs", "auth/good.txt", "signed-ok".to_string())
         .send()
         .await

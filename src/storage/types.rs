@@ -9,35 +9,35 @@ use crate::config::PolicyGroup;
 pub struct UserRecord {
     pub user_id: String,
     pub enabled: bool,
-    #[serde(default)]
     pub access_key: String,
-    #[serde(default)]
     pub secret_key: String,
-    #[serde(default)]
     pub groups: Vec<String>,
-    #[serde(default)]
     pub attrs: HashMap<String, String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct BucketMetadata {
     pub bucket: String,
-    #[serde(default)]
     pub owner: String,
-    #[serde(default)]
     pub labels: HashMap<String, String>,
-    #[serde(default)]
     pub attrs: HashMap<String, String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StorageSnapshot {
-    #[serde(default)]
     pub users: Vec<UserRecord>,
-    #[serde(default)]
     pub policy_groups: Vec<PolicyGroup>,
-    #[serde(default)]
     pub bucket_metadata: Vec<BucketMetadata>,
+}
+
+impl Default for StorageSnapshot {
+    fn default() -> Self {
+        Self {
+            users: Vec::new(),
+            policy_groups: Vec::new(),
+            bucket_metadata: Vec::new(),
+        }
+    }
 }
 
 #[derive(Debug, Error)]

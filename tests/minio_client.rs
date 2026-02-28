@@ -24,11 +24,17 @@ async fn minio_client_smoke() {
     };
 
     let (base, handle) = helpers::start_test_server("minio", Some(conf)).await;
-    let client = helpers::minio_client(&base, "alice-ak", "alice-sk");
+    let client = helpers::minio_client(&base, "fs3_admin-ak", "fs3_admin-sk");
 
     let bucket = "docs";
     let key = "team-a/minio-rust-sdk.txt";
     let payload = "hello from minio rust sdk".to_string();
+
+    client
+        .create_bucket(bucket)
+        .send()
+        .await
+        .expect("create_bucket failed");
 
     client
         .put_object_content(bucket, key, payload.clone())

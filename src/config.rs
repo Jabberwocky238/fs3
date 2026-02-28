@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 pub struct Config {
     pub listen_inner: String,
     pub listen_outer: String,
-    pub user_enabled: bool,
+    pub multi_user_enabled: bool,
     pub multi_bucket_enabled: bool,
     pub mount: MountOptions,
     pub storage: StorageOptions,
@@ -16,7 +16,7 @@ impl Default for Config {
         Self {
             listen_inner: "localhost:3000".to_string(),
             listen_outer: "localhost:3001".to_string(),
-            user_enabled: false,
+            multi_user_enabled: false,
             multi_bucket_enabled: false,
             mount: MountOptions::default(),
             storage: StorageOptions::default(),
@@ -29,6 +29,7 @@ impl Default for Config {
 pub struct MountOptions {
     pub mode: MountMode,
     pub path: String,
+    pub is_public: bool,
 }
 
 impl Default for MountOptions {
@@ -36,6 +37,7 @@ impl Default for MountOptions {
         Self {
             mode: MountMode::Filesystem,
             path: "./".into(),
+            is_public: false,
         }
     }
 }
@@ -45,6 +47,7 @@ impl MountOptions {
         Self {
             mode: MountMode::Memory,
             path: String::new(),
+            is_public: false,
         }
     }
 }
@@ -61,7 +64,6 @@ pub enum MountMode {
 #[serde(default)]
 pub struct PolicyGroup {
     pub name: String,
-    pub enabled: bool,
     pub users: Vec<String>,
     pub rules: Vec<PolicyRule>,
 }
