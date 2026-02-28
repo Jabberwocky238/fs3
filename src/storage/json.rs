@@ -3,10 +3,10 @@ use std::path::PathBuf;
 
 use tracing::{debug, info, warn};
 
-#[cfg(feature = "policy")]
-use crate::config::PolicyGroup;
+
+use crate::policy::PolicyGroup;
 use crate::storage::BucketMetaStore;
-#[cfg(feature = "policy")]
+
 use crate::storage::PolicyStore;
 #[cfg(feature = "multi-user")]
 use crate::storage::UserStore;
@@ -83,7 +83,7 @@ impl UserStore for JsonFileStore {
     }
 }
 
-#[cfg(feature = "policy")]
+
 #[async_trait::async_trait]
 impl PolicyStore for JsonFileStore {
     async fn list_policy_groups(&self) -> Result<Vec<PolicyGroup>, StorageError> {

@@ -12,7 +12,7 @@ use tracing::{debug, info, warn};
 use crate::config::Config;
 use crate::mount::{MountManager, new_mount};
 use crate::policy::PolicyEngine;
-#[cfg(feature = "policy")]
+
 use crate::storage::PolicyStore;
 use crate::storage::factory::{self, StorageBackend};
 use crate::storage::types::StorageSnapshot;
@@ -99,13 +99,11 @@ impl S3Server {
         let store = factory::new_store(&cfg.storage, seed)
             .await
             .context("init metadata store")?;
-        #[cfg(feature = "policy")]
+        
         let groups = store
             .list_policy_groups()
             .await
             .context("load policy groups")?;
-        #[cfg(not(feature = "policy"))]
-        let groups = vec![];
 
         let listen_inner = normalize_outer(&cfg.listen_inner);
         let listen_outer = normalize_outer(&cfg.listen_outer);

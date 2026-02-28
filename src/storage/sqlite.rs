@@ -2,10 +2,10 @@
 
 use std::collections::HashSet;
 
-#[cfg(feature = "policy")]
-use crate::config::PolicyGroup;
+
+use crate::policy::PolicyGroup;
 use crate::storage::BucketMetaStore;
-#[cfg(feature = "policy")]
+
 use crate::storage::PolicyStore;
 #[cfg(feature = "multi-user")]
 use crate::storage::UserStore;
@@ -66,7 +66,7 @@ impl SqliteStore {
                 self.save_users(seed.users).await?;
             }
         }
-        #[cfg(feature = "policy")]
+        
         {
             if self.list_policy_groups().await?.is_empty() && !seed.policies.is_empty() {
                 self.save_policy_groups(seed.policies).await?;
@@ -167,7 +167,7 @@ impl UserStore for SqliteStore {
     }
 }
 
-#[cfg(feature = "policy")]
+
 #[async_trait::async_trait]
 impl PolicyStore for SqliteStore {
     async fn list_policy_groups(&self) -> Result<Vec<PolicyGroup>, StorageError> {
@@ -295,15 +295,15 @@ mod tests {
 
     use super::SqliteStore;
     use crate::storage::BucketMetaStore;
-    #[cfg(feature = "policy")]
+    
     use crate::storage::PolicyStore;
     #[cfg(feature = "multi-user")]
     use crate::storage::UserStore;
     #[cfg(feature = "multi-user")]
     use crate::storage::types::UserRecord;
     use crate::storage::types::{BucketMetadata, StorageSnapshot};
-    #[cfg(feature = "policy")]
-    use crate::{config::PolicyGroup, config::PolicyRule};
+    
+    use crate::policy::{PolicyGroup, PolicyRule};
 
     fn test_dsn(name: &str) -> String {
         let _ = name;
@@ -361,7 +361,7 @@ mod tests {
     }
 
     #[tokio::test]
-    #[cfg(feature = "policy")]
+    
     async fn sqlite_policy_diff_works() {
         let store = SqliteStore::new(test_dsn("policy"), StorageSnapshot::default())
             .await

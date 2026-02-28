@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::config::PolicyGroup;
+use crate::policy::PolicyGroup;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct UserRecord {

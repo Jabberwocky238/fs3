@@ -1,4 +1,4 @@
-#![cfg(all(feature = "policy", feature = "multi-user"))]
+#![cfg(feature = "multi-user")]
 use minio::s3::types::S3Api;
 mod helpers;
 

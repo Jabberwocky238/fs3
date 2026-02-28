@@ -1,5 +1,5 @@
-#[cfg(feature = "policy")]
-use crate::config::PolicyGroup;
+
+use crate::policy::PolicyGroup;
 #[cfg(feature = "multi-user")]
 use crate::storage::types::UserRecord;
 use crate::storage::types::{BucketMetadata, StorageError};
@@ -11,7 +11,7 @@ pub trait UserStore: Send + Sync {
     async fn save_users(&self, users: Vec<UserRecord>) -> Result<(), StorageError>;
 }
 
-#[cfg(feature = "policy")]
+
 #[async_trait::async_trait]
 pub trait PolicyStore: Send + Sync {
     async fn list_policy_groups(&self) -> Result<Vec<PolicyGroup>, StorageError>;

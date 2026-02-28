@@ -2,10 +2,10 @@
 
 use std::collections::HashSet;
 
-#[cfg(feature = "policy")]
-use crate::config::PolicyGroup;
+
+use crate::policy::PolicyGroup;
 use crate::storage::BucketMetaStore;
-#[cfg(feature = "policy")]
+
 use crate::storage::PolicyStore;
 #[cfg(feature = "multi-user")]
 use crate::storage::UserStore;
@@ -68,7 +68,7 @@ impl PostgresStore {
                 self.save_users(seed.users).await?;
             }
         }
-        #[cfg(feature = "policy")]
+        
         {
             if self.list_policy_groups().await?.is_empty() && !seed.policies.is_empty() {
                 self.save_policy_groups(seed.policies).await?;
@@ -168,7 +168,7 @@ impl UserStore for PostgresStore {
     }
 }
 
-#[cfg(feature = "policy")]
+
 #[async_trait::async_trait]
 impl PolicyStore for PostgresStore {
     async fn list_policy_groups(&self) -> Result<Vec<PolicyGroup>, StorageError> {

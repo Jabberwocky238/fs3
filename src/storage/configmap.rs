@@ -1,9 +1,8 @@
 #![cfg(feature = "storage-k8sconfigmap")]
 
-#[cfg(feature = "policy")]
-use crate::config::PolicyGroup;
+
+use crate::policy::PolicyGroup;
 use crate::storage::BucketMetaStore;
-#[cfg(feature = "policy")]
 use crate::storage::PolicyStore;
 #[cfg(feature = "multi-user")]
 use crate::storage::UserStore;
@@ -92,7 +91,7 @@ impl UserStore for ConfigMapStore {
     }
 }
 
-#[cfg(feature = "policy")]
+
 #[async_trait::async_trait]
 impl PolicyStore for ConfigMapStore {
     async fn list_policy_groups(&self) -> Result<Vec<PolicyGroup>, StorageError> {

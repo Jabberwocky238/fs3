@@ -1,9 +1,9 @@
 use tokio::sync::Mutex;
 
-#[cfg(feature = "policy")]
-use crate::config::PolicyGroup;
+
+use crate::policy::PolicyGroup;
 use crate::storage::BucketMetaStore;
-#[cfg(feature = "policy")]
+
 use crate::storage::PolicyStore;
 #[cfg(feature = "multi-user")]
 use crate::storage::UserStore;
@@ -36,7 +36,7 @@ impl UserStore for InMemoryStore {
     }
 }
 
-#[cfg(feature = "policy")]
+
 #[async_trait::async_trait]
 impl PolicyStore for InMemoryStore {
     async fn list_policy_groups(&self) -> Result<Vec<PolicyGroup>, StorageError> {

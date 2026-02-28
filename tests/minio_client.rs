@@ -1,4 +1,4 @@
-#![cfg(all(feature = "policy", feature = "multi-user"))]
+#![cfg(feature = "multi-user")]
 mod helpers;
 
 use minio::s3::builders::ObjectToDelete;

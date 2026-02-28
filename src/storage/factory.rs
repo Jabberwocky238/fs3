@@ -1,11 +1,11 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-#[cfg(feature = "policy")]
-use crate::config::PolicyGroup;
+
+use crate::policy::PolicyGroup;
 use crate::config::{StorageOptions, StorageKind};
 use crate::storage::BucketMetaStore;
-#[cfg(feature = "policy")]
+
 use crate::storage::PolicyStore;
 #[cfg(feature = "multi-user")]
 use crate::storage::UserStore;
@@ -83,7 +83,7 @@ impl UserStore for StorageBackend {
     }
 }
 
-#[cfg(feature = "policy")]
+
 #[async_trait::async_trait]
 impl PolicyStore for StorageBackend {
     async fn list_policy_groups(&self) -> Result<Vec<PolicyGroup>, StorageError> {
