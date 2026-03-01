@@ -11,6 +11,7 @@
 - `04_identity_policy_integration.md`：身份认证与授权集成协议（OIDC/LDAP/插件/OPA）
 - `05_event_notification_protocols.md`：事件通知目标协议
 - `06_internal_cluster_protocols.md`：集群内部通信协议（REST + Grid/WebSocket）
+- `07_s3_http_https_all_interfaces_methods.md`：S3 over HTTP/HTTPS 全接口与全方法清单
 
 ## 分析范围
 
