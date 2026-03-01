@@ -1,63 +1,8 @@
 pub mod request;
 pub mod response;
 
-pub use request::{
-    AppendObjectRejectedRequest, CopyObjectPartRequest, CopyObjectRequest,
-    DeleteBucketCorsRequest, DeleteBucketEncryptionRequest, DeleteBucketLifecycleRequest,
-    DeleteBucketPolicyRequest, DeleteBucketReplicationRequest, DeleteBucketRequest,
-    DeleteBucketTaggingRequest, DeleteBucketWebsiteRequest, DeleteMultipleObjectsRequest,
-    DeleteObjectRequest, DeleteObjectTaggingRequest, EventFilter, GetBucketAccelerateRequest,
-    GetBucketAclRequest, GetBucketCorsRequest, GetBucketEncryptionRequest, GetBucketLifecycleRequest,
-    GetBucketLocationRequest, GetBucketLoggingRequest, GetBucketNotificationRequest,
-    GetBucketObjectLockConfigRequest, GetBucketPolicyRequest, GetBucketPolicyStatusRequest,
-    GetBucketReplicationConfigRequest, GetBucketReplicationMetricsRequest,
-    GetBucketReplicationMetricsV2Request, GetBucketRequestPaymentRequest,
-    GetBucketTaggingRequest, GetBucketVersioningRequest, GetBucketWebsiteRequest,
-    GetObjectAclRequest, GetObjectAttributesRequest, GetObjectLambdaRequest, GetObjectLegalHoldRequest,
-    GetObjectRequest, GetObjectRetentionRequest, GetObjectTaggingRequest, HeadBucketRequest,
-    HeadObjectRequest, ListBucketsDoubleSlashRequest, ListBucketsRequest, ListMultipartUploadsRequest,
-    ListObjectPartsRequest, ListObjectVersionsMRequest, ListObjectVersionsRequest, ListObjectsV1Request,
-    ListObjectsV2MRequest, ListObjectsV2Request, ListenBucketNotificationRequest,
-    MultipartSelector, NewMultipartUploadRequest, PostPolicyRequest, PostRestoreObjectRequest,
-    PutBucketAclRequest, PutBucketCorsRequest, PutBucketEncryptionRequest, PutBucketLifecycleRequest,
-    PutBucketNotificationRequest, PutBucketObjectLockConfigRequest, PutBucketPolicyRequest,
-    PutBucketReplicationConfigRequest, PutBucketRequest, PutBucketTaggingRequest,
-    PutBucketVersioningRequest, PutObjectAclRequest, PutObjectExtractRequest,
-    PutObjectLegalHoldRequest, PutObjectPartRequest, PutObjectRequest, PutObjectRetentionRequest,
-    PutObjectTaggingRequest, RejectedBucketApiRequest, RejectedObjectAclDeleteRequest,
-    RejectedObjectTorrentRequest, ResetBucketReplicationStartRequest,
-    ResetBucketReplicationStatusRequest, RootListenNotificationRequest, S3Request,
-    SelectObjectContentRequest, ValidateBucketReplicationCredsRequest,
-};
-pub use response::{
-    AbortMultipartUploadResponse, AppendObjectRejectedResponse, BaseOkResponse, CompleteMultipartUploadResponse,
-    CopyObjectPartResponse, CopyObjectResponse, DeleteBucketCorsResponse, DeleteBucketEncryptionResponse,
-    DeleteBucketLifecycleResponse, DeleteBucketPolicyResponse, DeleteBucketReplicationResponse,
-    DeleteBucketResponse, DeleteBucketTaggingResponse, DeleteBucketWebsiteResponse,
-    DeleteMultipleObjectsResponse, DeleteObjectResponse, DeleteObjectTaggingResponse,
-    GetBucketAccelerateResponse, GetBucketAclResponse, GetBucketCorsResponse,
-    GetBucketEncryptionResponse, GetBucketLifecycleResponse, GetBucketLocationResponse,
-    GetBucketLoggingResponse, GetBucketNotificationResponse, GetBucketObjectLockConfigResponse,
-    GetBucketPolicyResponse, GetBucketPolicyStatusResponse, GetBucketReplicationConfigResponse,
-    GetBucketReplicationMetricsResponse, GetBucketReplicationMetricsV2Response,
-    GetBucketRequestPaymentResponse, GetBucketTaggingResponse, GetBucketVersioningResponse,
-    GetBucketWebsiteResponse, GetObjectAclResponse, GetObjectAttributesResponse,
-    GetObjectLambdaResponse, GetObjectLegalHoldResponse, GetObjectResponse,
-    GetObjectRetentionResponse, GetObjectTaggingResponse, HeadBucketResponse, HeadObjectResponse,
-    ListBucketsDoubleSlashResponse, ListBucketsResponse, ListMultipartUploadsResponse,
-    ListObjectPartsResponse, ListObjectVersionsMResponse, ListObjectVersionsResponse,
-    ListObjectsV1Response, ListObjectsV2MResponse, ListObjectsV2Response,
-    ListenBucketNotificationResponse, NewMultipartUploadResponse, PostPolicyResponse,
-    PostRestoreObjectResponse, PutBucketAclResponse, PutBucketCorsResponse, PutBucketEncryptionResponse,
-    PutBucketLifecycleResponse, PutBucketNotificationResponse, PutBucketObjectLockConfigResponse,
-    PutBucketPolicyResponse, PutBucketReplicationConfigResponse, PutBucketResponse,
-    PutBucketTaggingResponse, PutBucketVersioningResponse, PutObjectAclResponse,
-    PutObjectExtractResponse, PutObjectLegalHoldResponse, PutObjectPartResponse,
-    PutObjectResponse, PutObjectRetentionResponse, PutObjectTaggingResponse,
-    RejectedApiResponse, ResetBucketReplicationStartResponse, ResetBucketReplicationStatusResponse,
-    RootListenNotificationResponse, S3Response, SelectObjectContentResponse,
-    ValidateBucketReplicationCredsResponse,
-};
+pub use request::*;
+pub use response::*;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct S3Binding {
