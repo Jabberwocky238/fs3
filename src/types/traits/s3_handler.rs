@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 
-use crate::types::s3::*;
+use crate::types::s3::request::*;
+use crate::types::s3::response::*;
 
 #[async_trait]
 pub trait ObjectS3Handler {
