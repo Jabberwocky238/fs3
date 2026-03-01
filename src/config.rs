@@ -5,7 +5,6 @@ use serde::{Deserialize, Serialize};
 pub struct Config {
     pub listen_inner: String,
     pub listen_outer: String,
-    pub multi_user_enabled: bool,
     pub multi_bucket_enabled: bool,
     pub mount: MountOptions,
     pub storage: StorageOptions,
@@ -16,7 +15,6 @@ impl Default for Config {
         Self {
             listen_inner: "localhost:3000".to_string(),
             listen_outer: "localhost:3001".to_string(),
-            multi_user_enabled: false,
             multi_bucket_enabled: false,
             mount: MountOptions::default(),
             storage: StorageOptions::default(),

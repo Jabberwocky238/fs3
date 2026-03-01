@@ -5,8 +5,7 @@ edition = "2024"
 build = "build.rs"
 
 [features]
-default = ["multi-user"]
-multi-user = []
+default = []
 storage-k8sconfigmap = []
 storage-sqlite = ["dep:sqlx"]
 storage-postgres = ["dep:sqlx"]

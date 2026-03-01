@@ -40,7 +40,7 @@ pub async fn run_from_cli() -> Result<()> {
 
     info!(listen_inner = %cfg.listen_inner, listen_outer = %cfg.listen_outer,
           mount_mode = ?cfg.mount.mode, storage_kind = ?cfg.storage.kind,
-          user_enabled = cfg.multi_user_enabled, "resolved config");
+          "resolved config");
 
     S3Server::from_config(cfg).await?.serve().await
 }

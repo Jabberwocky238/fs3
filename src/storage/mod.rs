@@ -1,10 +1,8 @@
 
 use crate::policy::PolicyGroup;
-#[cfg(feature = "multi-user")]
 use crate::storage::types::UserRecord;
 use crate::storage::types::{BucketMetadata, StorageError};
 
-#[cfg(feature = "multi-user")]
 #[async_trait::async_trait]
 pub trait UserStore: Send + Sync {
     async fn list_users(&self) -> Result<Vec<UserRecord>, StorageError>;

@@ -7,7 +7,6 @@ use crate::config::{StorageOptions, StorageKind};
 use crate::storage::BucketMetaStore;
 
 use crate::storage::PolicyStore;
-#[cfg(feature = "multi-user")]
 use crate::storage::UserStore;
 #[cfg(feature = "storage-k8sconfigmap")]
 use crate::storage::impl_configmap::ConfigMapStore;
@@ -17,7 +16,6 @@ use crate::storage::impl_memory::InMemoryStore;
 use crate::storage::impl_postgres::PostgresStore;
 #[cfg(feature = "storage-sqlite")]
 use crate::storage::impl_sqlite::SqliteStore;
-#[cfg(feature = "multi-user")]
 use crate::storage::types::UserRecord;
 use crate::storage::types::{BucketMetadata, StorageError, StorageSnapshot};
 
@@ -53,7 +51,6 @@ pub async fn new_store(
     Ok(Arc::new(backend))
 }
 
-#[cfg(feature = "multi-user")]
 #[async_trait::async_trait]
 impl UserStore for StorageBackend {
     async fn list_users(&self) -> Result<Vec<UserRecord>, StorageError> {

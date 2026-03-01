@@ -8,7 +8,7 @@ use chrono::{DateTime, Utc};
 use tokio::net::TcpListener;
 use tokio::sync::{Mutex, RwLock};
 use tracing::{debug, info, warn};
-
+use crate::policy::Policy;
 use crate::config::Config;
 use crate::mount::{MountManager, new_mount};
 use crate::policy::PolicyEngine;
@@ -66,10 +66,6 @@ impl S3Server {
     }
 
     pub async fn from_config(cfg: Config) -> Result<Self> {
-        if cfg.multi_user_enabled && !cfg.multi_bucket_enabled {
-            anyhow::bail!("user_enabled requires multi_bucket_enabled to be true");
-        }
-
         info!(mode = ?cfg.mount.mode, path = %cfg.mount.path, "initializing mounts");
         let mounts: Arc<dyn MountManager> =
             Arc::from(new_mount(&cfg.mount).context("init mounts")?);
@@ -80,26 +76,13 @@ impl S3Server {
                 .context("ensure default bucket")?;
             info!("single bucket mode, default bucket ensured");
         }
-
-        let admin_user = UserRecord {
-            user_id: "fs3_admin".into(),
-            enabled: true,
-            access_key: "fs3_admin-ak".into(),
-            secret_key: "fs3_admin-sk".into(),
-            groups: vec!["fs3_admin".into()],
-            attrs: std::collections::HashMap::new(),
-        };
-
-        let seed = StorageSnapshot {
-            users: vec![admin_user],
-            policies: vec![],
-            bucket_metadata: vec![],
-        };
+        
+        let seed = Self::prepare_init_storage(cfg);
         info!(kind = ?cfg.storage.kind, "initializing storage backend");
         let store = factory::new_store(&cfg.storage, seed)
             .await
             .context("init metadata store")?;
-        
+
         let groups = store
             .list_policy_groups()
             .await
@@ -109,7 +92,7 @@ impl S3Server {
         let listen_outer = normalize_outer(&cfg.listen_outer);
         Ok(S3Server {
             mounts,
-            policy: Arc::new(RwLock::new(PolicyEngine::new(&groups))),
+            policy: Arc::new(RwLock::new(PolicyEngine::new(groups))),
             store,
             cfg,
             listen_inner,
@@ -117,6 +100,38 @@ impl S3Server {
             presigned: Arc::new(Mutex::new(Default::default())),
             uploads: Arc::new(Mutex::new(Default::default())),
         })
+    }
+
+    fn prepare_init_storage(cfg: &Config) -> StorageSnapshot {
+        let admin_sk = std::env::var("FS3_ADMIN_SECRET_KEY").unwrap_or_else(|_| "fs3_admin-sk".into());
+        let admin_ak = std::env::var("FS3_ADMIN_ACCESS_KEY").unwrap_or_else(|_| "fs3_admin-ak".into());
+        let admin_user = UserRecord {
+            user_id: "fs3_admin".into(),
+            enabled: true,
+            access_key: admin_ak,
+            secret_key: admin_sk,
+            groups: vec!["fs3_admin".into()],
+            attrs: std::collections::HashMap::new(),
+        };
+        let policys = if cfg.multi_bucket_enabled {
+            vec![
+                crate::policy::Policy {
+                            bucket: "*".into(),
+                            key_prefix: "*".into(),
+                            allow_read: true,
+                            allow_write: true,
+                        }
+            ]
+        } else {
+            vec![]
+        }
+
+        let seed = StorageSnapshot {
+            users: vec![admin_user],
+            policies: policys,
+            bucket_metadata: vec![],
+        };
+        seed
     }
 
     pub async fn serve(self) -> Result<()> {
@@ -185,7 +200,7 @@ fn open_gw_router(state: S3Server) -> Router {
     use axum::response::IntoResponse;
     use axum::routing::get;
 
-    let (user_on, bucket_on) = (state.cfg.multi_user_enabled, state.cfg.multi_bucket_enabled);
+    let bucket_on = state.cfg.multi_bucket_enabled;
 
     async fn h_user_bucket(
         State(s): State<S3Server>,
@@ -201,41 +216,17 @@ fn open_gw_router(state: S3Server) -> Router {
         serve_open_gw(&s, &user, DEFAULT_BUCKET, &obj).await
     }
 
-    async fn h_bucket(
-        State(s): State<S3Server>,
-        Path((bucket, obj)): Path<(String, String)>,
-    ) -> impl IntoResponse {
-        serve_open_gw(&s, "", &bucket, &obj).await
-    }
-
-    async fn h_plain(State(s): State<S3Server>, Path(obj): Path<String>) -> impl IntoResponse {
-        serve_open_gw(&s, "", DEFAULT_BUCKET, &obj).await
-    }
-
-    match (user_on, bucket_on) {
-        (true, true) => {
+    match bucket_on {
+        true => {
             info!("open gateway route: /{{user}}/{{bucket}}/{{object_path}}");
             Router::new()
                 .route("/{user}/{bucket}/{*object_path}", get(h_user_bucket))
                 .with_state(state)
         }
-        (true, false) => {
+        false => {
             info!("open gateway route: /{{user}}/{{object_path}}");
             Router::new()
                 .route("/{user}/{*object_path}", get(h_user))
-                .with_state(state)
-        }
-        (false, true) => {
-            info!("open gateway route: /{{bucket}}/{{object_path}}");
-            Router::new()
-                .route("/{bucket}/{*object_path}", get(h_bucket))
-                .with_state(state)
-        }
-        (false, false) => {
-            info!("open gateway route: /{{object_path}}");
-            Router::new()
-                .route("/", get(h_plain))
-                .route("/{*object_path}", get(h_plain))
                 .with_state(state)
         }
     }

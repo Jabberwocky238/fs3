@@ -13,7 +13,6 @@ use tracing::{debug, info, warn};
 use crate::authentic;
 use crate::mount::{MountError, ObjectInfo};
 use crate::server::S3Server;
-#[cfg(feature = "multi-user")]
 use crate::storage::UserStore;
 use crate::server::SignedToken;
 
@@ -348,7 +347,6 @@ async fn authorize(
     headers: &HeaderMap,
     q: &S3Query,
 ) -> Result<(), (StatusCode, &'static str, &'static str)> {
-    #[cfg(feature = "multi-user")]
     let users = {
         let raw = state.store.list_users().await.map_err(|_| {
             (
@@ -368,17 +366,9 @@ async fn authorize(
     };
 
     let query_credential = q.x_amz_credential.as_ref().map(|v| url_decode(v));
-    #[cfg(feature = "multi-user")]
-    {
-        match authentic::check_access_key(&users, headers, query_credential.as_deref()) {
-            Ok(_) => Ok(()),
-            Err(_) => Err((StatusCode::FORBIDDEN, "AccessDenied", "Access denied")),
-        }
-    }
-    #[cfg(not(feature = "multi-user"))]
-    {
-        let _ = (state, headers, query_credential);
-        Ok(())
+    match authentic::check_access_key(&users, headers, query_credential.as_deref()) {
+        Ok(_) => Ok(()),
+        Err(_) => Err((StatusCode::FORBIDDEN, "AccessDenied", "Access denied")),
     }
 }
 

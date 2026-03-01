@@ -4,9 +4,7 @@
 use crate::policy::PolicyGroup;
 use crate::storage::BucketMetaStore;
 use crate::storage::PolicyStore;
-#[cfg(feature = "multi-user")]
 use crate::storage::UserStore;
-#[cfg(feature = "multi-user")]
 use crate::storage::types::UserRecord;
 use crate::storage::types::{BucketMetadata, StorageError, StorageSnapshot};
 
@@ -77,7 +75,6 @@ impl ConfigMapStore {
     }
 }
 
-#[cfg(feature = "multi-user")]
 #[async_trait::async_trait]
 impl UserStore for ConfigMapStore {
     async fn list_users(&self) -> Result<Vec<UserRecord>, StorageError> {

@@ -7,9 +7,7 @@ use crate::policy::PolicyGroup;
 use crate::storage::BucketMetaStore;
 
 use crate::storage::PolicyStore;
-#[cfg(feature = "multi-user")]
 use crate::storage::UserStore;
-#[cfg(feature = "multi-user")]
 use crate::storage::types::UserRecord;
 use crate::storage::types::{BucketMetadata, StorageError, StorageSnapshot};
 
@@ -48,10 +46,17 @@ impl SqliteStore {
         let _ = sqlx::query("ALTER TABLE users ADD COLUMN secret_key TEXT NOT NULL DEFAULT ''")
             .execute(&self.pool)
             .await;
-        sqlx::query("CREATE TABLE IF NOT EXISTS policy_groups (name TEXT PRIMARY KEY, enabled INTEGER NOT NULL, users_json TEXT NOT NULL, rules_json TEXT NOT NULL)")
+        sqlx::query("CREATE TABLE IF NOT EXISTS policy_groups (name TEXT PRIMARY KEY, enabled INTEGER NOT NULL, users_json TEXT NOT NULL, policies_json TEXT NOT NULL)")
             .execute(&self.pool)
             .await
             .map_err(|e| StorageError::Db(e.to_string()))?;
+        // migrate old column names
+        let _ = sqlx::query("ALTER TABLE policy_groups RENAME COLUMN rules_json TO policies_json")
+            .execute(&self.pool)
+            .await;
+        let _ = sqlx::query("ALTER TABLE policy_groups RENAME COLUMN statements_json TO policies_json")
+            .execute(&self.pool)
+            .await;
         sqlx::query("CREATE TABLE IF NOT EXISTS bucket_metadata (bucket TEXT PRIMARY KEY, owner TEXT NOT NULL, labels_json TEXT NOT NULL, attrs_json TEXT NOT NULL)")
             .execute(&self.pool)
             .await
@@ -60,11 +65,8 @@ impl SqliteStore {
     }
 
     async fn seed_if_empty(&self, seed: StorageSnapshot) -> Result<(), StorageError> {
-        #[cfg(feature = "multi-user")]
-        {
-            if self.list_users().await?.is_empty() && !seed.users.is_empty() {
-                self.save_users(seed.users).await?;
-            }
+        if self.list_users().await?.is_empty() && !seed.users.is_empty() {
+            self.save_users(seed.users).await?;
         }
         
         {
@@ -81,7 +83,6 @@ impl SqliteStore {
     }
 }
 
-#[cfg(feature = "multi-user")]
 #[async_trait::async_trait]
 impl UserStore for SqliteStore {
     async fn list_users(&self) -> Result<Vec<UserRecord>, StorageError> {
@@ -172,19 +173,19 @@ impl UserStore for SqliteStore {
 impl PolicyStore for SqliteStore {
     async fn list_policy_groups(&self) -> Result<Vec<PolicyGroup>, StorageError> {
         let rows = sqlx::query_as::<_, (String, String, String)>(
-            "SELECT name, users_json, rules_json FROM policy_groups",
+            "SELECT name, users_json, policies_json FROM policy_groups",
         )
         .fetch_all(&self.pool)
         .await
         .map_err(|e| StorageError::Db(e.to_string()))?;
 
         let mut out = Vec::with_capacity(rows.len());
-        for (name, users_json, rules_json) in rows {
+        for (name, users_json, policies_json) in rows {
             out.push(PolicyGroup {
                 name,
                 users: serde_json::from_str(&users_json)
                     .map_err(|e| StorageError::Serde(e.to_string()))?,
-                rules: serde_json::from_str(&rules_json)
+                policies: serde_json::from_str(&policies_json)
                     .map_err(|e| StorageError::Serde(e.to_string()))?,
             });
         }
@@ -200,17 +201,17 @@ impl PolicyStore for SqliteStore {
         for g in &groups {
             let changed = current_map
                 .get(&g.name)
-                .map(|x| x.users != g.users || x.rules != g.rules)
+                .map(|x| x.users != g.users || x.policies != g.policies)
                 .unwrap_or(true);
             if changed {
                 let users_json = serde_json::to_string(&g.users)
                     .map_err(|e| StorageError::Serde(e.to_string()))?;
-                let rules_json = serde_json::to_string(&g.rules)
+                let policies_json = serde_json::to_string(&g.policies)
                     .map_err(|e| StorageError::Serde(e.to_string()))?;
-                let res = sqlx::query("INSERT INTO policy_groups(name, users_json, rules_json) VALUES(?,?,?) ON CONFLICT(name) DO UPDATE SET users_json=excluded.users_json, rules_json=excluded.rules_json")
+                let res = sqlx::query("INSERT INTO policy_groups(name, users_json, policies_json) VALUES(?,?,?) ON CONFLICT(name) DO UPDATE SET users_json=excluded.users_json, policies_json=excluded.policies_json")
                     .bind(&g.name)
                     .bind(users_json)
-                    .bind(rules_json)
+                    .bind(policies_json)
                     .execute(&self.pool)
                     .await
                     .map_err(|e| StorageError::Db(e.to_string()))?;
@@ -297,13 +298,11 @@ mod tests {
     use crate::storage::BucketMetaStore;
     
     use crate::storage::PolicyStore;
-    #[cfg(feature = "multi-user")]
     use crate::storage::UserStore;
-    #[cfg(feature = "multi-user")]
     use crate::storage::types::UserRecord;
     use crate::storage::types::{BucketMetadata, StorageSnapshot};
     
-    use crate::policy::{PolicyGroup, PolicyRule};
+    use crate::policy::{Effect, Policy, PolicyGroup, PrivilegePolicy, ResourcePolicy};
 
     fn test_dsn(name: &str) -> String {
         let _ = name;
@@ -311,7 +310,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[cfg(feature = "multi-user")]
     async fn sqlite_user_diff_works() {
         let store = SqliteStore::new(test_dsn("users"), StorageSnapshot::default())
             .await
@@ -372,17 +370,18 @@ mod tests {
                 PolicyGroup {
                     name: "g1".to_string(),
                     users: vec!["alice".to_string()],
-                    rules: vec![PolicyRule {
-                        bucket: "docs".to_string(),
-                        prefix: "a/".to_string(),
-                        allow: true,
+                    policies: vec![Policy::Resource(ResourcePolicy {
+                        effect: Effect::Allow,
                         users: vec![],
-                    }],
+                        bucket: "docs".into(),
+                        prefix: "a/".into(),
+                        visibility: None,
+                    })],
                 },
                 PolicyGroup {
                     name: "g2".to_string(),
                     users: vec!["bob".to_string()],
-                    rules: vec![],
+                    policies: vec![],
                 },
             ])
             .await
@@ -392,12 +391,13 @@ mod tests {
             .save_policy_groups(vec![PolicyGroup {
                 name: "g1".to_string(),
                 users: vec!["alice".to_string()],
-                rules: vec![PolicyRule {
-                    bucket: "docs".to_string(),
-                    prefix: "b/".to_string(),
-                    allow: false,
+                policies: vec![Policy::Resource(ResourcePolicy {
+                    effect: Effect::Deny,
                     users: vec![],
-                }],
+                    bucket: "docs".into(),
+                    prefix: "b/".into(),
+                    visibility: None,
+                })],
             }])
             .await
             .expect("save policy groups 2 failed");
@@ -408,7 +408,7 @@ mod tests {
             .expect("list policy groups failed");
         assert_eq!(groups.len(), 1);
         assert_eq!(groups[0].name, "g1");
-        assert_eq!(groups[0].rules[0].prefix, "b/");
+        assert_eq!(groups[0].policies.len(), 1);
     }
 
     #[tokio::test]

@@ -7,9 +7,7 @@ use crate::policy::PolicyGroup;
 use crate::storage::BucketMetaStore;
 
 use crate::storage::PolicyStore;
-#[cfg(feature = "multi-user")]
 use crate::storage::UserStore;
-#[cfg(feature = "multi-user")]
 use crate::storage::types::UserRecord;
 use crate::storage::types::{BucketMetadata, StorageError, StorageSnapshot};
 
@@ -50,10 +48,17 @@ impl PostgresStore {
         )
         .execute(&self.pool)
         .await;
-        sqlx::query("CREATE TABLE IF NOT EXISTS policy_groups (name TEXT PRIMARY KEY, enabled BOOLEAN NOT NULL, users_json JSONB NOT NULL, rules_json JSONB NOT NULL)")
+        sqlx::query("CREATE TABLE IF NOT EXISTS policy_groups (name TEXT PRIMARY KEY, enabled BOOLEAN NOT NULL, users_json JSONB NOT NULL, policies_json JSONB NOT NULL)")
             .execute(&self.pool)
             .await
             .map_err(|e| StorageError::Db(e.to_string()))?;
+        // migrate old column names
+        let _ = sqlx::query("ALTER TABLE policy_groups RENAME COLUMN rules_json TO policies_json")
+            .execute(&self.pool)
+            .await;
+        let _ = sqlx::query("ALTER TABLE policy_groups RENAME COLUMN statements_json TO policies_json")
+            .execute(&self.pool)
+            .await;
         sqlx::query("CREATE TABLE IF NOT EXISTS bucket_metadata (bucket TEXT PRIMARY KEY, owner TEXT NOT NULL, labels_json JSONB NOT NULL, attrs_json JSONB NOT NULL)")
             .execute(&self.pool)
             .await
@@ -62,11 +67,8 @@ impl PostgresStore {
     }
 
     async fn seed_if_empty(&self, seed: StorageSnapshot) -> Result<(), StorageError> {
-        #[cfg(feature = "multi-user")]
-        {
-            if self.list_users().await?.is_empty() && !seed.users.is_empty() {
-                self.save_users(seed.users).await?;
-            }
+        if self.list_users().await?.is_empty() && !seed.users.is_empty() {
+            self.save_users(seed.users).await?;
         }
         
         {
@@ -83,7 +85,6 @@ impl PostgresStore {
     }
 }
 
-#[cfg(feature = "multi-user")]
 #[async_trait::async_trait]
 impl UserStore for PostgresStore {
     async fn list_users(&self) -> Result<Vec<UserRecord>, StorageError> {
@@ -173,18 +174,18 @@ impl UserStore for PostgresStore {
 impl PolicyStore for PostgresStore {
     async fn list_policy_groups(&self) -> Result<Vec<PolicyGroup>, StorageError> {
         let rows = sqlx::query_as::<_, (String, String, String)>(
-            "SELECT name, users_json::text, rules_json::text FROM policy_groups",
+            "SELECT name, users_json::text, policies_json::text FROM policy_groups",
         )
         .fetch_all(&self.pool)
         .await
         .map_err(|e| StorageError::Db(e.to_string()))?;
         let mut out = Vec::with_capacity(rows.len());
-        for (name, users_json, rules_json) in rows {
+        for (name, users_json, policies_json) in rows {
             out.push(PolicyGroup {
                 name,
                 users: serde_json::from_str(&users_json)
                     .map_err(|e| StorageError::Serde(e.to_string()))?,
-                rules: serde_json::from_str(&rules_json)
+                policies: serde_json::from_str(&policies_json)
                     .map_err(|e| StorageError::Serde(e.to_string()))?,
             });
         }
@@ -200,17 +201,17 @@ impl PolicyStore for PostgresStore {
         for g in &groups {
             let changed = current_map
                 .get(&g.name)
-                .map(|x| x.users != g.users || x.rules != g.rules)
+                .map(|x| x.users != g.users || x.policies != g.policies)
                 .unwrap_or(true);
             if changed {
                 let users_json = serde_json::to_string(&g.users)
                     .map_err(|e| StorageError::Serde(e.to_string()))?;
-                let rules_json = serde_json::to_string(&g.rules)
+                let policies_json = serde_json::to_string(&g.policies)
                     .map_err(|e| StorageError::Serde(e.to_string()))?;
-                let res = sqlx::query("INSERT INTO policy_groups(name, users_json, rules_json) VALUES($1,$2::jsonb,$3::jsonb) ON CONFLICT(name) DO UPDATE SET users_json=EXCLUDED.users_json, rules_json=EXCLUDED.rules_json")
+                let res = sqlx::query("INSERT INTO policy_groups(name, users_json, policies_json) VALUES($1,$2::jsonb,$3::jsonb) ON CONFLICT(name) DO UPDATE SET users_json=EXCLUDED.users_json, policies_json=EXCLUDED.policies_json")
                     .bind(&g.name)
                     .bind(users_json)
-                    .bind(rules_json)
+                    .bind(policies_json)
                     .execute(&self.pool)
                     .await
                     .map_err(|e| StorageError::Db(e.to_string()))?;
