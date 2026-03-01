@@ -1,0 +1,291 @@
+use crate::types::s3::request::*;
+use crate::types::s3::response::S3Response;
+use crate::types::traits::s3_handler::BucketS3Handler;
+
+macro_rules! bucket_api {
+    ($fn_name:ident, $req_ty:ty, $method:ident, $variant:ident) => {
+        pub async fn $fn_name<T, E>(handler: &T, req: $req_ty) -> Result<S3Response, E>
+        where
+            T: BucketS3Handler<Error = E> + Send + Sync,
+            E: Send + Sync + 'static,
+        {
+            Ok(S3Response::$variant(handler.$method(req).await?))
+        }
+    };
+}
+
+bucket_api!(
+    get_bucket_location,
+    GetBucketLocationRequest,
+    get_bucket_location,
+    GetBucketLocation
+);
+bucket_api!(
+    get_bucket_policy,
+    GetBucketPolicyRequest,
+    get_bucket_policy,
+    GetBucketPolicy
+);
+bucket_api!(
+    get_bucket_lifecycle,
+    GetBucketLifecycleRequest,
+    get_bucket_lifecycle,
+    GetBucketLifecycle
+);
+bucket_api!(
+    get_bucket_encryption,
+    GetBucketEncryptionRequest,
+    get_bucket_encryption,
+    GetBucketEncryption
+);
+bucket_api!(
+    get_bucket_object_lock_config,
+    GetBucketObjectLockConfigRequest,
+    get_bucket_object_lock_config,
+    GetBucketObjectLockConfig
+);
+bucket_api!(
+    get_bucket_replication_config,
+    GetBucketReplicationConfigRequest,
+    get_bucket_replication_config,
+    GetBucketReplicationConfig
+);
+bucket_api!(
+    get_bucket_versioning,
+    GetBucketVersioningRequest,
+    get_bucket_versioning,
+    GetBucketVersioning
+);
+bucket_api!(
+    get_bucket_notification,
+    GetBucketNotificationRequest,
+    get_bucket_notification,
+    GetBucketNotification
+);
+bucket_api!(
+    listen_bucket_notification,
+    ListenBucketNotificationRequest,
+    listen_bucket_notification,
+    ListenBucketNotification
+);
+bucket_api!(
+    reset_bucket_replication_status,
+    ResetBucketReplicationStatusRequest,
+    reset_bucket_replication_status,
+    ResetBucketReplicationStatus
+);
+bucket_api!(get_bucket_acl, GetBucketAclRequest, get_bucket_acl, GetBucketAcl);
+bucket_api!(put_bucket_acl, PutBucketAclRequest, put_bucket_acl, PutBucketAcl);
+bucket_api!(
+    get_bucket_cors,
+    GetBucketCorsRequest,
+    get_bucket_cors,
+    GetBucketCors
+);
+bucket_api!(
+    put_bucket_cors,
+    PutBucketCorsRequest,
+    put_bucket_cors,
+    PutBucketCors
+);
+bucket_api!(
+    delete_bucket_cors,
+    DeleteBucketCorsRequest,
+    delete_bucket_cors,
+    DeleteBucketCors
+);
+bucket_api!(
+    get_bucket_website,
+    GetBucketWebsiteRequest,
+    get_bucket_website,
+    GetBucketWebsite
+);
+bucket_api!(
+    get_bucket_accelerate,
+    GetBucketAccelerateRequest,
+    get_bucket_accelerate,
+    GetBucketAccelerate
+);
+bucket_api!(
+    get_bucket_request_payment,
+    GetBucketRequestPaymentRequest,
+    get_bucket_request_payment,
+    GetBucketRequestPayment
+);
+bucket_api!(
+    get_bucket_logging,
+    GetBucketLoggingRequest,
+    get_bucket_logging,
+    GetBucketLogging
+);
+bucket_api!(
+    get_bucket_tagging,
+    GetBucketTaggingRequest,
+    get_bucket_tagging,
+    GetBucketTagging
+);
+bucket_api!(
+    delete_bucket_website,
+    DeleteBucketWebsiteRequest,
+    delete_bucket_website,
+    DeleteBucketWebsite
+);
+bucket_api!(
+    delete_bucket_tagging,
+    DeleteBucketTaggingRequest,
+    delete_bucket_tagging,
+    DeleteBucketTagging
+);
+bucket_api!(
+    list_multipart_uploads,
+    ListMultipartUploadsRequest,
+    list_multipart_uploads,
+    ListMultipartUploads
+);
+bucket_api!(
+    list_objects_v2m,
+    ListObjectsV2MRequest,
+    list_objects_v2m,
+    ListObjectsV2M
+);
+bucket_api!(
+    list_objects_v2,
+    ListObjectsV2Request,
+    list_objects_v2,
+    ListObjectsV2
+);
+bucket_api!(
+    list_object_versions_m,
+    ListObjectVersionsMRequest,
+    list_object_versions_m,
+    ListObjectVersionsM
+);
+bucket_api!(
+    list_object_versions,
+    ListObjectVersionsRequest,
+    list_object_versions,
+    ListObjectVersions
+);
+bucket_api!(
+    get_bucket_policy_status,
+    GetBucketPolicyStatusRequest,
+    get_bucket_policy_status,
+    GetBucketPolicyStatus
+);
+bucket_api!(
+    put_bucket_lifecycle,
+    PutBucketLifecycleRequest,
+    put_bucket_lifecycle,
+    PutBucketLifecycle
+);
+bucket_api!(
+    put_bucket_replication_config,
+    PutBucketReplicationConfigRequest,
+    put_bucket_replication_config,
+    PutBucketReplicationConfig
+);
+bucket_api!(
+    put_bucket_encryption,
+    PutBucketEncryptionRequest,
+    put_bucket_encryption,
+    PutBucketEncryption
+);
+bucket_api!(
+    put_bucket_policy,
+    PutBucketPolicyRequest,
+    put_bucket_policy,
+    PutBucketPolicy
+);
+bucket_api!(
+    put_bucket_object_lock_config,
+    PutBucketObjectLockConfigRequest,
+    put_bucket_object_lock_config,
+    PutBucketObjectLockConfig
+);
+bucket_api!(
+    put_bucket_tagging,
+    PutBucketTaggingRequest,
+    put_bucket_tagging,
+    PutBucketTagging
+);
+bucket_api!(
+    put_bucket_versioning,
+    PutBucketVersioningRequest,
+    put_bucket_versioning,
+    PutBucketVersioning
+);
+bucket_api!(
+    put_bucket_notification,
+    PutBucketNotificationRequest,
+    put_bucket_notification,
+    PutBucketNotification
+);
+bucket_api!(
+    reset_bucket_replication_start,
+    ResetBucketReplicationStartRequest,
+    reset_bucket_replication_start,
+    ResetBucketReplicationStart
+);
+bucket_api!(put_bucket, PutBucketRequest, put_bucket, PutBucket);
+bucket_api!(head_bucket, HeadBucketRequest, head_bucket, HeadBucket);
+bucket_api!(post_policy, PostPolicyRequest, post_policy, PostPolicy);
+bucket_api!(
+    delete_multiple_objects,
+    DeleteMultipleObjectsRequest,
+    delete_multiple_objects,
+    DeleteMultipleObjects
+);
+bucket_api!(
+    delete_bucket_policy,
+    DeleteBucketPolicyRequest,
+    delete_bucket_policy,
+    DeleteBucketPolicy
+);
+bucket_api!(
+    delete_bucket_replication,
+    DeleteBucketReplicationRequest,
+    delete_bucket_replication,
+    DeleteBucketReplication
+);
+bucket_api!(
+    delete_bucket_lifecycle,
+    DeleteBucketLifecycleRequest,
+    delete_bucket_lifecycle,
+    DeleteBucketLifecycle
+);
+bucket_api!(
+    delete_bucket_encryption,
+    DeleteBucketEncryptionRequest,
+    delete_bucket_encryption,
+    DeleteBucketEncryption
+);
+bucket_api!(
+    delete_bucket,
+    DeleteBucketRequest,
+    delete_bucket,
+    DeleteBucket
+);
+bucket_api!(
+    get_bucket_replication_metrics_v2,
+    GetBucketReplicationMetricsV2Request,
+    get_bucket_replication_metrics_v2,
+    GetBucketReplicationMetricsV2
+);
+bucket_api!(
+    get_bucket_replication_metrics,
+    GetBucketReplicationMetricsRequest,
+    get_bucket_replication_metrics,
+    GetBucketReplicationMetrics
+);
+bucket_api!(
+    validate_bucket_replication_creds,
+    ValidateBucketReplicationCredsRequest,
+    validate_bucket_replication_creds,
+    ValidateBucketReplicationCreds
+);
+bucket_api!(
+    list_objects_v1,
+    ListObjectsV1Request,
+    list_objects_v1,
+    ListObjectsV1
+);
