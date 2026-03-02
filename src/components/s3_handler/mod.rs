@@ -1,8 +1,3 @@
-pub mod bucket;
-pub mod object;
-pub mod reject;
-pub mod root;
-
 mod util;
 mod http_bucket;
 mod http_object;

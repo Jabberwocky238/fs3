@@ -13,7 +13,7 @@ use crate::types::s3::response::S3Response;
 use crate::types::traits::s3_handler::{ObjectS3Handler, RejectedS3Handler};
 
 use super::util::{body_string, get, has, header, header_eq, multipart_selector};
-use super::{object, reject, HandlerError, S3Handler};
+use super::{HandlerError, S3Handler};
 
 pub fn routes<T, E>(state: Arc<T>) -> Router
 where
@@ -37,86 +37,142 @@ where
 {
     let mk = || ObjectRef { bucket: bucket.clone(), object: object_path.clone() };
     if has(&q, "torrent") && matches!(method, Method::GET | Method::PUT | Method::DELETE) {
-        let resp = reject::rejected_object_torrent::<T, E>(&*handler, RejectedObjectTorrentRequest {
-            object: mk(),
-            method: method.to_string(),
-        }).await.map_err(|e| HandlerError::internal(e.to_string()))?;
-        return Ok(Json(resp));
+        let v = handler
+            .rejected_object_torrent(RejectedObjectTorrentRequest {
+                object: mk(),
+                method: method.to_string(),
+            })
+            .await
+            .map_err(|e| HandlerError::internal(e.to_string()))?;
+        return Ok(Json(S3Response::RejectedApi(v)));
     }
     if has(&q, "acl") && method == Method::DELETE {
-        let resp = reject::rejected_object_acl_delete::<T, E>(&*handler, RejectedObjectAclDeleteRequest { object: mk() })
-            .await.map_err(|e| HandlerError::internal(e.to_string()))?;
-        return Ok(Json(resp));
+        let v = handler
+            .rejected_object_acl_delete(RejectedObjectAclDeleteRequest { object: mk() })
+            .await
+            .map_err(|e| HandlerError::internal(e.to_string()))?;
+        return Ok(Json(S3Response::RejectedApi(v)));
     }
 
     let text = String::from_utf8_lossy(&body).to_string();
     let copy_source = header(&headers, "x-amz-copy-source");
     let resp = match method {
-        Method::HEAD => object::head_object::<T, E>(&*handler, HeadObjectRequest { object: mk() }).await,
-        Method::GET if has(&q, "attributes") => object::get_object_attributes::<T, E>(&*handler, GetObjectAttributesRequest {
-            object: mk(),
-            attributes: get(&q, "attributes").map(|v| v.split(',').map(|x| x.to_string()).collect()).unwrap_or_default(),
-        }).await,
-        Method::GET if has(&q, "uploadId") => object::list_object_parts::<T, E>(&*handler, ListObjectPartsRequest {
-            object: mk(),
-            upload_id: get(&q, "uploadId").unwrap_or_default(),
-        }).await,
-        Method::GET if has(&q, "acl") => object::get_object_acl::<T, E>(&*handler, GetObjectAclRequest { object: mk() }).await,
-        Method::GET if has(&q, "tagging") => object::get_object_tagging::<T, E>(&*handler, GetObjectTaggingRequest { object: mk() }).await,
-        Method::GET if has(&q, "retention") => object::get_object_retention::<T, E>(&*handler, GetObjectRetentionRequest { object: mk() }).await,
-        Method::GET if has(&q, "legal-hold") => object::get_object_legal_hold::<T, E>(&*handler, GetObjectLegalHoldRequest { object: mk() }).await,
-        Method::GET if has(&q, "lambdaArn") => object::get_object_lambda::<T, E>(&*handler, GetObjectLambdaRequest {
-            object: mk(),
-            lambda_arn: get(&q, "lambdaArn").unwrap_or_default(),
-        }).await,
-        Method::GET => object::get_object::<T, E>(&*handler, GetObjectRequest {
-            object: mk(),
-            range: header(&headers, "range"),
-            version_id: get(&q, "versionId"),
-        }).await,
+        Method::HEAD => S3Response::HeadObject(
+            handler.head_object(HeadObjectRequest { object: mk() }).await.map_err(|e| HandlerError::internal(e.to_string()))?,
+        ),
+        Method::GET if has(&q, "attributes") => S3Response::GetObjectAttributes(
+            handler.get_object_attributes(GetObjectAttributesRequest {
+                object: mk(),
+                attributes: get(&q, "attributes").map(|v| v.split(',').map(|x| x.to_string()).collect()).unwrap_or_default(),
+            }).await.map_err(|e| HandlerError::internal(e.to_string()))?,
+        ),
+        Method::GET if has(&q, "uploadId") => S3Response::ListObjectParts(
+            handler.list_object_parts(ListObjectPartsRequest {
+                object: mk(),
+                upload_id: get(&q, "uploadId").unwrap_or_default(),
+            }).await.map_err(|e| HandlerError::internal(e.to_string()))?,
+        ),
+        Method::GET if has(&q, "acl") => S3Response::GetObjectAcl(
+            handler.get_object_acl(GetObjectAclRequest { object: mk() }).await.map_err(|e| HandlerError::internal(e.to_string()))?,
+        ),
+        Method::GET if has(&q, "tagging") => S3Response::GetObjectTagging(
+            handler.get_object_tagging(GetObjectTaggingRequest { object: mk() }).await.map_err(|e| HandlerError::internal(e.to_string()))?,
+        ),
+        Method::GET if has(&q, "retention") => S3Response::GetObjectRetention(
+            handler.get_object_retention(GetObjectRetentionRequest { object: mk() }).await.map_err(|e| HandlerError::internal(e.to_string()))?,
+        ),
+        Method::GET if has(&q, "legal-hold") => S3Response::GetObjectLegalHold(
+            handler.get_object_legal_hold(GetObjectLegalHoldRequest { object: mk() }).await.map_err(|e| HandlerError::internal(e.to_string()))?,
+        ),
+        Method::GET if has(&q, "lambdaArn") => S3Response::GetObjectLambda(
+            handler.get_object_lambda(GetObjectLambdaRequest {
+                object: mk(),
+                lambda_arn: get(&q, "lambdaArn").unwrap_or_default(),
+            }).await.map_err(|e| HandlerError::internal(e.to_string()))?,
+        ),
+        Method::GET => S3Response::GetObject(
+            handler.get_object(GetObjectRequest {
+                object: mk(),
+                range: header(&headers, "range"),
+                version_id: get(&q, "versionId"),
+            }).await.map_err(|e| HandlerError::internal(e.to_string()))?,
+        ),
 
-        Method::PUT if has(&q, "uploadId") && has(&q, "partNumber") && copy_source.is_some() => object::copy_object_part::<T, E>(&*handler, CopyObjectPartRequest {
-            object: mk(),
-            multipart: multipart_selector(&q),
-            copy_source: copy_source.unwrap_or_default(),
-        }).await,
-        Method::PUT if has(&q, "uploadId") && has(&q, "partNumber") => object::put_object_part::<T, E>(&*handler, PutObjectPartRequest {
-            object: mk(),
-            multipart: multipart_selector(&q),
-            body: body.to_vec(),
-            checksum: header(&headers, "x-amz-checksum-sha256"),
-        }).await,
-        Method::PUT if has(&q, "acl") => object::put_object_acl::<T, E>(&*handler, PutObjectAclRequest { object: mk(), xml: body_string(&body) }).await,
-        Method::PUT if has(&q, "tagging") => object::put_object_tagging::<T, E>(&*handler, PutObjectTaggingRequest { object: mk(), xml: text }).await,
-        Method::PUT if has(&q, "retention") => object::put_object_retention::<T, E>(&*handler, PutObjectRetentionRequest { object: mk(), xml: text }).await,
-        Method::PUT if has(&q, "legal-hold") => object::put_object_legal_hold::<T, E>(&*handler, PutObjectLegalHoldRequest { object: mk(), xml: text }).await,
-        Method::PUT if header_eq(&headers, "x-amz-snowball-extract", "true") => object::put_object_extract::<T, E>(&*handler, PutObjectExtractRequest { object: mk(), body: body.to_vec() }).await,
-        Method::PUT if header(&headers, "x-amz-write-offset-bytes").is_some() => object::append_object_rejected::<T, E>(&*handler, AppendObjectRejectedRequest {
-            object: mk(),
-            write_offset_bytes: header(&headers, "x-amz-write-offset-bytes").unwrap_or_default(),
-            body: body.to_vec(),
-        }).await,
-        Method::PUT if copy_source.is_some() => object::copy_object::<T, E>(&*handler, CopyObjectRequest {
-            object: mk(),
-            copy_source: copy_source.unwrap_or_default(),
-            metadata_directive: header(&headers, "x-amz-metadata-directive"),
-        }).await,
-        Method::PUT => object::put_object::<T, E>(&*handler, PutObjectRequest { object: mk(), body: body.to_vec(), content_type: header(&headers, "content-type") }).await,
+        Method::PUT if has(&q, "uploadId") && has(&q, "partNumber") && copy_source.is_some() => S3Response::CopyObjectPart(
+            handler.copy_object_part(CopyObjectPartRequest {
+                object: mk(),
+                multipart: multipart_selector(&q),
+                copy_source: copy_source.unwrap_or_default(),
+            }).await.map_err(|e| HandlerError::internal(e.to_string()))?,
+        ),
+        Method::PUT if has(&q, "uploadId") && has(&q, "partNumber") => S3Response::PutObjectPart(
+            handler.put_object_part(PutObjectPartRequest {
+                object: mk(),
+                multipart: multipart_selector(&q),
+                body: body.to_vec(),
+                checksum: header(&headers, "x-amz-checksum-sha256"),
+            }).await.map_err(|e| HandlerError::internal(e.to_string()))?,
+        ),
+        Method::PUT if has(&q, "acl") => S3Response::PutObjectAcl(
+            handler.put_object_acl(PutObjectAclRequest { object: mk(), xml: body_string(&body) }).await.map_err(|e| HandlerError::internal(e.to_string()))?,
+        ),
+        Method::PUT if has(&q, "tagging") => S3Response::PutObjectTagging(
+            handler.put_object_tagging(PutObjectTaggingRequest { object: mk(), xml: text }).await.map_err(|e| HandlerError::internal(e.to_string()))?,
+        ),
+        Method::PUT if has(&q, "retention") => S3Response::PutObjectRetention(
+            handler.put_object_retention(PutObjectRetentionRequest { object: mk(), xml: text }).await.map_err(|e| HandlerError::internal(e.to_string()))?,
+        ),
+        Method::PUT if has(&q, "legal-hold") => S3Response::PutObjectLegalHold(
+            handler.put_object_legal_hold(PutObjectLegalHoldRequest { object: mk(), xml: text }).await.map_err(|e| HandlerError::internal(e.to_string()))?,
+        ),
+        Method::PUT if header_eq(&headers, "x-amz-snowball-extract", "true") => S3Response::PutObjectExtract(
+            handler.put_object_extract(PutObjectExtractRequest { object: mk(), body: body.to_vec() }).await.map_err(|e| HandlerError::internal(e.to_string()))?,
+        ),
+        Method::PUT if header(&headers, "x-amz-write-offset-bytes").is_some() => S3Response::AppendObjectRejected(
+            handler.append_object_rejected(AppendObjectRejectedRequest {
+                object: mk(),
+                write_offset_bytes: header(&headers, "x-amz-write-offset-bytes").unwrap_or_default(),
+                body: body.to_vec(),
+            }).await.map_err(|e| HandlerError::internal(e.to_string()))?,
+        ),
+        Method::PUT if copy_source.is_some() => S3Response::CopyObject(
+            handler.copy_object(CopyObjectRequest {
+                object: mk(),
+                copy_source: copy_source.unwrap_or_default(),
+                metadata_directive: header(&headers, "x-amz-metadata-directive"),
+            }).await.map_err(|e| HandlerError::internal(e.to_string()))?,
+        ),
+        Method::PUT => S3Response::PutObject(
+            handler.put_object(PutObjectRequest { object: mk(), body: body.to_vec(), content_type: header(&headers, "content-type") }).await.map_err(|e| HandlerError::internal(e.to_string()))?,
+        ),
 
-        Method::POST if has(&q, "uploadId") => object::complete_multipart_upload::<T, E>(&*handler, CompleteMultipartUploadRequest {
-            object: mk(),
-            upload_id: get(&q, "uploadId").unwrap_or_default(),
-            xml: text,
-        }).await,
-        Method::POST if has(&q, "uploads") => object::new_multipart_upload::<T, E>(&*handler, NewMultipartUploadRequest { object: mk() }).await,
-        Method::POST if has(&q, "select") && get(&q, "select-type").as_deref() == Some("2") => object::select_object_content::<T, E>(&*handler, SelectObjectContentRequest { object: mk(), select_type: 2, xml: text }).await,
-        Method::POST if has(&q, "restore") => object::post_restore_object::<T, E>(&*handler, PostRestoreObjectRequest { object: mk(), xml: text }).await,
+        Method::POST if has(&q, "uploadId") => S3Response::CompleteMultipartUpload(
+            handler.complete_multipart_upload(CompleteMultipartUploadRequest {
+                object: mk(),
+                upload_id: get(&q, "uploadId").unwrap_or_default(),
+                xml: text,
+            }).await.map_err(|e| HandlerError::internal(e.to_string()))?,
+        ),
+        Method::POST if has(&q, "uploads") => S3Response::NewMultipartUpload(
+            handler.new_multipart_upload(NewMultipartUploadRequest { object: mk() }).await.map_err(|e| HandlerError::internal(e.to_string()))?,
+        ),
+        Method::POST if has(&q, "select") && get(&q, "select-type").as_deref() == Some("2") => S3Response::SelectObjectContent(
+            handler.select_object_content(SelectObjectContentRequest { object: mk(), select_type: 2, xml: text }).await.map_err(|e| HandlerError::internal(e.to_string()))?,
+        ),
+        Method::POST if has(&q, "restore") => S3Response::PostRestoreObject(
+            handler.post_restore_object(PostRestoreObjectRequest { object: mk(), xml: text }).await.map_err(|e| HandlerError::internal(e.to_string()))?,
+        ),
 
-        Method::DELETE if has(&q, "uploadId") => object::abort_multipart_upload::<T, E>(&*handler, AbortMultipartUploadRequest { object: mk(), upload_id: get(&q, "uploadId").unwrap_or_default() }).await,
-        Method::DELETE if has(&q, "tagging") => object::delete_object_tagging::<T, E>(&*handler, DeleteObjectTaggingRequest { object: mk() }).await,
-        Method::DELETE => object::delete_object::<T, E>(&*handler, DeleteObjectRequest { object: mk(), version_id: get(&q, "versionId") }).await,
+        Method::DELETE if has(&q, "uploadId") => S3Response::AbortMultipartUpload(
+            handler.abort_multipart_upload(AbortMultipartUploadRequest { object: mk(), upload_id: get(&q, "uploadId").unwrap_or_default() }).await.map_err(|e| HandlerError::internal(e.to_string()))?,
+        ),
+        Method::DELETE if has(&q, "tagging") => S3Response::DeleteObjectTagging(
+            handler.delete_object_tagging(DeleteObjectTaggingRequest { object: mk() }).await.map_err(|e| HandlerError::internal(e.to_string()))?,
+        ),
+        Method::DELETE => S3Response::DeleteObject(
+            handler.delete_object(DeleteObjectRequest { object: mk(), version_id: get(&q, "versionId") }).await.map_err(|e| HandlerError::internal(e.to_string()))?,
+        ),
         _ => return Err(HandlerError::method_not_allowed("unsupported object API")),
-    }.map_err(|e| HandlerError::internal(e.to_string()))?;
-
+    };
     Ok(Json(resp))
 }
