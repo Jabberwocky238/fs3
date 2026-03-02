@@ -8,7 +8,7 @@ use s3_mount_gateway_rust::axum_router;
 use s3_mount_gateway_rust::components::s3_engine::S3EngineImpl;
 use s3_mount_gateway_rust::components::s3_metadata_storage::memory::MemoryMetadataStorage;
 use s3_mount_gateway_rust::components::s3_mount::memory::MemoryMount;
-use s3_mount_gateway_rust::types::traits::s3_handler::Handler;
+use s3_mount_gateway_rust::components::s3_axum_handler::S3AxumHandler;
 use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
 
@@ -17,7 +17,7 @@ pub const MINIO_SECRET_KEY: &str = "minioadmin";
 
 pub async fn create_minio_server() -> std::io::Result<(SocketAddr, String, JoinHandle<()>)> {
     let engine = S3EngineImpl::new(MemoryMetadataStorage::new(), MemoryMount::new());
-    let handler = Handler::new(engine);
+    let handler = S3AxumHandler::new(engine);
     let listener = TcpListener::bind(("127.0.0.1", 0)).await?;
     let addr = listener.local_addr()?;
     let endpoint = format!("http://{addr}");

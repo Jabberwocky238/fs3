@@ -1,27 +1,50 @@
 use async_trait::async_trait;
-use futures::StreamExt;
+use base64::Engine;
 use futures::stream;
+use futures::StreamExt;
+use uuid::Uuid;
 
 use crate::types::errors::S3MountError;
 use crate::types::s3::core::*;
 use crate::types::traits::s3_mount::{S3MountRead, S3MountWrite};
 
-use super::LocalFsMount;
+use super::{LocalFsMount, PartInfo, XlMeta, INLINE_THRESHOLD};
+
+impl LocalFsMount {
+    /// Read the full object bytes, handling both inline and part-file storage.
+    async fn read_object_bytes(&self, bucket: &str, key: &str) -> Result<Vec<u8>, S3MountError> {
+        let meta = self.read_xl_meta(bucket, key).await?;
+        if let Some(ref inline) = meta.inline_data {
+            base64::engine::general_purpose::STANDARD
+                .decode(inline)
+                .map_err(|e| S3MountError::Io(e.to_string()))
+        } else {
+            let mut buf = Vec::new();
+            for part in &meta.parts {
+                let part_path = self
+                    .data_dir_path(bucket, key, &meta.data_dir)?
+                    .join(format!("part.{}", part.number));
+                let data = tokio::fs::read(&part_path).await.map_err(|e| {
+                    if e.kind() == std::io::ErrorKind::NotFound {
+                        S3MountError::NoSuchKey {
+                            bucket: bucket.to_owned(),
+                            key: key.to_owned(),
+                        }
+                    } else {
+                        S3MountError::from(e)
+                    }
+                })?;
+                buf.extend_from_slice(&data);
+            }
+            Ok(buf)
+        }
+    }
+}
 
 #[async_trait]
 impl S3MountRead for LocalFsMount {
     async fn read_object(&self, bucket: &str, key: &str) -> Result<BoxByteStream, S3MountError> {
-        let path = self.object_path(bucket, key)?;
-        let data = tokio::fs::read(&path).await.map_err(|e| {
-            if e.kind() == std::io::ErrorKind::NotFound {
-                S3MountError::NoSuchKey {
-                    bucket: bucket.to_owned(),
-                    key: key.to_owned(),
-                }
-            } else {
-                S3MountError::from(e)
-            }
-        })?;
+        let data = self.read_object_bytes(bucket, key).await?;
         Ok(Box::pin(stream::once(async move {
             Ok(bytes::Bytes::from(data))
         })))
@@ -33,39 +56,19 @@ impl S3MountRead for LocalFsMount {
         key: &str,
         range: &str,
     ) -> Result<BoxByteStream, S3MountError> {
-        let path = self.object_path(bucket, key)?;
-        let data = tokio::fs::read(&path).await.map_err(|e| {
-            if e.kind() == std::io::ErrorKind::NotFound {
-                S3MountError::NoSuchKey {
-                    bucket: bucket.to_owned(),
-                    key: key.to_owned(),
-                }
-            } else {
-                S3MountError::from(e)
-            }
-        })?;
+        let data = self.read_object_bytes(bucket, key).await?;
         let sliced = apply_range(&data, range)?;
         Ok(Box::pin(stream::once(async move { Ok(sliced) })))
     }
 
     async fn object_exists(&self, bucket: &str, key: &str) -> Result<bool, S3MountError> {
-        let path = self.object_path(bucket, key)?;
+        let path = self.xl_meta_path(bucket, key)?;
         Ok(path.is_file())
     }
 
     async fn object_size(&self, bucket: &str, key: &str) -> Result<u64, S3MountError> {
-        let path = self.object_path(bucket, key)?;
-        let meta = tokio::fs::metadata(&path).await.map_err(|e| {
-            if e.kind() == std::io::ErrorKind::NotFound {
-                S3MountError::NoSuchKey {
-                    bucket: bucket.to_owned(),
-                    key: key.to_owned(),
-                }
-            } else {
-                S3MountError::from(e)
-            }
-        })?;
-        Ok(meta.len())
+        let meta = self.read_xl_meta(bucket, key).await?;
+        Ok(meta.size)
     }
 }
 
@@ -77,10 +80,6 @@ impl S3MountWrite for LocalFsMount {
         key: &str,
         body: BoxByteStream,
     ) -> Result<u64, S3MountError> {
-        let path = self.object_path(bucket, key)?;
-        if let Some(parent) = path.parent() {
-            tokio::fs::create_dir_all(parent).await?;
-        }
         let mut buf = Vec::new();
         let mut stream = body;
         while let Some(chunk) = stream.next().await {
@@ -88,14 +87,39 @@ impl S3MountWrite for LocalFsMount {
             buf.extend_from_slice(&chunk);
         }
         let size = buf.len() as u64;
-        tokio::fs::write(&path, &buf).await?;
+        let data_dir = Uuid::new_v4().to_string();
+
+        let meta = if buf.len() <= INLINE_THRESHOLD {
+            // Small object: inline in xl.meta
+            XlMeta {
+                data_dir,
+                parts: vec![PartInfo { number: 1, size }],
+                size,
+                inline_data: Some(
+                    base64::engine::general_purpose::STANDARD.encode(&buf),
+                ),
+            }
+        } else {
+            // Large object: write to part file
+            let part_dir = self.data_dir_path(bucket, key, &data_dir)?;
+            tokio::fs::create_dir_all(&part_dir).await?;
+            tokio::fs::write(part_dir.join("part.1"), &buf).await?;
+            XlMeta {
+                data_dir,
+                parts: vec![PartInfo { number: 1, size }],
+                size,
+                inline_data: None,
+            }
+        };
+
+        self.write_xl_meta(bucket, key, &meta).await?;
         Ok(size)
     }
 
     async fn delete_object(&self, bucket: &str, key: &str) -> Result<(), S3MountError> {
-        let path = self.object_path(bucket, key)?;
-        if path.exists() {
-            tokio::fs::remove_file(&path).await?;
+        let dir = self.object_dir(bucket, key)?;
+        if dir.exists() {
+            tokio::fs::remove_dir_all(&dir).await?;
         }
         Ok(())
     }
@@ -107,21 +131,12 @@ impl S3MountWrite for LocalFsMount {
         dst_bucket: &str,
         dst_key: &str,
     ) -> Result<u64, S3MountError> {
-        let src = self.object_path(src_bucket, src_key)?;
-        let dst = self.object_path(dst_bucket, dst_key)?;
-        if let Some(parent) = dst.parent() {
-            tokio::fs::create_dir_all(parent).await?;
-        }
-        let size = tokio::fs::copy(&src, &dst).await.map_err(|e| {
-            if e.kind() == std::io::ErrorKind::NotFound {
-                S3MountError::NoSuchKey {
-                    bucket: src_bucket.to_owned(),
-                    key: src_key.to_owned(),
-                }
-            } else {
-                S3MountError::from(e)
-            }
-        })?;
+        let data = self.read_object_bytes(src_bucket, src_key).await?;
+        let size = data.len() as u64;
+        let stream = Box::pin(futures::stream::once(async {
+            Ok(bytes::Bytes::from(data)) as Result<bytes::Bytes, std::io::Error>
+        }));
+        self.write_object(dst_bucket, dst_key, stream).await?;
         Ok(size)
     }
 }

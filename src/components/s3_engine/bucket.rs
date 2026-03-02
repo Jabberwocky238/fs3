@@ -75,16 +75,16 @@ where
 
     async fn list_objects_v1(&self, bucket: &str, options: ListOptions) -> Result<ObjectListPage, S3EngineError> {
         self.head_bucket(bucket).await?;
-        self.metadata.list_objects(bucket, &options).await
+        Ok(self.metadata.list_objects(bucket, &options).await?)
     }
 
     async fn list_objects_v2(&self, bucket: &str, options: ListOptions) -> Result<ObjectListPage, S3EngineError> {
         self.head_bucket(bucket).await?;
-        self.metadata.list_objects(bucket, &options).await
+        Ok(self.metadata.list_objects(bucket, &options).await?)
     }
 
     async fn list_object_versions(&self, bucket: &str, options: ListOptions) -> Result<ObjectListPage, S3EngineError> {
         self.head_bucket(bucket).await?;
-        self.metadata.list_objects(bucket, &options).await
+        Ok(self.metadata.list_objects(bucket, &options).await?)
     }
 }
