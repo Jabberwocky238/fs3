@@ -3,7 +3,8 @@ use async_trait::async_trait;
 use crate::types::s3::core::ObjectReadOptions;
 use crate::types::s3::request::*;
 use crate::types::s3::response::*;
-use crate::types::traits::s3_engine::{S3EngineError, S3MultipartEngine, S3ObjectEngine};
+use crate::types::traits::s3_engine::{S3MultipartEngine, S3ObjectEngine};
+use crate::types::errors::S3EngineError;
 
 use super::utils::*;
 

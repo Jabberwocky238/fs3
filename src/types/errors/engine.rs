@@ -1,8 +1,5 @@
 use crate::types::traits::s3_handler::S3HandlerBridgeError;
 
-use super::metadata_storage::S3MetadataStorageError;
-use super::mount::S3MountError;
-
 #[derive(Debug, thiserror::Error)]
 pub enum S3EngineError {
     #[error("bucket not found: {0}")]
@@ -28,3 +25,4 @@ pub enum S3EngineError {
     #[error("{0}")]
     HandlerBridge(#[from] S3HandlerBridgeError),
 }
+
