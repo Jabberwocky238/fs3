@@ -3,6 +3,7 @@ use futures::stream;
 
 use crate::types::s3::core::*;
 use crate::types::traits::s3_mount::{S3MountRead, S3MountWrite};
+use crate::components::s3_engine::S3EngineImplError;
 
 use super::{MemoryMount, MemoryMountError};
 
