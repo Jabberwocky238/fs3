@@ -5,8 +5,8 @@ use crate::types::s3::core::*;
 use crate::types::traits::s3_handler::S3HandlerBridgeError;
 
 mod bucket;
-mod config;
-mod multipart;
+// mod config;
+// mod multipart;
 mod object;
 
 #[derive(Debug, thiserror::Error)]
