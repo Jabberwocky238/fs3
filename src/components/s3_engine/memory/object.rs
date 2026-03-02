@@ -5,8 +5,7 @@ use crate::types::s3::core::*;
 use crate::types::traits::s3_engine::S3ObjectEngine;
 
 #[async_trait]
-impl S3ObjectEngine for MemoryS3Engine {
-    type Error = MemoryS3EngineError;
+impl S3ObjectEngine<MemoryS3EngineError> for MemoryS3Engine {
 
     async fn head_object(
         &self,

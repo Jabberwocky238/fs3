@@ -7,8 +7,7 @@ use crate::types::s3::core::*;
 use crate::types::traits::s3_engine::S3BucketEngine;
 
 #[async_trait]
-impl S3BucketEngine for MemoryS3Engine {
-    type Error = MemoryS3EngineError;
+impl S3BucketEngine<MemoryS3EngineError> for MemoryS3Engine {
 
     async fn make_bucket(
         &self,

@@ -7,27 +7,26 @@ mod utils;
 
 use crate::types::s3::request::*;
 use crate::types::s3::response::*;
-use crate::types::traits::s3_engine::{S3BucketEngine, S3ObjectEngine, S3MultipartEngine, S3BucketConfigEngine, S3Engine};
-
-pub trait S3Handler:
-    ObjectS3Handler
-    + BucketS3Handler
-    + RootS3Handler
-    + RejectedObjectS3Handler
-    + RejectedBucketS3Handler
-{
-}
-impl<T> S3Handler for T where
-    T: ObjectS3Handler
-        + BucketS3Handler
-        + RootS3Handler
-        + RejectedObjectS3Handler
-        + RejectedBucketS3Handler
-{
-}
+use crate::types::traits::s3_engine::{S3Engine, S3EngineError};
 
 pub use bucket::BucketS3Handler;
 pub use object::ObjectS3Handler;
+
+pub trait S3Handler<E: S3EngineError>:
+    ObjectS3Handler<E>
+    + BucketS3Handler<E>
+    + RootS3Handler<E>
+    + RejectedS3Handler<E>
+{
+}
+impl<T, E: S3EngineError> S3Handler<E> for T
+where
+    T: ObjectS3Handler<E>
+        + BucketS3Handler<E>
+        + RootS3Handler<E>
+        + RejectedS3Handler<E>,
+{
+}
 
 #[derive(Debug, Error)]
 pub enum S3HandlerBridgeError {
@@ -37,174 +36,81 @@ pub enum S3HandlerBridgeError {
     InvalidRequest(String),
 }
 
-pub struct Handler<Engine, Error>
-where
-    Engine: S3Engine,
-    Error: Send + Sync + 'static,
-{
+pub struct Handler<Engine, E: S3EngineError> {
     pub engine: Engine,
-    pub _error: std::marker::PhantomData<Error>,
+    pub _error: std::marker::PhantomData<E>,
 }
 
-impl<Engine, Error> Handler<Engine, Error>
-where
-    Engine: S3Engine,
-    Error: Send + Sync + 'static,
-{
+impl<Engine, E: S3EngineError> Handler<Engine, E> {
     pub fn new(engine: Engine) -> Self {
-        Self {
-            engine,
-            _error: std::marker::PhantomData,
-        }
+        Self { engine, _error: std::marker::PhantomData }
     }
 }
 
-impl<Engine, Error> RootS3Handler for Handler<Engine, Error>
+// Handler impls — engine error E is used directly as handler error
+impl<Engine, E> RootS3Handler<E> for Handler<Engine, E>
 where
-    Engine: S3Engine,
-    Error: Send + Sync + 'static,
-    <Engine as S3Engine>::Error: Into<Error>,
-    Error: From<S3HandlerBridgeError>,
+    Engine: S3BucketEngine<E>,
+    E: S3EngineError + From<S3HandlerBridgeError>,
 {
-    type Engine = Engine;
-    type Error = Error;
-
-    fn engine(&self) -> &Self::Engine {
-        &self.engine
-    }
+    fn engine(&self) -> &Engine { &self.engine }
 }
 
-impl<Engine, Error> BucketS3Handler for Handler<Engine, Error>
+impl<Engine, E> BucketS3Handler<E> for Handler<Engine, E>
 where
-    Engine: S3BucketEngine,
-    Error: Send + Sync + 'static,
-    <Engine as S3BucketEngine>::Error: Into<Error>,
-    Error: From<S3HandlerBridgeError>,
+    Engine: S3Engine<E>,
+    E: S3EngineError + From<S3HandlerBridgeError>,
 {
-    type Engine = Engine;
-    type Error = Error;
-
-    fn engine(&self) -> &Self::Engine {
-        &self.engine
-    }
+    fn engine(&self) -> &Engine { &self.engine }
 }
 
-impl<Engine, Error> ObjectS3Handler for Handler<Engine, Error>
+impl<Engine, E> ObjectS3Handler<E> for Handler<Engine, E>
 where
-    Engine: S3BucketEngine,
-    Error: Send + Sync + 'static,
-    <Engine as S3BucketEngine>::Error: Into<Error>,
-    Error: From<S3HandlerBridgeError>,
+    Engine: S3ObjectEngine<E> + S3MultipartEngine<E>,
+    E: S3EngineError + From<S3HandlerBridgeError>,
 {
-    type Engine = Engine;
-    type Error = Error;
-
-    fn engine(&self) -> &Self::Engine {
-        &self.engine
-    }
+    fn engine(&self) -> &Engine { &self.engine }
 }
 
 #[async_trait]
-pub trait RootS3Handler
+impl<Engine, E> RejectedS3Handler<E> for Handler<Engine, E>
 where
-    <Self::Engine as S3BucketEngine>::Error: Into<Self::Error>,
-    Self::Error: From<S3HandlerBridgeError>,
+    Engine: Send + Sync + 'static,
+    E: S3EngineError,
 {
-    type Engine: S3BucketEngine;
-    type Error: Send + Sync + 'static;
+}
+
+// --- Trait definitions ---
+
+use crate::types::traits::s3_engine::{S3BucketEngine, S3BucketConfigEngine, S3MultipartEngine, S3ObjectEngine};
+
+#[async_trait]
+pub trait RootS3Handler<E: S3EngineError + From<S3HandlerBridgeError>> {
+    type Engine: S3BucketEngine<E>;
     fn engine(&self) -> &Self::Engine;
 
-    async fn root_listen_notification(
-        &self,
-        _req: RootListenNotificationRequest,
-    ) -> Result<RootListenNotificationResponse, Self::Error> {
-        utils::unsupported::<RootListenNotificationResponse, Self::Error>("RootListenNotification")
+    async fn root_listen_notification(&self, _req: RootListenNotificationRequest) -> Result<RootListenNotificationResponse, E> {
+        utils::unsupported("RootListenNotification")
     }
 
-    async fn list_buckets(
-        &self,
-        _req: ListBucketsRequest,
-    ) -> Result<ListBucketsResponse, Self::Error> {
-        let list = self.engine().list_buckets().await.map_err(Into::into)?;
+    async fn list_buckets(&self, _req: ListBucketsRequest) -> Result<ListBucketsResponse, E> {
+        let list = self.engine().list_buckets().await?;
         Ok(ListBucketsResponse {
-            buckets: list
-                .into_iter()
-                .map(|b| BucketInfo {
-                    name: b.identity.name,
-                    creation_date: Some(b.identity.created_at.to_rfc3339()),
-                })
-                .collect(),
+            buckets: list.into_iter().map(|b| BucketInfo {
+                name: b.identity.name,
+                creation_date: Some(b.identity.created_at.to_rfc3339()),
+            }).collect(),
             ..Default::default()
         })
     }
 
-    async fn list_buckets_double_slash(
-        &self,
-        _req: ListBucketsDoubleSlashRequest,
-    ) -> Result<ListBucketsDoubleSlashResponse, Self::Error> {
-        let list = self.engine().list_buckets().await.map_err(Into::into)?;
+    async fn list_buckets_double_slash(&self, _req: ListBucketsDoubleSlashRequest) -> Result<ListBucketsDoubleSlashResponse, E> {
+        let list = self.engine().list_buckets().await?;
         Ok(ListBucketsDoubleSlashResponse {
-            buckets: list
-                .into_iter()
-                .map(|b| BucketInfo {
-                    name: b.identity.name,
-                    creation_date: Some(b.identity.created_at.to_rfc3339()),
-                })
-                .collect(),
-            ..Default::default()
-        })
-    }
-}
-
-#[async_trait]
-pub trait RejectedObjectS3Handler {
-    type Error: Send + Sync + 'static;
-
-    async fn rejected_object_torrent(
-        &self,
-        req: RejectedObjectTorrentRequest,
-    ) -> Result<RejectedApiResponse, Self::Error> {
-        Ok(RejectedApiResponse {
-            error: ErrorBody {
-                code: "NotImplemented".to_string(),
-                message: "Object torrent API is not implemented".to_string(),
-                resource: Some(format!(
-                    "{}/{} {}",
-                    req.object.bucket, req.object.object, req.method
-                )),
-            },
-            ..Default::default()
-        })
-    }
-    async fn rejected_object_acl_delete(
-        &self,
-        req: RejectedObjectAclDeleteRequest,
-    ) -> Result<RejectedApiResponse, Self::Error> {
-        Ok(RejectedApiResponse {
-            error: ErrorBody {
-                code: "NotImplemented".to_string(),
-                message: "Object ACL delete API is not implemented".to_string(),
-                resource: Some(format!("{}/{}", req.object.bucket, req.object.object)),
-            },
-            ..Default::default()
-        })
-    }
-}
-
-#[async_trait]
-pub trait RejectedBucketS3Handler {
-    type Error: Send + Sync + 'static;
-
-    async fn rejected_bucket_api(
-        &self,
-        req: RejectedBucketApiRequest,
-    ) -> Result<RejectedApiResponse, Self::Error> {
-        Ok(RejectedApiResponse {
-            error: ErrorBody {
-                code: "NotImplemented".to_string(),
-                message: format!("Bucket API {} is not implemented", req.api),
-                resource: Some(format!("{} {}", req.bucket.bucket, req.method)),
-            },
+            buckets: list.into_iter().map(|b| BucketInfo {
+                name: b.identity.name,
+                creation_date: Some(b.identity.created_at.to_rfc3339()),
+            }).collect(),
             ..Default::default()
         })
     }

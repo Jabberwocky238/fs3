@@ -5,8 +5,7 @@ use crate::types::s3::core::*;
 use crate::types::traits::s3_engine::S3BucketConfigEngine;
 
 #[async_trait]
-impl S3BucketConfigEngine for MemoryS3Engine {
-    type Error = MemoryS3EngineError;
+impl S3BucketConfigEngine<MemoryS3EngineError> for MemoryS3Engine {
 
     async fn get_bucket_location(&self, bucket: &str) -> Result<String, Self::Error> {
         let state = self.state.read().await;

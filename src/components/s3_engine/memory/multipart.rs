@@ -6,8 +6,7 @@ use crate::types::s3::core::*;
 use crate::types::traits::s3_engine::S3MultipartEngine;
 
 #[async_trait]
-impl S3MultipartEngine for MemoryS3Engine {
-    type Error = MemoryS3EngineError;
+impl S3MultipartEngine<MemoryS3EngineError> for MemoryS3Engine {
 
     async fn new_multipart_upload(
         &self,
