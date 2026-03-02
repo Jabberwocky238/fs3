@@ -6,6 +6,7 @@ use minio::s3::error::Error as MinioError;
 use minio::s3::http::BaseUrl;
 use s3_mount_gateway_rust::axum_router;
 use s3_mount_gateway_rust::components::s3_engine::S3EngineImpl;
+use s3_mount_gateway_rust::types::errors::S3EngineError;
 use s3_mount_gateway_rust::components::s3_metadata_storage::memory::MemoryMetadataStorage;
 use s3_mount_gateway_rust::components::s3_mount::memory::MemoryMount;
 use s3_mount_gateway_rust::components::s3_axum_handler::S3AxumHandler;
@@ -21,7 +22,7 @@ pub async fn create_minio_server() -> std::io::Result<(SocketAddr, String, JoinH
     let listener = TcpListener::bind(("127.0.0.1", 0)).await?;
     let addr = listener.local_addr()?;
     let endpoint = format!("http://{addr}");
-    let app = axum_router(handler);
+    let app = axum_router::<_, S3EngineError>(handler);
 
     let task = tokio::spawn(async move {
         let _ = axum::serve(listener, app).await;
