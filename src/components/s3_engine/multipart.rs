@@ -2,23 +2,24 @@ use async_trait::async_trait;
 use futures::TryStreamExt;
 
 use crate::types::s3::core::*;
+use crate::types::errors::S3EngineError;
 use crate::types::traits::s3_engine::S3MultipartEngine;
 use crate::types::traits::s3_metadata_storage::*;
 use crate::types::traits::s3_mount::*;
 
-use super::{S3EngineImpl, S3EngineImplError};
+use super::S3EngineImpl;
 
 #[async_trait]
-impl<S, M> S3MultipartEngine<S3EngineImplError> for S3EngineImpl<S, M>
+impl<S, M> S3MultipartEngine for S3EngineImpl<S, M>
 where
-    S: S3MetadataStorageBucket<S3EngineImplError>
-        + S3MetadataStorageObject<S3EngineImplError>
-        + S3MetadataStorageMultipart<S3EngineImplError>
+    S: S3MetadataStorageBucket
+        + S3MetadataStorageObject
+        + S3MetadataStorageMultipart
         + Send
         + Sync,
-    M: S3MountRead<S3EngineImplError>
-        + S3MountWrite<S3EngineImplError>
-        + S3MountMultipart<S3EngineImplError>
+    M: S3MountRead
+        + S3MountWrite
+        + S3MountMultipart
         + Send
         + Sync,
 {
@@ -27,11 +28,11 @@ where
         bucket: &str,
         key: &str,
         options: ObjectWriteOptions,
-    ) -> Result<MultipartUpload, S3EngineImplError> {
+    ) -> Result<MultipartUpload, S3EngineError> {
         self.metadata
             .load_bucket(bucket)
             .await?
-            .ok_or_else(|| S3EngineImplError::BucketNotFound(bucket.to_owned()))?;
+            .ok_or_else(|| S3EngineError::BucketNotFound(bucket.to_owned()))?;
         let upload = MultipartUpload {
             bucket: bucket.to_owned(),
             key: key.to_owned(),
@@ -52,15 +53,15 @@ where
         upload_id: &str,
         part_number: u32,
         body: BoxByteStream,
-    ) -> Result<UploadedPart, S3EngineImplError> {
+    ) -> Result<UploadedPart, S3EngineError> {
         self.metadata
             .load_multipart(upload_id)
             .await?
-            .ok_or_else(|| S3EngineImplError::MultipartNotFound(upload_id.to_owned()))?;
+            .ok_or_else(|| S3EngineError::MultipartNotFound(upload_id.to_owned()))?;
         let chunks: Vec<bytes::Bytes> = body
             .try_collect()
             .await
-            .map_err(|e| S3EngineImplError::Storage(format!("stream error: {e}")))?;
+            .map_err(|e| S3EngineError::Storage(format!("stream error: {e}")))?;
         let mut buf = Vec::new();
         for chunk in &chunks {
             buf.extend_from_slice(chunk);
@@ -89,12 +90,12 @@ where
         _dst_key: &str,
         upload_id: &str,
         part_number: u32,
-    ) -> Result<UploadedPart, S3EngineImplError> {
+    ) -> Result<UploadedPart, S3EngineError> {
         let upload = self
             .metadata
             .load_multipart(upload_id)
             .await?
-            .ok_or_else(|| S3EngineImplError::MultipartNotFound(upload_id.to_owned()))?;
+            .ok_or_else(|| S3EngineError::MultipartNotFound(upload_id.to_owned()))?;
         let data_stream = self.mount.read_object(src_bucket, src_key).await?;
         self.mount
             .write_part(
@@ -120,12 +121,12 @@ where
         _bucket: &str,
         _key: &str,
         upload_id: &str,
-    ) -> Result<Vec<UploadedPart>, S3EngineImplError> {
+    ) -> Result<Vec<UploadedPart>, S3EngineError> {
         self.metadata
             .load_multipart(upload_id)
             .await?
-            .ok_or_else(|| S3EngineImplError::MultipartNotFound(upload_id.to_owned()))?;
-        self.metadata.list_uploaded_parts(upload_id).await
+            .ok_or_else(|| S3EngineError::MultipartNotFound(upload_id.to_owned()))?;
+        Ok(self.metadata.list_uploaded_parts(upload_id).await?)
     }
 
     async fn complete_multipart_upload(
@@ -134,12 +135,12 @@ where
         key: &str,
         upload_id: &str,
         completed: CompleteMultipartInput,
-    ) -> Result<S3Object, S3EngineImplError> {
+    ) -> Result<S3Object, S3EngineError> {
         let upload = self
             .metadata
             .load_multipart(upload_id)
             .await?
-            .ok_or_else(|| S3EngineImplError::MultipartNotFound(upload_id.to_owned()))?;
+            .ok_or_else(|| S3EngineError::MultipartNotFound(upload_id.to_owned()))?;
         let parts = if completed.parts.is_empty() {
             self.metadata.list_uploaded_parts(upload_id).await?
         } else {
@@ -189,24 +190,25 @@ where
         bucket: &str,
         key: &str,
         upload_id: &str,
-    ) -> Result<(), S3EngineImplError> {
+    ) -> Result<(), S3EngineError> {
         self.metadata
             .load_multipart(upload_id)
             .await?
-            .ok_or_else(|| S3EngineImplError::MultipartNotFound(upload_id.to_owned()))?;
+            .ok_or_else(|| S3EngineError::MultipartNotFound(upload_id.to_owned()))?;
         self.mount.cleanup_parts(bucket, key, upload_id).await?;
-        self.metadata.delete_multipart(upload_id).await
+        self.metadata.delete_multipart(upload_id).await?;
+        Ok(())
     }
 
     async fn list_multipart_uploads(
         &self,
         bucket: &str,
         options: ListOptions,
-    ) -> Result<Vec<MultipartUpload>, S3EngineImplError> {
+    ) -> Result<Vec<MultipartUpload>, S3EngineError> {
         self.metadata
             .load_bucket(bucket)
             .await?
-            .ok_or_else(|| S3EngineImplError::BucketNotFound(bucket.to_owned()))?;
+            .ok_or_else(|| S3EngineError::BucketNotFound(bucket.to_owned()))?;
         let mut uploads = self.metadata.list_multipart_uploads(bucket).await?;
         if let Some(ref prefix) = options.prefix {
             uploads.retain(|u| u.key.starts_with(prefix.as_str()));

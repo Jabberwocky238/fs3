@@ -5,22 +5,23 @@ mod bucket;
 mod object;
 mod utils;
 
+use crate::types::errors::S3EngineError;
 use crate::types::s3::request::*;
 use crate::types::s3::response::*;
-use crate::types::traits::s3_engine::{S3BucketEngine, S3Engine, S3EngineError, S3MultipartEngine, S3ObjectEngine};
+use crate::types::traits::s3_engine::S3BucketEngine;
 pub use utils::S3HandlerBridgeError;
 
 pub use bucket::BucketS3Handler;
 pub use object::ObjectS3Handler;
 
-pub trait S3Handler<E: S3EngineError + From<S3HandlerBridgeError>>:
+pub trait S3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>:
     ObjectS3Handler<E>
     + BucketS3Handler<E>
     + RootS3Handler<E>
     + RejectedS3Handler<E>
 {
 }
-impl<T, E: S3EngineError + From<S3HandlerBridgeError>> S3Handler<E> for T
+impl<T, E: From<S3HandlerBridgeError> + From<S3EngineError>> S3Handler<E> for T
 where
     T: ObjectS3Handler<E>
         + BucketS3Handler<E>
@@ -32,8 +33,8 @@ where
 // --- Trait definitions ---
 
 #[async_trait]
-pub trait RootS3Handler<E: S3EngineError + From<S3HandlerBridgeError>>: Send + Sync {
-    type Engine: S3BucketEngine<E>;
+pub trait RootS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: Send + Sync {
+    type Engine: S3BucketEngine;
     fn engine(&self) -> &Self::Engine;
 
     async fn root_listen_notification(&self, _req: RootListenNotificationRequest) -> Result<RootListenNotificationResponse, E> {
@@ -64,7 +65,7 @@ pub trait RootS3Handler<E: S3EngineError + From<S3HandlerBridgeError>>: Send + S
 }
 
 #[async_trait]
-pub trait RejectedS3Handler<E: S3EngineError>: Send + Sync {
+pub trait RejectedS3Handler<E>: Send + Sync {
     async fn rejected_object_torrent(&self, req: RejectedObjectTorrentRequest) -> Result<RejectedApiResponse, E> {
         Ok(RejectedApiResponse {
             error: ErrorBody {

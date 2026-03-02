@@ -9,8 +9,8 @@ use crate::types::errors::S3EngineError;
 use super::utils::*;
 
 #[async_trait]
-pub trait ObjectS3Handler<E: S3EngineError + From<S3HandlerBridgeError>>: Send + Sync {
-    type Engine: S3ObjectEngine<E> + S3MultipartEngine<E> + Send + Sync;
+pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: Send + Sync {
+    type Engine: S3ObjectEngine + S3MultipartEngine + Send + Sync;
 
     fn engine(&self) -> &Self::Engine;
 

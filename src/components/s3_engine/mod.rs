@@ -2,7 +2,6 @@ use chrono::Utc;
 use uuid::Uuid;
 
 use crate::types::s3::core::*;
-use crate::types::errors::S3EngineError;
 
 mod bucket;
 mod config;

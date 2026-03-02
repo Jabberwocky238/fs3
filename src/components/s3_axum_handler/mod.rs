@@ -2,12 +2,15 @@ mod util;
 mod http_bucket;
 mod http_object;
 mod http_root;
+mod handler;
 
 use std::fmt::{Display, Formatter};
 use std::sync::Arc;
 
 use axum::response::{IntoResponse, Response};
 use axum::Router;
+
+pub use handler::{BucketError, HandlerError, ObjectError};
 
 use crate::types::traits::s3_engine::S3EngineError;
 use crate::types::traits::s3_handler::{S3Handler, S3HandlerBridgeError};

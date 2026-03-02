@@ -3,14 +3,15 @@ use async_trait::async_trait;
 use crate::types::s3::request::*;
 use crate::types::s3::response::*;
 use crate::types::traits::s3_engine::{
-    S3BucketConfigEngine, S3BucketEngine, S3EngineError, S3MultipartEngine, S3ObjectEngine,
+    S3BucketConfigEngine, S3BucketEngine, S3MultipartEngine, S3ObjectEngine,
 };
+use crate::types::errors::S3EngineError;
 
 use super::utils::*;
 
 #[async_trait]
-pub trait BucketS3Handler<E: S3EngineError + From<S3HandlerBridgeError>>: Send + Sync {
-    type Engine: S3BucketEngine<E> + S3BucketConfigEngine<E> + S3MultipartEngine<E> + S3ObjectEngine<E> + Send + Sync;
+pub trait BucketS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: Send + Sync {
+    type Engine: S3BucketEngine + S3BucketConfigEngine + S3MultipartEngine + S3ObjectEngine + Send + Sync;
     fn engine(&self) -> &Self::Engine;
 
     async fn get_bucket_location(&self, req: GetBucketLocationRequest) -> Result<GetBucketLocationResponse, E> {

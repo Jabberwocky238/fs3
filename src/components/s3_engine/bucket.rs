@@ -9,7 +9,7 @@ use crate::types::traits::s3_mount::*;
 use super::S3EngineImpl;
 
 #[async_trait]
-impl<S, M> S3BucketEngine<S3EngineError> for S3EngineImpl<S, M>
+impl<S, M> S3BucketEngine for S3EngineImpl<S, M>
 where
     S: S3MetadataStorageBucket
         + S3MetadataStorageObject
