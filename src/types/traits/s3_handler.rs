@@ -4,7 +4,7 @@ use thiserror::Error;
 
 use crate::types::s3::core::{
     BucketFeatures, CompleteMultipartInput, DeleteObjectOptions, ListOptions, ObjectReadOptions,
-    ObjectWriteOptions, UploadedPart, VersioningState,
+    ObjectWriteOptions, StorageClass, UploadedPart, VersioningState,
 };
 use crate::types::s3::request::*;
 use crate::types::s3::response::*;
@@ -38,18 +38,48 @@ fn to_resp_object(v: &crate::types::s3::core::S3Object) -> ObjectInfo {
     }
 }
 
-fn to_read_opt(req: &GetObjectRequest) -> ObjectReadOptions {
-    ObjectReadOptions {
-        version_id: req.version_id.clone(),
-        range: req.range.clone(),
-        if_match: None,
-        if_none_match: None,
-        want_etag: false,
-        want_checksum: false,
-        want_object_parts: false,
-        want_storage_class: false,
-        want_object_size: false,
-        want_last_modified: false,
+fn to_list_opt(query: &ListQuery, include_metadata: bool) -> ListOptions {
+    ListOptions {
+        prefix: query.prefix.clone(),
+        delimiter: query.delimiter.clone(),
+        max_keys: query.max_keys,
+        continuation_token: query.continuation_token.clone(),
+        start_after: query.start_after.clone(),
+        marker: query.marker.clone(),
+        key_marker: query.key_marker.clone(),
+        version_id_marker: query.version_id_marker.clone(),
+        fetch_owner: false,
+        include_metadata,
+    }
+}
+
+fn to_write_opt(content_type: Option<String>) -> ObjectWriteOptions {
+    ObjectWriteOptions {
+        content_type,
+        content_encoding: None,
+        storage_class: StorageClass::Standard,
+        user_metadata: std::collections::HashMap::new(),
+        user_tags: std::collections::HashMap::new(),
+        checksum: None,
+        versioning: VersioningState::Off,
+        retention: None,
+        legal_hold: None,
+        sse_algorithm: None,
+    }
+}
+
+fn to_delete_opt(version_id: Option<String>) -> DeleteObjectOptions {
+    DeleteObjectOptions {
+        version_id,
+        bypass_governance: false,
+        replication_request: false,
+    }
+}
+
+fn bucket_features_for_create() -> BucketFeatures {
+    BucketFeatures {
+        versioning: VersioningState::Off,
+        object_lock_enabled: false,
     }
 }
 
@@ -129,7 +159,11 @@ where
     async fn head_object(&self, req: HeadObjectRequest) -> Result<HeadObjectResponse, Self::Error> {
         let obj = self
             .engine()
-            .head_object(&req.object.bucket, &req.object.object, ObjectReadOptions::default())
+            .head_object(
+                &req.object.bucket,
+                &req.object.object,
+                ObjectReadOptions::from(&req),
+            )
             .await
             .map_err(Into::into)?;
         Ok(HeadObjectResponse {
@@ -195,7 +229,9 @@ where
                 &req.object.bucket,
                 &req.object.object,
                 &req.multipart.upload_id,
-                req.multipart.part_number.unwrap_or_default(),
+                req.multipart.part_number.ok_or_else(|| {
+                    S3HandlerBridgeError::InvalidRequest("missing partNumber".to_string())
+                }).map_err(Into::into)?,
                 req.body,
             )
             .await
@@ -263,7 +299,7 @@ where
             .new_multipart_upload(
                 &req.object.bucket,
                 &req.object.object,
-                ObjectWriteOptions::default(),
+                to_write_opt(None),
             )
             .await
             .map_err(Into::into)?;
@@ -382,7 +418,7 @@ where
             .get_object(
                 &req.object.bucket,
                 &req.object.object,
-                ObjectReadOptions::default(),
+                ObjectReadOptions::from(&req),
             )
             .await
             .map_err(Into::into)?;
@@ -395,7 +431,11 @@ where
     async fn get_object(&self, req: GetObjectRequest) -> Result<GetObjectResponse, Self::Error> {
         let got = self
             .engine()
-            .get_object(&req.object.bucket, &req.object.object, to_read_opt(&req))
+            .get_object(
+                &req.object.bucket,
+                &req.object.object,
+                ObjectReadOptions::from(&req),
+            )
             .await
             .map_err(Into::into)?;
         Ok(GetObjectResponse {
@@ -415,7 +455,7 @@ where
                 &src_key,
                 &req.object.bucket,
                 &req.object.object,
-                ObjectWriteOptions::default(),
+                to_write_opt(None),
             )
             .await
             .map_err(Into::into)?;
@@ -455,7 +495,7 @@ where
                 &req.object.bucket,
                 &req.object.object,
                 req.body,
-                ObjectWriteOptions::default(),
+                to_write_opt(None),
             )
             .await
             .map_err(Into::into)?;
@@ -470,11 +510,7 @@ where
     }
 
     async fn put_object(&self, req: PutObjectRequest) -> Result<PutObjectResponse, Self::Error> {
-        let opt = ObjectWriteOptions {
-            content_type: req.content_type,
-            versioning: VersioningState::Off,
-            ..Default::default()
-        };
+        let opt = to_write_opt(req.content_type);
         let obj = self
             .engine()
             .put_object(&req.object.bucket, &req.object.object, req.body, opt)
@@ -492,10 +528,7 @@ where
             .delete_object(
                 &req.object.bucket,
                 &req.object.object,
-                DeleteObjectOptions {
-                    version_id: req.version_id,
-                    ..Default::default()
-                },
+                to_delete_opt(req.version_id),
             )
             .await
             .map_err(Into::into)?;
@@ -576,7 +609,7 @@ where
         Ok(Default::default())
     }
     async fn list_multipart_uploads(&self, req: ListMultipartUploadsRequest) -> Result<ListMultipartUploadsResponse, Self::Error> {
-        let uploads = self.engine().list_multipart_uploads(&req.bucket.bucket, ListOptions::default()).await.map_err(Into::into)?;
+        let uploads = self.engine().list_multipart_uploads(&req.bucket.bucket, to_list_opt(&req.query, false)).await.map_err(Into::into)?;
         Ok(ListMultipartUploadsResponse {
             uploads: uploads.into_iter().map(|u| MultipartUploadInfo {
                 key: u.key,
@@ -587,22 +620,22 @@ where
         })
     }
     async fn list_objects_v2m(&self, req: ListObjectsV2MRequest) -> Result<ListObjectsV2MResponse, Self::Error> {
-        let p = self.engine().list_objects_v2(&req.bucket.bucket, ListOptions::default()).await.map_err(Into::into)?;
+        let p = self.engine().list_objects_v2(&req.bucket.bucket, to_list_opt(&req.query, req.metadata)).await.map_err(Into::into)?;
         Ok(ListObjectsV2MResponse {
             objects: p.objects.iter().map(to_resp_object).collect(),
             ..Default::default()
         })
     }
     async fn list_objects_v2(&self, req: ListObjectsV2Request) -> Result<ListObjectsV2Response, Self::Error> {
-        let p = self.engine().list_objects_v2(&req.bucket.bucket, ListOptions::default()).await.map_err(Into::into)?;
+        let p = self.engine().list_objects_v2(&req.bucket.bucket, to_list_opt(&req.query, false)).await.map_err(Into::into)?;
         Ok(ListObjectsV2Response { objects: p.objects.iter().map(to_resp_object).collect(), ..Default::default() })
     }
     async fn list_object_versions_m(&self, req: ListObjectVersionsMRequest) -> Result<ListObjectVersionsMResponse, Self::Error> {
-        let p = self.engine().list_object_versions(&req.bucket.bucket, ListOptions::default()).await.map_err(Into::into)?;
+        let p = self.engine().list_object_versions(&req.bucket.bucket, to_list_opt(&req.query, req.metadata)).await.map_err(Into::into)?;
         Ok(ListObjectVersionsMResponse { objects: p.objects.iter().map(to_resp_object).collect(), ..Default::default() })
     }
     async fn list_object_versions(&self, req: ListObjectVersionsRequest) -> Result<ListObjectVersionsResponse, Self::Error> {
-        let p = self.engine().list_object_versions(&req.bucket.bucket, ListOptions::default()).await.map_err(Into::into)?;
+        let p = self.engine().list_object_versions(&req.bucket.bucket, to_list_opt(&req.query, false)).await.map_err(Into::into)?;
         Ok(ListObjectVersionsResponse { objects: p.objects.iter().map(to_resp_object).collect(), ..Default::default() })
     }
     async fn get_bucket_policy_status(&self, req: GetBucketPolicyStatusRequest) -> Result<GetBucketPolicyStatusResponse, Self::Error> {
@@ -645,7 +678,7 @@ where
     async fn put_bucket(&self, req: PutBucketRequest) -> Result<PutBucketResponse, Self::Error> {
         let _ = self
             .engine()
-            .make_bucket(&req.bucket.bucket, req.region.as_deref(), BucketFeatures::default())
+            .make_bucket(&req.bucket.bucket, req.region.as_deref(), bucket_features_for_create())
             .await
             .map_err(Into::into)?;
         Ok(Default::default())
@@ -662,7 +695,7 @@ where
         }
         let r = self
             .engine()
-            .delete_objects(&req.bucket.bucket, keys, DeleteObjectOptions::default())
+            .delete_objects(&req.bucket.bucket, keys, to_delete_opt(None))
             .await
             .map_err(Into::into)?;
         Ok(DeleteMultipleObjectsResponse {
@@ -712,7 +745,7 @@ where
         Ok(ValidateBucketReplicationCredsResponse { valid: v.valid, ..Default::default() })
     }
     async fn list_objects_v1(&self, req: ListObjectsV1Request) -> Result<ListObjectsV1Response, Self::Error> {
-        let p = self.engine().list_objects_v1(&req.bucket.bucket, ListOptions::default()).await.map_err(Into::into)?;
+        let p = self.engine().list_objects_v1(&req.bucket.bucket, to_list_opt(&req.query, false)).await.map_err(Into::into)?;
         Ok(ListObjectsV1Response { objects: p.objects.iter().map(to_resp_object).collect(), ..Default::default() })
     }
 }

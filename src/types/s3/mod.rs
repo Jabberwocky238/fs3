@@ -1,5 +1,6 @@
 pub mod core;
 pub mod request;
+pub mod request_from_axum;
 pub mod response;
 
 // JW238: never export *, items should be imported by crate itself, only use * is allowed.

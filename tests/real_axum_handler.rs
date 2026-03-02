@@ -8,6 +8,7 @@ use minio::s3::creds::StaticProvider;
 use minio::s3::http::BaseUrl;
 use minio::s3::types::S3Api;
 use minio::s3::{Client, ClientBuilder};
+use s3_mount_gateway_rust::components::s3_engine::memory::MemoryS3Engine;
 use tokio::net::TcpListener;
 use tokio::sync::RwLock;
 
@@ -23,7 +24,7 @@ async fn start_server() -> (String, tokio::task::JoinHandle<()>) {
     let addr = listener.local_addr().expect("local addr failed");
     let base = format!("http://{}", addr);
 
-    let app = axum_router::<RealAxumHandler, HandlerErr>(RealAxumHandler::default());
+    let app = axum_router::<MemoryS3Engine, HandlerErr>(MemoryS3Engine::default());
     let handle = tokio::spawn(async move {
         let _ = axum::serve(listener, app).await;
     });

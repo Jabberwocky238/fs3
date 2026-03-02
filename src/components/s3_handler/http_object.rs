@@ -59,7 +59,13 @@ where
     let copy_source = header(&headers, "x-amz-copy-source");
     let resp = match method {
         Method::HEAD => S3Response::HeadObject(
-            handler.head_object(HeadObjectRequest { object: mk() }).await.map_err(|e| HandlerError::internal(e.to_string()))?,
+            handler.head_object(HeadObjectRequest {
+                object: mk(),
+                range: header(&headers, "range"),
+                version_id: get(&q, "versionId"),
+                if_match: header(&headers, "if-match"),
+                if_none_match: header(&headers, "if-none-match"),
+            }).await.map_err(|e| HandlerError::internal(e.to_string()))?,
         ),
         Method::GET if has(&q, "attributes") => S3Response::GetObjectAttributes(
             handler.get_object_attributes(GetObjectAttributesRequest {
@@ -104,6 +110,10 @@ where
             handler.get_object_lambda(GetObjectLambdaRequest {
                 object: mk(),
                 lambda_arn: get(&q, "lambdaArn").unwrap_or_default(),
+                range: header(&headers, "range"),
+                version_id: get(&q, "versionId"),
+                if_match: header(&headers, "if-match"),
+                if_none_match: header(&headers, "if-none-match"),
             }).await.map_err(|e| HandlerError::internal(e.to_string()))?,
         ),
         Method::GET => S3Response::GetObject(

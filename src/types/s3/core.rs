@@ -245,6 +245,57 @@ impl From<crate::types::s3::request::GetObjectAttributesRequest> for ObjectReadO
     }
 }
 
+impl From<&crate::types::s3::request::HeadObjectRequest> for ObjectReadOptions {
+    fn from(req: &crate::types::s3::request::HeadObjectRequest) -> Self {
+        Self {
+            version_id: req.version_id.clone(),
+            range: req.range.clone(),
+            if_match: req.if_match.clone(),
+            if_none_match: req.if_none_match.clone(),
+            want_etag: false,
+            want_checksum: false,
+            want_object_parts: false,
+            want_storage_class: false,
+            want_object_size: false,
+            want_last_modified: false,
+        }
+    }
+}
+
+impl From<&crate::types::s3::request::GetObjectRequest> for ObjectReadOptions {
+    fn from(req: &crate::types::s3::request::GetObjectRequest) -> Self {
+        Self {
+            version_id: req.version_id.clone(),
+            range: req.range.clone(),
+            if_match: None,
+            if_none_match: None,
+            want_etag: false,
+            want_checksum: false,
+            want_object_parts: false,
+            want_storage_class: false,
+            want_object_size: false,
+            want_last_modified: false,
+        }
+    }
+}
+
+impl From<&crate::types::s3::request::GetObjectLambdaRequest> for ObjectReadOptions {
+    fn from(req: &crate::types::s3::request::GetObjectLambdaRequest) -> Self {
+        Self {
+            version_id: req.version_id.clone(),
+            range: req.range.clone(),
+            if_match: req.if_match.clone(),
+            if_none_match: req.if_none_match.clone(),
+            want_etag: false,
+            want_checksum: false,
+            want_object_parts: false,
+            want_storage_class: false,
+            want_object_size: false,
+            want_last_modified: false,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct ObjectWriteOptions {
     pub content_type: Option<String>,
