@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::fmt::Display;
 use std::sync::Arc;
 
 use axum::body::Bytes;
@@ -11,15 +10,16 @@ use axum::{Json, Router};
 use crate::types::s3::core::ObjectAttribute;
 use crate::types::s3::request::*;
 use crate::types::s3::response::S3Response;
-use crate::types::traits::s3_handler::{ObjectS3Handler, RejectedObjectS3Handler, S3Handler};
+use crate::types::traits::s3_engine::S3EngineError;
+use crate::types::traits::s3_handler::{S3Handler, S3HandlerBridgeError};
 
 use super::util::{body_string, get, has, header, header_eq, multipart_selector};
 use super::{HandlerError};
 
 pub fn routes<T, E>(state: Arc<T>) -> Router
 where
-    T: S3Handler + ObjectS3Handler<Error = E> + RejectedObjectS3Handler<Error = E> + Send + Sync + 'static,
-    E: Display + Send + Sync + 'static,
+    T: S3Handler<E> + Send + Sync + 'static,
+    E: S3EngineError + From<S3HandlerBridgeError>,
 {
     Router::new().route("/{bucket}/{*object}", any(object_entry::<T, E>)).with_state(state)
 }
@@ -33,8 +33,8 @@ async fn object_entry<T, E>(
     body: Bytes,
 ) -> Result<Json<S3Response>, HandlerError>
 where
-    T: S3Handler + ObjectS3Handler<Error = E> + RejectedObjectS3Handler<Error = E> + Send + Sync,
-    E: Display + Send + Sync + 'static,
+    T: S3Handler<E> + Send + Sync,
+    E: S3EngineError + From<S3HandlerBridgeError>,
 {
     let mk = || ObjectRef { bucket: bucket.clone(), object: object_path.clone() };
     if has(&q, "torrent") && matches!(method, Method::GET | Method::PUT | Method::DELETE) {

@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::fmt::Display;
 use std::sync::Arc;
 
 use axum::extract::{Query, State};
@@ -9,15 +8,16 @@ use axum::{Json, Router};
 
 use crate::types::s3::request::{ListBucketsDoubleSlashRequest, ListBucketsRequest, RootListenNotificationRequest};
 use crate::types::s3::response::S3Response;
-use crate::types::traits::s3_handler::{RootS3Handler, S3Handler};
+use crate::types::traits::s3_engine::S3EngineError;
+use crate::types::traits::s3_handler::{S3Handler, S3HandlerBridgeError};
 
 use super::util::{event_filter, has};
 use super::{HandlerError};
 
 pub fn routes<T, E>(state: Arc<T>) -> Router
 where
-    T: S3Handler + RootS3Handler<Error = E> + Send + Sync + 'static,
-    E: Display + Send + Sync + 'static,
+    T: S3Handler<E> + Send + Sync + 'static,
+    E: S3EngineError + From<S3HandlerBridgeError>,
 {
     Router::new()
         .route("/", any(root_entry::<T, E>))
@@ -27,8 +27,8 @@ where
 
 async fn root_double_slash<T, E>(State(handler): State<Arc<T>>) -> Result<Json<S3Response>, HandlerError>
 where
-    T: S3Handler + RootS3Handler<Error = E> + Send + Sync,
-    E: Display + Send + Sync + 'static,
+    T: S3Handler<E> + Send + Sync,
+    E: S3EngineError + From<S3HandlerBridgeError>,
 {
     let v = handler
         .list_buckets_double_slash(ListBucketsDoubleSlashRequest)
@@ -43,8 +43,8 @@ async fn root_entry<T, E>(
     Query(q): Query<HashMap<String, String>>,
 ) -> Result<Json<S3Response>, HandlerError>
 where
-    T: S3Handler + RootS3Handler<Error = E> + Send + Sync,
-    E: Display + Send + Sync + 'static,
+    T: S3Handler<E> + Send + Sync,
+    E: S3EngineError + From<S3HandlerBridgeError>,
 {
     if method != Method::GET {
         return Err(HandlerError::method_not_allowed("root only supports GET"));

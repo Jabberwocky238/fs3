@@ -13,7 +13,7 @@ impl S3MultipartEngine<MemoryS3EngineError> for MemoryS3Engine {
         bucket: &str,
         key: &str,
         options: ObjectWriteOptions,
-    ) -> Result<MultipartUpload, Self::Error> {
+    ) -> Result<MultipartUpload, MemoryS3EngineError> {
         let mut state = self.state.write().await;
         state.ensure_bucket(bucket)?;
 
@@ -46,7 +46,7 @@ impl S3MultipartEngine<MemoryS3EngineError> for MemoryS3Engine {
         upload_id: &str,
         part_number: u32,
         body: Vec<u8>,
-    ) -> Result<UploadedPart, Self::Error> {
+    ) -> Result<UploadedPart, MemoryS3EngineError> {
         let mut state = self.state.write().await;
         let upload = state
             .multiparts
@@ -78,7 +78,7 @@ impl S3MultipartEngine<MemoryS3EngineError> for MemoryS3Engine {
         _dst_key: &str,
         upload_id: &str,
         part_number: u32,
-    ) -> Result<UploadedPart, Self::Error> {
+    ) -> Result<UploadedPart, MemoryS3EngineError> {
         let mut state = self.state.write().await;
         let src_body = state
             .get_versions(src_bucket, src_key)?
@@ -117,7 +117,7 @@ impl S3MultipartEngine<MemoryS3EngineError> for MemoryS3Engine {
         _bucket: &str,
         _key: &str,
         upload_id: &str,
-    ) -> Result<Vec<UploadedPart>, Self::Error> {
+    ) -> Result<Vec<UploadedPart>, MemoryS3EngineError> {
         let state = self.state.read().await;
         let upload = state
             .multiparts
@@ -132,7 +132,7 @@ impl S3MultipartEngine<MemoryS3EngineError> for MemoryS3Engine {
         key: &str,
         upload_id: &str,
         completed: CompleteMultipartInput,
-    ) -> Result<S3Object, Self::Error> {
+    ) -> Result<S3Object, MemoryS3EngineError> {
         let mut state = self.state.write().await;
         let upload = state
             .multiparts
@@ -199,7 +199,7 @@ impl S3MultipartEngine<MemoryS3EngineError> for MemoryS3Engine {
         _bucket: &str,
         _key: &str,
         upload_id: &str,
-    ) -> Result<(), Self::Error> {
+    ) -> Result<(), MemoryS3EngineError> {
         let mut state = self.state.write().await;
         if state.multiparts.remove(upload_id).is_some() {
             Ok(())
@@ -212,7 +212,7 @@ impl S3MultipartEngine<MemoryS3EngineError> for MemoryS3Engine {
         &self,
         bucket: &str,
         options: ListOptions,
-    ) -> Result<Vec<MultipartUpload>, Self::Error> {
+    ) -> Result<Vec<MultipartUpload>, MemoryS3EngineError> {
         let state = self.state.read().await;
         state.ensure_bucket(bucket)?;
         let prefix = options.prefix.unwrap_or_default();

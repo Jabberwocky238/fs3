@@ -12,7 +12,7 @@ impl S3ObjectEngine<MemoryS3EngineError> for MemoryS3Engine {
         bucket: &str,
         key: &str,
         options: ObjectReadOptions,
-    ) -> Result<S3Object, Self::Error> {
+    ) -> Result<S3Object, MemoryS3EngineError> {
         let state = self.state.read().await;
         let versions = state.get_versions(bucket, key)?;
         let idx = crate::components::s3_engine::memory::MemoryState::select_version_index(
@@ -32,7 +32,7 @@ impl S3ObjectEngine<MemoryS3EngineError> for MemoryS3Engine {
         bucket: &str,
         key: &str,
         options: ObjectReadOptions,
-    ) -> Result<(S3Object, Vec<u8>), Self::Error> {
+    ) -> Result<(S3Object, Vec<u8>), MemoryS3EngineError> {
         let state = self.state.read().await;
         let versions = state.get_versions(bucket, key)?;
         let idx = crate::components::s3_engine::memory::MemoryState::select_version_index(
@@ -59,7 +59,7 @@ impl S3ObjectEngine<MemoryS3EngineError> for MemoryS3Engine {
         key: &str,
         body: Vec<u8>,
         options: ObjectWriteOptions,
-    ) -> Result<S3Object, Self::Error> {
+    ) -> Result<S3Object, MemoryS3EngineError> {
         let mut state = self.state.write().await;
         let etag = MemoryS3Engine::compute_etag(&body);
         state.put_object(
@@ -80,7 +80,7 @@ impl S3ObjectEngine<MemoryS3EngineError> for MemoryS3Engine {
         dst_bucket: &str,
         dst_key: &str,
         options: ObjectWriteOptions,
-    ) -> Result<S3Object, Self::Error> {
+    ) -> Result<S3Object, MemoryS3EngineError> {
         let mut state = self.state.write().await;
         let src = state
             .get_versions(src_bucket, src_key)?
@@ -107,7 +107,7 @@ impl S3ObjectEngine<MemoryS3EngineError> for MemoryS3Engine {
         bucket: &str,
         key: &str,
         options: DeleteObjectOptions,
-    ) -> Result<ObjectVersionRef, Self::Error> {
+    ) -> Result<ObjectVersionRef, MemoryS3EngineError> {
         let mut state = self.state.write().await;
         let versions = state.get_versions_mut(bucket, key)?;
         let idx = crate::components::s3_engine::memory::MemoryState::select_version_index(
@@ -135,7 +135,7 @@ impl S3ObjectEngine<MemoryS3EngineError> for MemoryS3Engine {
         bucket: &str,
         keys: Vec<String>,
         options: DeleteObjectOptions,
-    ) -> Result<DeleteResult, Self::Error> {
+    ) -> Result<DeleteResult, MemoryS3EngineError> {
         let mut deleted = Vec::new();
         let mut errors = Vec::new();
 
@@ -153,7 +153,7 @@ impl S3ObjectEngine<MemoryS3EngineError> for MemoryS3Engine {
         Ok(DeleteResult { deleted, errors })
     }
 
-    async fn get_object_tagging(&self, bucket: &str, key: &str) -> Result<TagMap, Self::Error> {
+    async fn get_object_tagging(&self, bucket: &str, key: &str) -> Result<TagMap, MemoryS3EngineError> {
         let state = self.state.read().await;
         let versions = state.get_versions(bucket, key)?;
         Ok(versions
@@ -172,7 +172,7 @@ impl S3ObjectEngine<MemoryS3EngineError> for MemoryS3Engine {
         bucket: &str,
         key: &str,
         tags: TagMap,
-    ) -> Result<(), Self::Error> {
+    ) -> Result<(), MemoryS3EngineError> {
         let mut state = self.state.write().await;
         let latest = state
             .get_versions_mut(bucket, key)?
@@ -185,7 +185,7 @@ impl S3ObjectEngine<MemoryS3EngineError> for MemoryS3Engine {
         Ok(())
     }
 
-    async fn delete_object_tagging(&self, bucket: &str, key: &str) -> Result<(), Self::Error> {
+    async fn delete_object_tagging(&self, bucket: &str, key: &str) -> Result<(), MemoryS3EngineError> {
         self.put_object_tagging(bucket, key, TagMap::new()).await
     }
 
@@ -193,7 +193,7 @@ impl S3ObjectEngine<MemoryS3EngineError> for MemoryS3Engine {
         &self,
         bucket: &str,
         key: &str,
-    ) -> Result<Option<ObjectRetention>, Self::Error> {
+    ) -> Result<Option<ObjectRetention>, MemoryS3EngineError> {
         let state = self.state.read().await;
         let latest = state
             .get_versions(bucket, key)?
@@ -210,7 +210,7 @@ impl S3ObjectEngine<MemoryS3EngineError> for MemoryS3Engine {
         bucket: &str,
         key: &str,
         retention: ObjectRetention,
-    ) -> Result<(), Self::Error> {
+    ) -> Result<(), MemoryS3EngineError> {
         let mut state = self.state.write().await;
         let latest = state
             .get_versions_mut(bucket, key)?
@@ -227,7 +227,7 @@ impl S3ObjectEngine<MemoryS3EngineError> for MemoryS3Engine {
         &self,
         bucket: &str,
         key: &str,
-    ) -> Result<Option<ObjectLegalHold>, Self::Error> {
+    ) -> Result<Option<ObjectLegalHold>, MemoryS3EngineError> {
         let state = self.state.read().await;
         let latest = state
             .get_versions(bucket, key)?
@@ -244,7 +244,7 @@ impl S3ObjectEngine<MemoryS3EngineError> for MemoryS3Engine {
         bucket: &str,
         key: &str,
         legal_hold: ObjectLegalHold,
-    ) -> Result<(), Self::Error> {
+    ) -> Result<(), MemoryS3EngineError> {
         let mut state = self.state.write().await;
         let latest = state
             .get_versions_mut(bucket, key)?

@@ -9,10 +9,8 @@ use std::sync::Arc;
 use axum::response::{IntoResponse, Response};
 use axum::{Json, Router};
 
-use crate::types::traits::s3_handler::{
-    BucketS3Handler, ObjectS3Handler, RejectedBucketS3Handler, RejectedObjectS3Handler,
-    RootS3Handler, S3Handler,
-};
+use crate::types::traits::s3_engine::S3EngineError;
+use crate::types::traits::s3_handler::{S3Handler, S3HandlerBridgeError};
 
 #[derive(Debug)]
 pub struct HandlerError {
@@ -44,16 +42,8 @@ impl IntoResponse for HandlerError {
 
 pub fn router<T, E>(handler: T) -> Router
 where
-    T: S3Handler
-        + ObjectS3Handler<Error = E>
-        + BucketS3Handler<Error = E>
-        + RootS3Handler<Error = E>
-        + RejectedObjectS3Handler<Error = E>
-        + RejectedBucketS3Handler<Error = E>
-        + Send
-        + Sync
-        + 'static,
-    E: Display + Send + Sync + 'static,
+    T: S3Handler<E> + Send + Sync + 'static,
+    E: S3EngineError + From<S3HandlerBridgeError>,
 {
     let state = Arc::new(handler);
     Router::new()

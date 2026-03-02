@@ -14,7 +14,7 @@ impl S3BucketEngine<MemoryS3EngineError> for MemoryS3Engine {
         bucket: &str,
         region: Option<&str>,
         features: BucketFeatures,
-    ) -> Result<S3Bucket, Self::Error> {
+    ) -> Result<S3Bucket, MemoryS3EngineError> {
         let mut state = self.state.write().await;
         if state.buckets.contains_key(bucket) {
             return Err(MemoryS3EngineError::BucketAlreadyExists(bucket.to_owned()));
@@ -37,7 +37,7 @@ impl S3BucketEngine<MemoryS3EngineError> for MemoryS3Engine {
         Ok(bucket_obj)
     }
 
-    async fn head_bucket(&self, bucket: &str) -> Result<S3Bucket, Self::Error> {
+    async fn head_bucket(&self, bucket: &str) -> Result<S3Bucket, MemoryS3EngineError> {
         let state = self.state.read().await;
         state
             .buckets
@@ -46,18 +46,18 @@ impl S3BucketEngine<MemoryS3EngineError> for MemoryS3Engine {
             .ok_or_else(|| MemoryS3EngineError::BucketNotFound(bucket.to_owned()))
     }
 
-    async fn get_bucket(&self, bucket: &str) -> Result<S3Bucket, Self::Error> {
+    async fn get_bucket(&self, bucket: &str) -> Result<S3Bucket, MemoryS3EngineError> {
         self.head_bucket(bucket).await
     }
 
-    async fn list_buckets(&self) -> Result<Vec<S3Bucket>, Self::Error> {
+    async fn list_buckets(&self) -> Result<Vec<S3Bucket>, MemoryS3EngineError> {
         let state = self.state.read().await;
         let mut out: Vec<S3Bucket> = state.buckets.values().cloned().collect();
         out.sort_by(|a, b| a.identity.name.cmp(&b.identity.name));
         Ok(out)
     }
 
-    async fn delete_bucket(&self, bucket: &str, force: bool) -> Result<(), Self::Error> {
+    async fn delete_bucket(&self, bucket: &str, force: bool) -> Result<(), MemoryS3EngineError> {
         let mut state = self.state.write().await;
         state.ensure_bucket(bucket)?;
 
@@ -77,7 +77,7 @@ impl S3BucketEngine<MemoryS3EngineError> for MemoryS3Engine {
         &self,
         bucket: &str,
         options: ListOptions,
-    ) -> Result<ObjectListPage, Self::Error> {
+    ) -> Result<ObjectListPage, MemoryS3EngineError> {
         let state = self.state.read().await;
         list_objects_common(&state, bucket, &options, false)
     }
@@ -86,7 +86,7 @@ impl S3BucketEngine<MemoryS3EngineError> for MemoryS3Engine {
         &self,
         bucket: &str,
         options: ListOptions,
-    ) -> Result<ObjectListPage, Self::Error> {
+    ) -> Result<ObjectListPage, MemoryS3EngineError> {
         let state = self.state.read().await;
         list_objects_common(&state, bucket, &options, false)
     }
@@ -95,7 +95,7 @@ impl S3BucketEngine<MemoryS3EngineError> for MemoryS3Engine {
         &self,
         bucket: &str,
         options: ListOptions,
-    ) -> Result<ObjectListPage, Self::Error> {
+    ) -> Result<ObjectListPage, MemoryS3EngineError> {
         let state = self.state.read().await;
         list_objects_common(&state, bucket, &options, true)
     }

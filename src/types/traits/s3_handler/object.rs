@@ -1,29 +1,19 @@
 use async_trait::async_trait;
 
-use crate::types::s3::core::{
-    ObjectReadOptions,
-};
+use crate::types::s3::core::ObjectReadOptions;
 use crate::types::s3::request::*;
 use crate::types::s3::response::*;
-use crate::types::traits::s3_engine::{
-    S3MultipartEngine, S3ObjectEngine,
-};
+use crate::types::traits::s3_engine::{S3EngineError, S3MultipartEngine, S3ObjectEngine};
 
 use super::utils::*;
 
 #[async_trait]
-pub trait ObjectS3Handler
-where
-    <Self::Engine as S3ObjectEngine>::Error: Into<Self::Error>,
-    <Self::Engine as S3MultipartEngine>::Error: Into<Self::Error>,
-    Self::Error: From<S3HandlerBridgeError>,
-{
-    type Engine: S3ObjectEngine + S3MultipartEngine;
-    type Error: Send + Sync + 'static;
+pub trait ObjectS3Handler<E: S3EngineError + From<S3HandlerBridgeError>>: Send + Sync {
+    type Engine: S3ObjectEngine<E> + S3MultipartEngine<E> + Send + Sync;
 
     fn engine(&self) -> &Self::Engine;
 
-    async fn head_object(&self, req: HeadObjectRequest) -> Result<HeadObjectResponse, Self::Error> {
+    async fn head_object(&self, req: HeadObjectRequest) -> Result<HeadObjectResponse, E> {
         let obj = self
             .engine()
             .head_object(
@@ -32,7 +22,7 @@ where
                 ObjectReadOptions::from(&req),
             )
             .await
-            .map_err(Into::into)?;
+            ?;
         Ok(HeadObjectResponse {
             object: Some(to_resp_object(&obj)),
             ..Default::default()
@@ -42,7 +32,7 @@ where
     async fn get_object_attributes(
         &self,
         req: GetObjectAttributesRequest,
-    ) -> Result<GetObjectAttributesResponse, Self::Error> {
+    ) -> Result<GetObjectAttributesResponse, E> {
         let bucket = req.object.bucket.clone();
         let object = req.object.object.clone();
         let opts: ObjectReadOptions = req.into();
@@ -50,7 +40,7 @@ where
             .engine()
             .head_object(&bucket, &object, opts)
             .await
-            .map_err(Into::into)?;
+            ?;
         Ok(GetObjectAttributesResponse {
             object: Some(to_resp_object(&obj)),
             ..Default::default()
@@ -60,10 +50,10 @@ where
     async fn copy_object_part(
         &self,
         req: CopyObjectPartRequest,
-    ) -> Result<CopyObjectPartResponse, Self::Error> {
+    ) -> Result<CopyObjectPartResponse, E> {
         let (src_bucket, src_key) = split_copy_source(&req.copy_source)
             .ok_or_else(|| S3HandlerBridgeError::InvalidRequest("missing/invalid x-amz-copy-source".to_string()))
-            .map_err(Into::into)?;
+            ?;
         let part = self
             .engine()
             .copy_object_part(
@@ -72,10 +62,10 @@ where
                 &req.object.bucket,
                 &req.object.object,
                 &req.multipart.upload_id,
-                req.multipart.part_number.ok_or_else(|| S3HandlerBridgeError::InvalidRequest("missing partNumber".to_string())).map_err(Into::into)?,
+                req.multipart.part_number.ok_or_else(|| S3HandlerBridgeError::InvalidRequest("missing partNumber".to_string()))?,
             )
             .await
-            .map_err(Into::into)?;
+            ?;
         Ok(CopyObjectPartResponse {
             part: Some(MultipartPartInfo {
                 part_number: part.part_number,
@@ -89,7 +79,7 @@ where
     async fn put_object_part(
         &self,
         req: PutObjectPartRequest,
-    ) -> Result<PutObjectPartResponse, Self::Error> {
+    ) -> Result<PutObjectPartResponse, E> {
         let part = self
             .engine()
             .put_object_part(
@@ -98,11 +88,11 @@ where
                 &req.multipart.upload_id,
                 req.multipart.part_number.ok_or_else(|| {
                     S3HandlerBridgeError::InvalidRequest("missing partNumber".to_string())
-                }).map_err(Into::into)?,
+                })?,
                 req.body,
             )
             .await
-            .map_err(Into::into)?;
+            ?;
         Ok(PutObjectPartResponse {
             part: Some(MultipartPartInfo {
                 part_number: part.part_number,
@@ -116,12 +106,12 @@ where
     async fn list_object_parts(
         &self,
         req: ListObjectPartsRequest,
-    ) -> Result<ListObjectPartsResponse, Self::Error> {
+    ) -> Result<ListObjectPartsResponse, E> {
         let parts = self
             .engine()
             .list_object_parts(&req.object.bucket, &req.object.object, &req.upload_id)
             .await
-            .map_err(Into::into)?;
+            ?;
         Ok(ListObjectPartsResponse {
             upload_id: Some(req.upload_id),
             parts: parts
@@ -139,7 +129,7 @@ where
     async fn complete_multipart_upload(
         &self,
         req: CompleteMultipartUploadRequest,
-    ) -> Result<CompleteMultipartUploadResponse, Self::Error> {
+    ) -> Result<CompleteMultipartUploadResponse, E> {
         let completed = parse_completed_parts(&req.xml);
         let obj = self
             .engine()
@@ -150,7 +140,7 @@ where
                 completed,
             )
             .await
-            .map_err(Into::into)?;
+            ?;
         Ok(CompleteMultipartUploadResponse {
             object: Some(to_resp_object(&obj)),
             ..Default::default()
@@ -160,7 +150,7 @@ where
     async fn new_multipart_upload(
         &self,
         req: NewMultipartUploadRequest,
-    ) -> Result<NewMultipartUploadResponse, Self::Error> {
+    ) -> Result<NewMultipartUploadResponse, E> {
         let mp = self
             .engine()
             .new_multipart_upload(
@@ -169,7 +159,7 @@ where
                 to_write_opt(None),
             )
             .await
-            .map_err(Into::into)?;
+            ?;
         Ok(NewMultipartUploadResponse {
             upload_id: Some(mp.upload_id),
             ..Default::default()
@@ -179,30 +169,30 @@ where
     async fn abort_multipart_upload(
         &self,
         req: AbortMultipartUploadRequest,
-    ) -> Result<AbortMultipartUploadResponse, Self::Error> {
+    ) -> Result<AbortMultipartUploadResponse, E> {
         self.engine()
             .abort_multipart_upload(&req.object.bucket, &req.object.object, &req.upload_id)
             .await
-            .map_err(Into::into)?;
+            ?;
         Ok(Default::default())
     }
 
-    async fn get_object_acl(&self, _req: GetObjectAclRequest) -> Result<GetObjectAclResponse, Self::Error> {
+    async fn get_object_acl(&self, _req: GetObjectAclRequest) -> Result<GetObjectAclResponse, E> {
         Ok(Default::default())
     }
-    async fn put_object_acl(&self, _req: PutObjectAclRequest) -> Result<PutObjectAclResponse, Self::Error> {
+    async fn put_object_acl(&self, _req: PutObjectAclRequest) -> Result<PutObjectAclResponse, E> {
         Ok(Default::default())
     }
 
     async fn get_object_tagging(
         &self,
         req: GetObjectTaggingRequest,
-    ) -> Result<GetObjectTaggingResponse, Self::Error> {
+    ) -> Result<GetObjectTaggingResponse, E> {
         let tags = self
             .engine()
             .get_object_tagging(&req.object.bucket, &req.object.object)
             .await
-            .map_err(Into::into)?;
+            ?;
         let xml = if tags.is_empty() {
             None
         } else {
@@ -219,7 +209,7 @@ where
     async fn put_object_tagging(
         &self,
         req: PutObjectTaggingRequest,
-    ) -> Result<PutObjectTaggingResponse, Self::Error> {
+    ) -> Result<PutObjectTaggingResponse, E> {
         let mut tags = std::collections::HashMap::new();
         if !req.xml.is_empty() {
             tags.insert("raw".to_string(), req.xml);
@@ -227,37 +217,37 @@ where
         self.engine()
             .put_object_tagging(&req.object.bucket, &req.object.object, tags)
             .await
-            .map_err(Into::into)?;
+            ?;
         Ok(Default::default())
     }
 
     async fn delete_object_tagging(
         &self,
         req: DeleteObjectTaggingRequest,
-    ) -> Result<DeleteObjectTaggingResponse, Self::Error> {
+    ) -> Result<DeleteObjectTaggingResponse, E> {
         self.engine()
             .delete_object_tagging(&req.object.bucket, &req.object.object)
             .await
-            .map_err(Into::into)?;
+            ?;
         Ok(Default::default())
     }
 
     async fn select_object_content(
         &self,
         _req: SelectObjectContentRequest,
-    ) -> Result<SelectObjectContentResponse, Self::Error> {
+    ) -> Result<SelectObjectContentResponse, E> {
         unsupported("SelectObjectContent")
     }
 
     async fn get_object_retention(
         &self,
         req: GetObjectRetentionRequest,
-    ) -> Result<GetObjectRetentionResponse, Self::Error> {
+    ) -> Result<GetObjectRetentionResponse, E> {
         let ret = self
             .engine()
             .get_object_retention(&req.object.bucket, &req.object.object)
             .await
-            .map_err(Into::into)?;
+            ?;
         Ok(GetObjectRetentionResponse {
             xml: ret.map(|r| format!("{:?}:{}", r.mode, r.retain_until.to_rfc3339())),
             ..Default::default()
@@ -267,19 +257,19 @@ where
     async fn get_object_legal_hold(
         &self,
         req: GetObjectLegalHoldRequest,
-    ) -> Result<GetObjectLegalHoldResponse, Self::Error> {
+    ) -> Result<GetObjectLegalHoldResponse, E> {
         let hold = self
             .engine()
             .get_object_legal_hold(&req.object.bucket, &req.object.object)
             .await
-            .map_err(Into::into)?;
+            ?;
         Ok(GetObjectLegalHoldResponse {
             xml: hold.map(|h| if h.enabled { "ON".to_string() } else { "OFF".to_string() }),
             ..Default::default()
         })
     }
 
-    async fn get_object_lambda(&self, req: GetObjectLambdaRequest) -> Result<GetObjectLambdaResponse, Self::Error> {
+    async fn get_object_lambda(&self, req: GetObjectLambdaRequest) -> Result<GetObjectLambdaResponse, E> {
         let got = self
             .engine()
             .get_object(
@@ -288,14 +278,14 @@ where
                 ObjectReadOptions::from(&req),
             )
             .await
-            .map_err(Into::into)?;
+            ?;
         Ok(GetObjectLambdaResponse {
             body: got.1,
             ..Default::default()
         })
     }
 
-    async fn get_object(&self, req: GetObjectRequest) -> Result<GetObjectResponse, Self::Error> {
+    async fn get_object(&self, req: GetObjectRequest) -> Result<GetObjectResponse, E> {
         let got = self
             .engine()
             .get_object(
@@ -304,17 +294,17 @@ where
                 ObjectReadOptions::from(&req),
             )
             .await
-            .map_err(Into::into)?;
+            ?;
         Ok(GetObjectResponse {
             body: got.1,
             ..Default::default()
         })
     }
 
-    async fn copy_object(&self, req: CopyObjectRequest) -> Result<CopyObjectResponse, Self::Error> {
+    async fn copy_object(&self, req: CopyObjectRequest) -> Result<CopyObjectResponse, E> {
         let (src_bucket, src_key) = split_copy_source(&req.copy_source)
             .ok_or_else(|| S3HandlerBridgeError::InvalidRequest("missing/invalid x-amz-copy-source".to_string()))
-            .map_err(Into::into)?;
+            ?;
         let obj = self
             .engine()
             .copy_object(
@@ -325,7 +315,7 @@ where
                 to_write_opt(None),
             )
             .await
-            .map_err(Into::into)?;
+            ?;
         Ok(CopyObjectResponse {
             object: Some(to_resp_object(&obj)),
             ..Default::default()
@@ -335,7 +325,7 @@ where
     async fn put_object_retention(
         &self,
         req: PutObjectRetentionRequest,
-    ) -> Result<PutObjectRetentionResponse, Self::Error> {
+    ) -> Result<PutObjectRetentionResponse, E> {
         if req.xml.is_empty() {
             return unsupported("PutObjectRetention");
         }
@@ -345,7 +335,7 @@ where
     async fn put_object_legal_hold(
         &self,
         req: PutObjectLegalHoldRequest,
-    ) -> Result<PutObjectLegalHoldResponse, Self::Error> {
+    ) -> Result<PutObjectLegalHoldResponse, E> {
         if req.xml.is_empty() {
             return unsupported("PutObjectLegalHold");
         }
@@ -355,7 +345,7 @@ where
     async fn put_object_extract(
         &self,
         req: PutObjectExtractRequest,
-    ) -> Result<PutObjectExtractResponse, Self::Error> {
+    ) -> Result<PutObjectExtractResponse, E> {
         let _ = self
             .engine()
             .put_object(
@@ -365,31 +355,31 @@ where
                 to_write_opt(None),
             )
             .await
-            .map_err(Into::into)?;
+            ?;
         Ok(PutObjectExtractResponse { extracted_count: 1, ..Default::default() })
     }
 
     async fn append_object_rejected(
         &self,
         _req: AppendObjectRejectedRequest,
-    ) -> Result<AppendObjectRejectedResponse, Self::Error> {
+    ) -> Result<AppendObjectRejectedResponse, E> {
         unsupported("AppendObjectRejected")
     }
 
-    async fn put_object(&self, req: PutObjectRequest) -> Result<PutObjectResponse, Self::Error> {
+    async fn put_object(&self, req: PutObjectRequest) -> Result<PutObjectResponse, E> {
         let opt = to_write_opt(req.content_type);
         let obj = self
             .engine()
             .put_object(&req.object.bucket, &req.object.object, req.body, opt)
             .await
-            .map_err(Into::into)?;
+            ?;
         Ok(PutObjectResponse {
             object: Some(to_resp_object(&obj)),
             ..Default::default()
         })
     }
 
-    async fn delete_object(&self, req: DeleteObjectRequest) -> Result<DeleteObjectResponse, Self::Error> {
+    async fn delete_object(&self, req: DeleteObjectRequest) -> Result<DeleteObjectResponse, E> {
         let _ = self
             .engine()
             .delete_object(
@@ -398,14 +388,14 @@ where
                 to_delete_opt(req.version_id),
             )
             .await
-            .map_err(Into::into)?;
+            ?;
         Ok(Default::default())
     }
 
     async fn post_restore_object(
         &self,
         _req: PostRestoreObjectRequest,
-    ) -> Result<PostRestoreObjectResponse, Self::Error> {
+    ) -> Result<PostRestoreObjectResponse, E> {
         unsupported("PostRestoreObject")
     }
 }

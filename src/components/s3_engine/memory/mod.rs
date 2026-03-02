@@ -4,7 +4,8 @@ use chrono::Utc;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
-use crate::types::{s3::core::*, traits::s3_handler::S3Handler};
+use crate::types::s3::core::*;
+use crate::types::traits::s3_handler::S3HandlerBridgeError;
 
 mod bucket;
 mod config;
@@ -36,6 +37,8 @@ pub enum MemoryS3EngineError {
     MultipartPartMissing { upload_id: String, part_number: u32 },
     #[error("invalid range header: {0}")]
     InvalidRange(String),
+    #[error("{0}")]
+    HandlerBridge(#[from] S3HandlerBridgeError),
 }
 
 #[derive(Debug, Clone, Default)]

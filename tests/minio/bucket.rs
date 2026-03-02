@@ -5,7 +5,7 @@ use minio::s3::types::S3Api;
 
 use super::helpers::{create_minio_client, create_minio_server};
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn bucket_test() {
     let (_addr, endpoint, _task) = create_minio_server().await.unwrap();
     let client = create_minio_client(&endpoint).unwrap();
@@ -30,7 +30,7 @@ async fn bucket_test() {
     let policy = r#"{"Version":"2012-10-17","Statement":[]}"#;
     client.put_bucket_policy(bucket).config(policy.to_string()).send().await.unwrap();
     let got_policy = client.get_bucket_policy(bucket).send().await.unwrap();
-    assert!(got_policy.config.is_some());
+    assert!(!got_policy.config.is_empty());
     client.delete_bucket_policy(bucket).send().await.unwrap();
 
     // put/get/delete bucket tagging
