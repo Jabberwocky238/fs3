@@ -23,8 +23,16 @@ pub trait ObjectS3Handler<E: S3EngineError + From<S3HandlerBridgeError>>: Send +
             )
             .await
             ?;
+        let mut headers = std::collections::HashMap::new();
+        headers.insert("content-length".to_string(), obj.size.to_string());
+        if let Some(ct) = &obj.content_type {
+            headers.insert("content-type".to_string(), ct.clone());
+        }
+        headers.insert("etag".to_string(), obj.etag.clone());
+        headers.insert("last-modified".to_string(), obj.last_modified.to_rfc2822());
         Ok(HeadObjectResponse {
             object: Some(to_resp_object(&obj)),
+            headers,
             ..Default::default()
         })
     }

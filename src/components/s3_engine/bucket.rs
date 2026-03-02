@@ -1,5 +1,3 @@
-use std::collections::BTreeSet;
-
 use async_trait::async_trait;
 
 use crate::types::s3::core::*;
@@ -10,10 +8,13 @@ use crate::types::traits::s3_mount::*;
 use super::{S3EngineImpl, S3EngineImplError};
 
 #[async_trait]
-impl<M, Mt> S3BucketEngine<S3EngineImplError> for S3EngineImpl<M, Mt>
+impl<S, M> S3BucketEngine<S3EngineImplError> for S3EngineImpl<S, M>
 where
-    M: S3MetadataStorageBucket<S3EngineImplError> + S3MetadataStorageObject<S3EngineImplError> + S3MetadataStorageMultipart<S3EngineImplError> + Send + Sync,
-    Mt: S3MountBucket<S3EngineImplError> + Send + Sync,
+    S: S3MetadataStorageBucket<S3EngineImplError>
+        + S3MetadataStorageObject<S3EngineImplError>
+        + S3MetadataStorageMultipart<S3EngineImplError>
+        + Send + Sync,
+    M: S3MountBucket<S3EngineImplError> + Send + Sync,
 {
     async fn make_bucket(&self, bucket: &str, region: Option<&str>, features: BucketFeatures) -> Result<S3Bucket, S3EngineImplError> {
         if self.metadata.load_bucket(bucket).await?.is_some() {
