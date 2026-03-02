@@ -65,7 +65,7 @@ impl S3MountMultipart for LocalFsMount {
         }
 
         let meta = XlMeta {
-            data_dir,
+            data_dir: data_dir.to_string(),
             parts: part_infos,
             size: total_size,
             inline_data: None,
