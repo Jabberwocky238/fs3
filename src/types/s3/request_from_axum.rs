@@ -110,10 +110,11 @@ impl<'a> From<ObjectEntryRef<'a>> for CopyObjectPartRequest {
 
 impl<'a> From<ObjectEntryRef<'a>> for PutObjectPartRequest {
     fn from(v: ObjectEntryRef<'a>) -> Self {
+        let data = bytes::Bytes::copy_from_slice(v.body);
         Self {
             object: object_ref(v),
             multipart: multipart_selector(v),
-            body: v.body.to_vec(),
+            body: Box::pin(futures::stream::once(async { Ok(data) })),
             checksum: header(v, "x-amz-checksum-sha256"),
         }
     }
@@ -285,9 +286,10 @@ impl<'a> From<ObjectEntryRef<'a>> for AppendObjectRejectedRequest {
 
 impl<'a> From<ObjectEntryRef<'a>> for PutObjectRequest {
     fn from(v: ObjectEntryRef<'a>) -> Self {
+        let data = bytes::Bytes::copy_from_slice(v.body);
         Self {
             object: object_ref(v),
-            body: v.body.to_vec(),
+            body: Box::pin(futures::stream::once(async { Ok(data) })),
             content_type: header(v, "content-type"),
         }
     }

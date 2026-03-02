@@ -146,7 +146,7 @@ where
             handler.put_object_part(PutObjectPartRequest {
                 object: mk(),
                 multipart: multipart_selector(&q),
-                body: body.to_vec(),
+                body: Box::pin(futures::stream::once(async { Ok(body) })),
                 checksum: header(&headers, "x-amz-checksum-sha256"),
             }).await.map_err(object_err)?,
         ),
@@ -180,7 +180,7 @@ where
             }).await.map_err(object_err)?,
         ),
         Method::PUT => S3Response::PutObject(
-            handler.put_object(PutObjectRequest { object: mk(), body: body.to_vec(), content_type: header(&headers, "content-type") }).await.map_err(object_err)?,
+            handler.put_object(PutObjectRequest { object: mk(), body: Box::pin(futures::stream::once(async { Ok(body) })), content_type: header(&headers, "content-type") }).await.map_err(object_err)?,
         ),
 
         Method::POST if has(&q, "uploadId") => S3Response::CompleteMultipartUpload(

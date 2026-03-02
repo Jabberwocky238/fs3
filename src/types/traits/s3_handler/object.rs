@@ -270,34 +270,34 @@ pub trait ObjectS3Handler<E: S3EngineError + From<S3HandlerBridgeError>>: Send +
     }
 
     async fn get_object_lambda(&self, req: GetObjectLambdaRequest) -> Result<GetObjectLambdaResponse, E> {
-        let got = self
+        let (_obj, stream) = self
             .engine()
             .get_object(
                 &req.object.bucket,
                 &req.object.object,
                 ObjectReadOptions::from(&req),
             )
-            .await
-            ?;
-        Ok(GetObjectLambdaResponse {
-            body: got.1,
-            ..Default::default()
-        })
+            .await?;
+        use futures::TryStreamExt;
+        let chunks: Vec<bytes::Bytes> = stream.try_collect().await
+            .map_err(|e| S3HandlerBridgeError::InvalidRequest(format!("stream error: {e}")))?;
+        let mut buf = Vec::new();
+        for c in chunks { buf.extend_from_slice(&c); }
+        Ok(GetObjectLambdaResponse { body: buf, ..Default::default() })
     }
 
     async fn get_object(&self, req: GetObjectRequest) -> Result<GetObjectResponse, E> {
-        let got = self
+        let (obj, stream) = self
             .engine()
             .get_object(
                 &req.object.bucket,
                 &req.object.object,
                 ObjectReadOptions::from(&req),
             )
-            .await
-            ?;
+            .await?;
         Ok(GetObjectResponse {
-            body: got.1,
-            ..Default::default()
+            meta: ResponseMeta { etag: Some(obj.etag.clone()), ..Default::default() },
+            body: stream,
         })
     }
 
@@ -346,16 +346,11 @@ pub trait ObjectS3Handler<E: S3EngineError + From<S3HandlerBridgeError>>: Send +
         &self,
         req: PutObjectExtractRequest,
     ) -> Result<PutObjectExtractResponse, E> {
+        let stream: crate::types::s3::core::BoxByteStream = Box::pin(futures::stream::once(async { Ok(bytes::Bytes::from(req.body)) }));
         let _ = self
             .engine()
-            .put_object(
-                &req.object.bucket,
-                &req.object.object,
-                req.body,
-                to_write_opt(None),
-            )
-            .await
-            ?;
+            .put_object(&req.object.bucket, &req.object.object, stream, to_write_opt(None))
+            .await?;
         Ok(PutObjectExtractResponse { extracted_count: 1, ..Default::default() })
     }
 

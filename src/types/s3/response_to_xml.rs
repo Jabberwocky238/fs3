@@ -45,8 +45,16 @@ impl IntoResponse for S3Response {
             | S3Response::DeleteObjectTagging(_)
             | S3Response::AbortMultipartUpload(_) => StatusCode::NO_CONTENT.into_response(),
 
-            // Raw bytes
-            S3Response::GetObject(r) => raw_response(r.meta.status_code, &r.meta, r.body),
+            // Streaming body
+            S3Response::GetObject(r) => {
+                let mut resp = axum::body::Body::from_stream(r.body).into_response();
+                if let Some(etag) = &r.meta.etag {
+                    if let Ok(v) = etag.parse() {
+                        resp.headers_mut().insert("etag", v);
+                    }
+                }
+                resp
+            }
             S3Response::GetObjectLambda(r) => raw_response(r.meta.status_code, &r.meta, r.body),
             S3Response::SelectObjectContent(r) => raw_response(200, &r.meta, r.payload),
 
