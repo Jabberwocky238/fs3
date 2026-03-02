@@ -1,12 +1,12 @@
 # ── fs3 Makefile ─────────────────────────────────────────────────────
 #
 # 三种构建模式:
-#   minimal  �?�?feature，最小核�?#   default  �?default
-#   full     �?全部 feature (含所有存储后�?
+#   minimal  �?�?feature，最小核�?#   default  �?default
+#   full     �?全部 feature (含所有存储后�?
 #
 # 用法:
 #   make                  # 默认构建三种模式
-#   make build-minimal    # �?feature
+#   make build-minimal    # �?feature
 #   make build-default    # default feature
 #   make build-full       # 全部 feature
 #   make run              # default 模式运行
@@ -74,7 +74,7 @@ run-full:
 # ── test / check ────────────────────────────────────────────────────
 
 .PHONY: check check-minimal check-default check-full
-.PHONY: test test-minimal test-default test-full clippy fmt
+.PHONY: test test-minimal test-default test-full test-boto3 clippy fmt
 
 check: check-minimal check-default check-full
 
@@ -87,10 +87,7 @@ check-default:
 check-full:
 	cargo check --no-default-features --features $(FEAT_FULL)
 
-test: test-minimal test-default test-full
-
-test-minimal:
-	cargo test --no-default-features
+test: test-default test-full
 
 test-default:
 	cargo test
@@ -100,6 +97,9 @@ test-full:
 
 clippy:
 	cargo clippy --no-default-features --features $(FEAT_FULL) -- -D warnings
+
+test-boto3: release-default
+	pytest tests/boto3/ -v
 
 fmt:
 	cargo fmt
