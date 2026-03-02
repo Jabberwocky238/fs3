@@ -70,7 +70,7 @@ impl MemoryS3Engine {
         }
     }
 
-    pub(super) fn apply_range(body: &[u8], range: &str) -> Result<Vec<u8>, MemoryS3EngineError> {
+    pub(super) fn apply_range(body: &[u8], range: &str) -> Result<bytes::Bytes, MemoryS3EngineError> {
         let raw = range.trim();
         let raw = raw
             .strip_prefix("bytes=")
@@ -103,6 +103,6 @@ impl MemoryS3Engine {
         if start < 0 || end < start || start >= len {
             return Err(MemoryS3EngineError::InvalidRange(range.to_owned()));
         }
-        Ok(body[start as usize..=end as usize].to_vec())
+        Ok(bytes::Bytes::copy_from_slice(&body[start as usize..=end as usize]))
     }
 }

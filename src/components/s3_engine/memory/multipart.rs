@@ -1,4 +1,5 @@
 ﻿use async_trait::async_trait;
+use bytes::Bytes;
 
 use crate::components::s3_engine::memory::state::{MultipartPartData, MultipartUploadState};
 use crate::components::s3_engine::memory::{MemoryS3Engine, MemoryS3EngineError};
@@ -45,8 +46,10 @@ impl S3MultipartEngine<MemoryS3EngineError> for MemoryS3Engine {
         _key: &str,
         upload_id: &str,
         part_number: u32,
-        body: Vec<u8>,
+        body: BoxByteStream,
     ) -> Result<UploadedPart, MemoryS3EngineError> {
+        let body = MemoryS3Engine::collect_stream(body).await
+            .map_err(|e| MemoryS3EngineError::InvalidRange(format!("stream error: {e}")))?;
         let mut state = self.state.write().await;
         let upload = state
             .multiparts
@@ -159,6 +162,7 @@ impl S3MultipartEngine<MemoryS3EngineError> for MemoryS3Engine {
             })?;
             body.extend_from_slice(&part.body);
         }
+        let body = Bytes::from(body);
         let etag = MemoryS3Engine::compute_etag(&body);
 
         let obj = state.put_object(
