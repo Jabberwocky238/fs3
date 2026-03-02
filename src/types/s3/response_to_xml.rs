@@ -48,8 +48,13 @@ impl IntoResponse for S3Response {
             // Streaming body
             S3Response::GetObject(r) => {
                 let mut resp = axum::body::Body::from_stream(r.body).into_response();
+                if let Some(size) = r.size {
+                    if let Ok(v) = size.to_string().parse() {
+                        resp.headers_mut().insert("content-length", v);
+                    }
+                }
                 if let Some(etag) = &r.meta.etag {
-                    if let Ok(v) = etag.parse() {
+                    if let Ok(v) = quote_etag(etag).parse() {
                         resp.headers_mut().insert("etag", v);
                     }
                 }
@@ -295,6 +300,15 @@ impl IntoResponse for S3Response {
 
 fn xml_escape(s: &str) -> String {
     s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;").replace('\'', "&apos;")
+}
+
+/// Quote ETag for HTTP header: `"etag_value"`
+fn quote_etag(etag: &str) -> String {
+    if etag.starts_with('"') && etag.ends_with('"') {
+        etag.to_string()
+    } else {
+        format!("\"{}\"", etag)
+    }
 }
 
 fn xml_response(body: &str) -> Response {

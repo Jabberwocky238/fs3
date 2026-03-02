@@ -306,6 +306,7 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
             .await?;
         Ok(GetObjectResponse {
             meta: ResponseMeta { etag: Some(obj.etag.clone()), ..Default::default() },
+            size: Some(obj.size),
             body: stream,
         })
     }

@@ -91,10 +91,12 @@ where
     async fn copy_object(&self, src_bucket: &str, src_key: &str, dst_bucket: &str, dst_key: &str, options: ObjectWriteOptions) -> Result<S3Object, S3EngineError> {
         self.metadata.load_bucket(dst_bucket).await?
             .ok_or_else(|| S3EngineError::BucketNotFound(dst_bucket.to_owned()))?;
+        let src_obj = self.metadata.load_object_meta(src_bucket, src_key).await?
+            .ok_or_else(|| S3EngineError::ObjectNotFound { bucket: src_bucket.to_owned(), key: src_key.to_owned() })?;
         let size = self.mount.copy_object(src_bucket, src_key, dst_bucket, dst_key).await?;
         let obj = S3Object {
             bucket: dst_bucket.to_owned(), key: dst_key.to_owned(), size,
-            etag: String::new(),
+            etag: src_obj.etag.clone(),
             last_modified: chrono::Utc::now(),
             content_type: options.content_type.clone(),
             content_encoding: options.content_encoding.clone(),

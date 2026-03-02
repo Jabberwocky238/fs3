@@ -97,19 +97,30 @@ where
             .await?
             .ok_or_else(|| S3EngineError::MultipartNotFound(upload_id.to_owned()))?;
         let data_stream = self.mount.read_object(src_bucket, src_key).await?;
+        let chunks: Vec<bytes::Bytes> = data_stream
+            .try_collect()
+            .await
+            .map_err(|e| S3EngineError::Storage(format!("stream error: {e}")))?;
+        let mut buf = Vec::new();
+        for chunk in &chunks {
+            buf.extend_from_slice(chunk);
+        }
+        let etag = Self::compute_etag(&buf);
+        let size = buf.len() as u64;
+        let stream: BoxByteStream =
+            Box::pin(futures::stream::once(async { Ok(bytes::Bytes::from(buf)) }));
         self.mount
             .write_part(
                 &upload.bucket,
                 &upload.key,
                 upload_id,
                 part_number,
-                data_stream,
+                stream,
             )
             .await?;
-        let size = self.mount.object_size(src_bucket, src_key).await?;
         let part = UploadedPart {
             part_number,
-            etag: String::new(),
+            etag,
             size,
         };
         self.metadata.store_uploaded_part(upload_id, &part).await?;
@@ -152,11 +163,13 @@ where
             .await?;
         self.mount.cleanup_parts(bucket, key, upload_id).await?;
         self.metadata.delete_multipart(upload_id).await?;
+        let part_etags: Vec<String> = parts.iter().map(|p| p.etag.clone()).collect();
+        let etag = Self::compute_multipart_etag(&part_etags);
         let obj = S3Object {
             bucket: bucket.to_owned(),
             key: key.to_owned(),
             size,
-            etag: String::new(),
+            etag,
             last_modified: chrono::Utc::now(),
             content_type: None,
             content_encoding: None,

@@ -169,12 +169,13 @@ pub struct GetObjectLambdaResponse {
 
 pub struct GetObjectResponse {
     pub meta: ResponseMeta,
+    pub size: Option<u64>,
     pub body: crate::types::s3::core::BoxByteStream,
 }
 
 impl std::fmt::Debug for GetObjectResponse {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("GetObjectResponse").field("meta", &self.meta).field("body", &"<stream>").finish()
+        f.debug_struct("GetObjectResponse").field("meta", &self.meta).field("size", &self.size).field("body", &"<stream>").finish()
     }
 }
 
