@@ -20,19 +20,12 @@ pub enum S3HandlerBridgeError {
     AccessDenied(String),
 }
 
-pub fn access_denied<T, E>(action: S3Action) -> Result<T, E>
-where
-    E: From<S3HandlerBridgeError>,
-{
-    Err(S3HandlerBridgeError::AccessDenied(format!("{action}")).into())
-}
-
-pub async fn check_access<P: S3PolicyEngine + ?Sized, E: From<S3HandlerBridgeError>>(
+pub async fn check_access<P: S3PolicyEngine + ?Sized>(
     policy: &P,
     action: S3Action,
     bucket: Option<&str>,
     key: Option<&str>,
-) -> Result<(), E> {
+) -> Result<(), S3HandlerBridgeError> {
     use crate::types::traits::s3_policyengine::{PolicyEvalContext, PolicyEffect};
     let ctx = PolicyEvalContext {
         action,
@@ -45,8 +38,8 @@ pub async fn check_access<P: S3PolicyEngine + ?Sized, E: From<S3HandlerBridgeErr
     };
     match policy.check_access(&ctx).await {
         Ok(PolicyEffect::Allow) => Ok(()),
-        Ok(PolicyEffect::Deny) => access_denied(action),
-        Err(e) => Err(S3HandlerBridgeError::AccessDenied(e.to_string()).into()),
+        Ok(PolicyEffect::Deny) => Err(S3HandlerBridgeError::AccessDenied(format!("{action}"))),
+        Err(e) => Err(S3HandlerBridgeError::AccessDenied(e.to_string())),
     }
 }
 

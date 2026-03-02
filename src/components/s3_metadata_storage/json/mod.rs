@@ -8,6 +8,7 @@ use crate::types::errors::S3MetadataStorageError;
 mod bucket;
 mod multipart;
 mod object;
+mod policy;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
 pub struct JsonMetadataSnapshot {
@@ -16,6 +17,14 @@ pub struct JsonMetadataSnapshot {
     pub objects: Vec<S3Object>,
     pub multiparts: Vec<MultipartUpload>,
     pub multipart_parts: Vec<(String, Vec<UploadedPart>)>,
+    #[serde(default)]
+    pub bucket_policies: Vec<(String, String)>,
+    #[serde(default)]
+    pub iam_policies: Vec<(String, String)>,
+    #[serde(default)]
+    pub user_policy_mappings: Vec<(String, String)>,
+    #[serde(default)]
+    pub group_policy_mappings: Vec<(String, String)>,
 }
 
 #[derive(Debug, Clone)]

@@ -3,28 +3,47 @@ use std::sync::RwLock;
 
 use async_trait::async_trait;
 
+use crate::types::traits::s3_metadata_storage::S3MetadataStoragePolicy;
 use crate::types::traits::s3_policyengine::*;
 use super::policy_doc::PolicyDocument;
 
-/// 桶策略引擎：内存存储 + JSON 策略评估
-pub struct FS3BucketPolicyEngine {
-    policies: RwLock<HashMap<String, String>>,
+/// 桶策略引擎：内存缓存 + storage 持久化
+pub struct FS3BucketPolicyEngine<S> {
+    storage: S,
+    cache: RwLock<HashMap<String, String>>,
 }
 
-impl FS3BucketPolicyEngine {
-    pub fn new() -> Self {
-        Self { policies: RwLock::new(HashMap::new()) }
+impl<S: S3MetadataStoragePolicy> FS3BucketPolicyEngine<S> {
+    pub async fn new(storage: S) -> Result<Self, PolicyEngineError> {
+        Ok(Self {
+            storage,
+            cache: RwLock::new(HashMap::new()),
+        })
     }
 }
 
 #[async_trait]
-impl S3BucketPolicyEngine for FS3BucketPolicyEngine {
+impl<S: S3MetadataStoragePolicy + Send + Sync> S3BucketPolicyEngine for FS3BucketPolicyEngine<S> {
     async fn is_allowed(&self, bucket: &str, ctx: &PolicyEvalContext) -> Result<PolicyEffect, PolicyEngineError> {
+        // 先查缓存
         let json = {
-            let map = self.policies.read().map_err(|e| PolicyEngineError::Storage(e.to_string()))?;
-            match map.get(bucket) {
-                Some(j) => j.clone(),
-                None => return Ok(PolicyEffect::Allow), // 无桶策略时默认允许
+            let c = self.cache.read().map_err(|e| PolicyEngineError::Storage(e.to_string()))?;
+            c.get(bucket).cloned()
+        };
+        let json = match json {
+            Some(j) => j,
+            None => {
+                // 缓存未命中，从 storage 加载
+                let loaded = self.storage.load_bucket_policy(bucket).await
+                    .map_err(|e| PolicyEngineError::Storage(e.to_string()))?;
+                match loaded {
+                    Some(j) => {
+                        let mut c = self.cache.write().map_err(|e| PolicyEngineError::Storage(e.to_string()))?;
+                        c.insert(bucket.to_owned(), j.clone());
+                        j
+                    }
+                    None => return Ok(PolicyEffect::Allow),
+                }
             }
         };
         let doc = PolicyDocument::parse(&json)
@@ -33,22 +52,25 @@ impl S3BucketPolicyEngine for FS3BucketPolicyEngine {
     }
 
     async fn get_bucket_policy(&self, bucket: &str) -> Result<Option<String>, PolicyEngineError> {
-        let map = self.policies.read().map_err(|e| PolicyEngineError::Storage(e.to_string()))?;
-        Ok(map.get(bucket).cloned())
+        self.storage.load_bucket_policy(bucket).await
+            .map_err(|e| PolicyEngineError::Storage(e.to_string()))
     }
 
     async fn put_bucket_policy(&self, bucket: &str, policy_json: &str) -> Result<(), PolicyEngineError> {
-        // 验证 JSON 格式
         PolicyDocument::parse(policy_json)
             .map_err(|e| PolicyEngineError::InvalidPolicy(e.to_string()))?;
-        let mut map = self.policies.write().map_err(|e| PolicyEngineError::Storage(e.to_string()))?;
-        map.insert(bucket.to_owned(), policy_json.to_owned());
+        self.storage.store_bucket_policy(bucket, policy_json).await
+            .map_err(|e| PolicyEngineError::Storage(e.to_string()))?;
+        let mut c = self.cache.write().map_err(|e| PolicyEngineError::Storage(e.to_string()))?;
+        c.insert(bucket.to_owned(), policy_json.to_owned());
         Ok(())
     }
 
     async fn delete_bucket_policy(&self, bucket: &str) -> Result<(), PolicyEngineError> {
-        let mut map = self.policies.write().map_err(|e| PolicyEngineError::Storage(e.to_string()))?;
-        map.remove(bucket);
+        self.storage.delete_bucket_policy(bucket).await
+            .map_err(|e| PolicyEngineError::Storage(e.to_string()))?;
+        let mut c = self.cache.write().map_err(|e| PolicyEngineError::Storage(e.to_string()))?;
+        c.remove(bucket);
         Ok(())
     }
 }

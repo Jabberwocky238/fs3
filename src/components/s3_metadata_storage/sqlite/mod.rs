@@ -5,6 +5,7 @@ use crate::types::errors::S3MetadataStorageError;
 mod bucket;
 mod multipart;
 mod object;
+mod policy;
 
 #[derive(Debug, Clone)]
 pub struct SqliteMetadataStorage {
@@ -59,6 +60,34 @@ impl SqliteMetadataStorage {
                 part_number INTEGER NOT NULL,
                 data TEXT NOT NULL,
                 PRIMARY KEY (upload_id, part_number)
+            )"
+        ).execute(&self.pool).await?;
+
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS bucket_policies (
+                bucket TEXT PRIMARY KEY,
+                policy_json TEXT NOT NULL
+            )"
+        ).execute(&self.pool).await?;
+
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS iam_policies (
+                policy_name TEXT PRIMARY KEY,
+                policy_json TEXT NOT NULL
+            )"
+        ).execute(&self.pool).await?;
+
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS user_policy_mappings (
+                identity TEXT PRIMARY KEY,
+                policy_names TEXT NOT NULL
+            )"
+        ).execute(&self.pool).await?;
+
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS group_policy_mappings (
+                group_name TEXT PRIMARY KEY,
+                policy_names TEXT NOT NULL
             )"
         ).execute(&self.pool).await?;
 
