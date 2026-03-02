@@ -3,27 +3,11 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::types::s3::core::*;
-use crate::types::traits::s3_handler::S3HandlerBridgeError;
+use crate::types::s3::metadata_storage_error::S3MetadataStorageError;
 
 mod bucket;
 mod multipart;
 mod object;
-
-#[derive(Debug, thiserror::Error)]
-pub enum JsonMetadataStorageError {
-    #[error("bucket not found: {0}")]
-    BucketNotFound(String),
-    #[error("object not found: {bucket}/{key}")]
-    ObjectNotFound { bucket: String, key: String },
-    #[error("multipart not found: {0}")]
-    MultipartNotFound(String),
-    #[error("io error: {0}")]
-    Io(#[from] std::io::Error),
-    #[error("json error: {0}")]
-    Json(#[from] serde_json::Error),
-    #[error("{0}")]
-    HandlerBridge(#[from] S3HandlerBridgeError),
-}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
 pub struct JsonMetadataSnapshot {
@@ -48,7 +32,7 @@ impl JsonMetadataStorage {
         }
     }
 
-    fn load_sync(&self) -> Result<JsonMetadataSnapshot, JsonMetadataStorageError> {
+    fn load_sync(&self) -> Result<JsonMetadataSnapshot, S3MetadataStorageError> {
         if !self.path.exists() {
             return Ok(JsonMetadataSnapshot::default());
         }
@@ -56,7 +40,7 @@ impl JsonMetadataStorage {
         Ok(serde_json::from_str(&data)?)
     }
 
-    fn save_sync(&self, snap: &JsonMetadataSnapshot) -> Result<(), JsonMetadataStorageError> {
+    fn save_sync(&self, snap: &JsonMetadataSnapshot) -> Result<(), S3MetadataStorageError> {
         if let Some(parent) = self.path.parent() {
             std::fs::create_dir_all(parent)?;
         }
