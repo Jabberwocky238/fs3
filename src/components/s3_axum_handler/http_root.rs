@@ -9,10 +9,10 @@ use axum::{Json, Router};
 
 use crate::types::s3::request::{ListBucketsDoubleSlashRequest, ListBucketsRequest, RootListenNotificationRequest};
 use crate::types::s3::response::S3Response;
-use crate::types::traits::s3_handler::RootS3Handler;
+use crate::types::traits::s3_handler::{RootS3Handler, S3Handler};
 
 use super::util::{event_filter, has};
-use super::{HandlerError, S3Handler};
+use super::{HandlerError};
 
 pub fn routes<T, E>(state: Arc<T>) -> Router
 where

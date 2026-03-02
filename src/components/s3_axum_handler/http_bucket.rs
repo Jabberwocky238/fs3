@@ -10,10 +10,10 @@ use axum::{Json, Router};
 
 use crate::types::s3::request::*;
 use crate::types::s3::response::S3Response;
-use crate::types::traits::s3_handler::{BucketS3Handler, RejectedBucketS3Handler};
+use crate::types::traits::s3_handler::{BucketS3Handler, RejectedBucketS3Handler, S3Handler};
 
 use super::util::{body_string, event_filter, get, has, header, list_query};
-use super::{HandlerError, S3Handler};
+use super::{HandlerError};
 
 pub fn routes<T, E>(state: Arc<T>) -> Router
 where

@@ -2,9 +2,12 @@
 
 use crate::types::s3::core::*;
 
+pub trait S3EngineError: std::fmt::Display + Send + Sync + 'static {}
+impl<T: std::fmt::Display + Send + Sync + 'static> S3EngineError for T {}
+
 #[async_trait]
 pub trait S3BucketEngine {
-    type Error: Send + Sync + 'static;
+    type Error: S3EngineError;
 
     async fn make_bucket(
         &self,
@@ -42,7 +45,7 @@ pub trait S3BucketEngine {
 
 #[async_trait]
 pub trait S3ObjectEngine {
-    type Error: Send + Sync + 'static;
+    type Error: S3EngineError;
 
     async fn head_object(
         &self,
@@ -129,7 +132,7 @@ pub trait S3ObjectEngine {
 
 #[async_trait]
 pub trait S3MultipartEngine {
-    type Error: Send + Sync + 'static;
+    type Error: S3EngineError;
 
     async fn new_multipart_upload(
         &self,
@@ -188,23 +191,26 @@ pub trait S3MultipartEngine {
 
 #[async_trait]
 pub trait S3BucketConfigEngine {
-    type Error: Send + Sync + 'static;
+    type Error: S3EngineError;
 
     async fn get_bucket_location(&self, bucket: &str) -> Result<String, Self::Error>;
 
     async fn get_bucket_policy(&self, bucket: &str) -> Result<Option<TimedDocument>, Self::Error>;
 
-    async fn put_bucket_policy(
-        &self,
-        bucket: &str,
-        policy_json: String,
-    ) -> Result<(), Self::Error>;
+    async fn put_bucket_policy(&self, bucket: &str, policy_json: String)
+    -> Result<(), Self::Error>;
 
     async fn delete_bucket_policy(&self, bucket: &str) -> Result<(), Self::Error>;
 
-    async fn get_bucket_policy_status(&self, bucket: &str) -> Result<BucketPolicyStatus, Self::Error>;
+    async fn get_bucket_policy_status(
+        &self,
+        bucket: &str,
+    ) -> Result<BucketPolicyStatus, Self::Error>;
 
-    async fn get_bucket_lifecycle(&self, bucket: &str) -> Result<Option<TimedDocument>, Self::Error>;
+    async fn get_bucket_lifecycle(
+        &self,
+        bucket: &str,
+    ) -> Result<Option<TimedDocument>, Self::Error>;
 
     async fn put_bucket_lifecycle(
         &self,
@@ -214,7 +220,10 @@ pub trait S3BucketConfigEngine {
 
     async fn delete_bucket_lifecycle(&self, bucket: &str) -> Result<(), Self::Error>;
 
-    async fn get_bucket_encryption(&self, bucket: &str) -> Result<Option<TimedDocument>, Self::Error>;
+    async fn get_bucket_encryption(
+        &self,
+        bucket: &str,
+    ) -> Result<Option<TimedDocument>, Self::Error>;
 
     async fn put_bucket_encryption(
         &self,
@@ -235,7 +244,10 @@ pub trait S3BucketConfigEngine {
         object_lock_xml: String,
     ) -> Result<(), Self::Error>;
 
-    async fn get_bucket_versioning(&self, bucket: &str) -> Result<Option<TimedDocument>, Self::Error>;
+    async fn get_bucket_versioning(
+        &self,
+        bucket: &str,
+    ) -> Result<Option<TimedDocument>, Self::Error>;
 
     async fn put_bucket_versioning(
         &self,
@@ -243,7 +255,10 @@ pub trait S3BucketConfigEngine {
         versioning_xml: String,
     ) -> Result<(), Self::Error>;
 
-    async fn get_bucket_notification(&self, bucket: &str) -> Result<Option<TimedDocument>, Self::Error>;
+    async fn get_bucket_notification(
+        &self,
+        bucket: &str,
+    ) -> Result<Option<TimedDocument>, Self::Error>;
 
     async fn put_bucket_notification(
         &self,
@@ -251,7 +266,10 @@ pub trait S3BucketConfigEngine {
         notification_xml: String,
     ) -> Result<(), Self::Error>;
 
-    async fn get_bucket_replication(&self, bucket: &str) -> Result<Option<TimedDocument>, Self::Error>;
+    async fn get_bucket_replication(
+        &self,
+        bucket: &str,
+    ) -> Result<Option<TimedDocument>, Self::Error>;
 
     async fn put_bucket_replication(
         &self,
@@ -291,11 +309,17 @@ pub trait S3BucketConfigEngine {
 }
 
 pub trait S3Engine:
-    S3BucketEngine + S3ObjectEngine + S3MultipartEngine + S3BucketConfigEngine
+    S3BucketEngine<Error = Self::Error>
+    + S3ObjectEngine<Error = Self::Error>
+    + S3MultipartEngine<Error = Self::Error>
+    + S3BucketConfigEngine<Error = Self::Error>
 {
+    type Error: S3EngineError;
 }
 
-impl<T> S3Engine for T where
-    T: S3BucketEngine + S3ObjectEngine + S3MultipartEngine + S3BucketConfigEngine
+impl<T> S3Engine for T
+where
+    T: S3BucketEngine + S3ObjectEngine + S3MultipartEngine + S3BucketConfigEngine,
 {
+    type Error = <Self as S3BucketEngine>::Error;
 }

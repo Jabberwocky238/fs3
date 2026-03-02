@@ -4,7 +4,7 @@ use chrono::Utc;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
-use crate::types::s3::core::*;
+use crate::types::{s3::core::*, traits::s3_handler::S3Handler};
 
 mod bucket;
 mod config;

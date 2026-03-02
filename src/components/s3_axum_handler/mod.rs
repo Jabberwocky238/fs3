@@ -11,17 +11,8 @@ use axum::{Json, Router};
 
 use crate::types::traits::s3_handler::{
     BucketS3Handler, ObjectS3Handler, RejectedBucketS3Handler, RejectedObjectS3Handler,
-    RootS3Handler,
+    RootS3Handler, S3Handler,
 };
-
-pub trait S3Handler:
-    ObjectS3Handler + BucketS3Handler + RootS3Handler + RejectedObjectS3Handler + RejectedBucketS3Handler
-{
-}
-impl<T> S3Handler for T where
-    T: ObjectS3Handler + BucketS3Handler + RootS3Handler + RejectedObjectS3Handler + RejectedBucketS3Handler
-{
-}
 
 #[derive(Debug)]
 pub struct HandlerError {

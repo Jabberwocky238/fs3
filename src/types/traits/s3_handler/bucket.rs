@@ -1,11 +1,5 @@
 use async_trait::async_trait;
-use chrono::SecondsFormat;
-use thiserror::Error;
 
-use crate::types::s3::core::{
-    BucketFeatures, CompleteMultipartInput, DeleteObjectOptions, ListOptions, ObjectReadOptions,
-    ObjectWriteOptions, StorageClass, UploadedPart, VersioningState,
-};
 use crate::types::s3::request::*;
 use crate::types::s3::response::*;
 use crate::types::traits::s3_engine::{
