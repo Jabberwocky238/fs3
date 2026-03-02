@@ -8,6 +8,7 @@ use crate::types::traits::s3_handler::S3HandlerBridgeError;
 mod bucket;
 mod object;
 mod multipart;
+mod engine_bridge;
 
 #[derive(Debug, thiserror::Error)]
 pub enum MemoryMetadataStorageError {

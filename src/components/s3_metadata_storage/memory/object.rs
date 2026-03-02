@@ -2,6 +2,7 @@ use async_trait::async_trait;
 
 use crate::types::s3::core::*;
 use crate::types::traits::s3_metadata_storage::S3MetadataStorageObject;
+use crate::components::s3_engine::S3EngineImplError;
 
 use super::{MemoryMetadataStorage, MemoryMetadataStorageError};
 

@@ -5,8 +5,8 @@ use crate::types::s3::core::*;
 use crate::types::traits::s3_handler::S3HandlerBridgeError;
 
 mod bucket;
-// mod config;
-// mod multipart;
+mod config;
+mod multipart;
 mod object;
 
 #[derive(Debug, thiserror::Error)]
@@ -33,6 +33,18 @@ pub enum S3EngineImplError {
     Mount(String),
     #[error("{0}")]
     HandlerBridge(#[from] S3HandlerBridgeError),
+}
+
+impl From<crate::components::s3_metadata_storage::memory::MemoryMetadataStorageError> for S3EngineImplError {
+    fn from(e: crate::components::s3_metadata_storage::memory::MemoryMetadataStorageError) -> Self {
+        Self::Storage(e.to_string())
+    }
+}
+
+impl From<crate::components::s3_mount::memory::MemoryMountError> for S3EngineImplError {
+    fn from(e: crate::components::s3_mount::memory::MemoryMountError) -> Self {
+        Self::Mount(e.to_string())
+    }
 }
 
 pub struct S3EngineImpl<S, M> {
