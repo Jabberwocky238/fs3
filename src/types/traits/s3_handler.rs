@@ -1,15 +1,31 @@
 use async_trait::async_trait;
 use chrono::SecondsFormat;
+use thiserror::Error;
 
 use crate::types::s3::core::{
-    BucketFeatures, DeleteObjectOptions, ListOptions, ObjectReadOptions, ObjectWriteOptions,
-    VersioningState,
+    BucketFeatures, CompleteMultipartInput, DeleteObjectOptions, ListOptions, ObjectReadOptions,
+    ObjectWriteOptions, UploadedPart, VersioningState,
 };
 use crate::types::s3::request::*;
 use crate::types::s3::response::*;
 use crate::types::traits::s3_engine::{
     S3BucketConfigEngine, S3BucketEngine, S3MultipartEngine, S3ObjectEngine,
 };
+
+#[derive(Debug, Error)]
+pub enum S3HandlerBridgeError {
+    #[error("unsupported by current S3 engine: {0}")]
+    Unsupported(&'static str),
+    #[error("invalid request: {0}")]
+    InvalidRequest(String),
+}
+
+fn unsupported<T, E>(op: &'static str) -> Result<T, E>
+where
+    E: From<S3HandlerBridgeError>,
+{
+    Err(S3HandlerBridgeError::Unsupported(op).into())
+}
 
 fn to_resp_object(v: &crate::types::s3::core::S3Object) -> ObjectInfo {
     ObjectInfo {
@@ -39,11 +55,65 @@ fn split_copy_source(s: &str) -> Option<(String, String)> {
     Some((b, k))
 }
 
+fn parse_completed_parts(xml: &str) -> CompleteMultipartInput {
+    let mut out = Vec::new();
+    let mut pos = 0usize;
+    while let Some(part_start) = xml[pos..].find("<Part>") {
+        let ps = pos + part_start;
+        let pe = match xml[ps..].find("</Part>") {
+            Some(v) => ps + v,
+            None => break,
+        };
+        let chunk = &xml[ps..pe];
+        let pn = extract_tag(chunk, "PartNumber")
+            .and_then(|v| v.parse::<u32>().ok())
+            .unwrap_or_default();
+        let etag = extract_tag(chunk, "ETag").unwrap_or_default();
+        out.push(UploadedPart {
+            part_number: pn,
+            etag,
+            size: 0,
+        });
+        pos = pe + "</Part>".len();
+    }
+    CompleteMultipartInput { parts: out }
+}
+
+fn extract_tag(src: &str, name: &str) -> Option<String> {
+    let open = format!("<{name}>");
+    let close = format!("</{name}>");
+    let s = src.find(&open)? + open.len();
+    let e = src[s..].find(&close)? + s;
+    Some(
+        src[s..e]
+            .trim()
+            .trim_matches('"')
+            .trim_matches('\'')
+            .to_string(),
+    )
+}
+
+fn parse_delete_keys(xml: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut pos = 0usize;
+    while let Some(start) = xml[pos..].find("<Key>") {
+        let s = pos + start + "<Key>".len();
+        let e = match xml[s..].find("</Key>") {
+            Some(v) => s + v,
+            None => break,
+        };
+        out.push(xml[s..e].to_string());
+        pos = e + "</Key>".len();
+    }
+    out
+}
+
 #[async_trait]
 pub trait ObjectS3Handler
 where
     <Self::Engine as S3ObjectEngine>::Error: Into<Self::Error>,
     <Self::Engine as S3MultipartEngine>::Error: Into<Self::Error>,
+    Self::Error: From<S3HandlerBridgeError>,
 {
     type Engine: S3ObjectEngine + S3MultipartEngine;
     type Error: Send + Sync + 'static;
@@ -81,7 +151,9 @@ where
         &self,
         req: CopyObjectPartRequest,
     ) -> Result<CopyObjectPartResponse, Self::Error> {
-        let (src_bucket, src_key) = split_copy_source(&req.copy_source).unwrap_or_default();
+        let (src_bucket, src_key) = split_copy_source(&req.copy_source)
+            .ok_or_else(|| S3HandlerBridgeError::InvalidRequest("missing/invalid x-amz-copy-source".to_string()))
+            .map_err(Into::into)?;
         let part = self
             .engine()
             .copy_object_part(
@@ -90,7 +162,7 @@ where
                 &req.object.bucket,
                 &req.object.object,
                 &req.multipart.upload_id,
-                req.multipart.part_number.unwrap_or_default(),
+                req.multipart.part_number.ok_or_else(|| S3HandlerBridgeError::InvalidRequest("missing partNumber".to_string())).map_err(Into::into)?,
             )
             .await
             .map_err(Into::into)?;
@@ -156,13 +228,14 @@ where
         &self,
         req: CompleteMultipartUploadRequest,
     ) -> Result<CompleteMultipartUploadResponse, Self::Error> {
+        let completed = parse_completed_parts(&req.xml);
         let obj = self
             .engine()
             .complete_multipart_upload(
                 &req.object.bucket,
                 &req.object.object,
                 &req.upload_id,
-                Default::default(),
+                completed,
             )
             .await
             .map_err(Into::into)?;
@@ -261,7 +334,7 @@ where
         &self,
         _req: SelectObjectContentRequest,
     ) -> Result<SelectObjectContentResponse, Self::Error> {
-        Ok(Default::default())
+        unsupported("SelectObjectContent")
     }
 
     async fn get_object_retention(
@@ -323,7 +396,9 @@ where
     }
 
     async fn copy_object(&self, req: CopyObjectRequest) -> Result<CopyObjectResponse, Self::Error> {
-        let (src_bucket, src_key) = split_copy_source(&req.copy_source).unwrap_or_default();
+        let (src_bucket, src_key) = split_copy_source(&req.copy_source)
+            .ok_or_else(|| S3HandlerBridgeError::InvalidRequest("missing/invalid x-amz-copy-source".to_string()))
+            .map_err(Into::into)?;
         let obj = self
             .engine()
             .copy_object(
@@ -343,16 +418,22 @@ where
 
     async fn put_object_retention(
         &self,
-        _req: PutObjectRetentionRequest,
+        req: PutObjectRetentionRequest,
     ) -> Result<PutObjectRetentionResponse, Self::Error> {
-        Ok(Default::default())
+        if req.xml.is_empty() {
+            return unsupported("PutObjectRetention");
+        }
+        unsupported("PutObjectRetention(xml parsing not implemented)")
     }
 
     async fn put_object_legal_hold(
         &self,
-        _req: PutObjectLegalHoldRequest,
+        req: PutObjectLegalHoldRequest,
     ) -> Result<PutObjectLegalHoldResponse, Self::Error> {
-        Ok(Default::default())
+        if req.xml.is_empty() {
+            return unsupported("PutObjectLegalHold");
+        }
+        unsupported("PutObjectLegalHold(xml parsing not implemented)")
     }
 
     async fn put_object_extract(
@@ -376,7 +457,7 @@ where
         &self,
         _req: AppendObjectRejectedRequest,
     ) -> Result<AppendObjectRejectedResponse, Self::Error> {
-        Ok(Default::default())
+        unsupported("AppendObjectRejected")
     }
 
     async fn put_object(&self, req: PutObjectRequest) -> Result<PutObjectResponse, Self::Error> {
@@ -416,7 +497,7 @@ where
         &self,
         _req: PostRestoreObjectRequest,
     ) -> Result<PostRestoreObjectResponse, Self::Error> {
-        Ok(Default::default())
+        unsupported("PostRestoreObject")
     }
 }
 
@@ -426,8 +507,10 @@ where
     <Self::Engine as S3BucketEngine>::Error: Into<Self::Error>,
     <Self::Engine as S3BucketConfigEngine>::Error: Into<Self::Error>,
     <Self::Engine as S3MultipartEngine>::Error: Into<Self::Error>,
+    <Self::Engine as S3ObjectEngine>::Error: Into<Self::Error>,
+    Self::Error: From<S3HandlerBridgeError>,
 {
-    type Engine: S3BucketEngine + S3BucketConfigEngine + S3MultipartEngine;
+    type Engine: S3BucketEngine + S3BucketConfigEngine + S3MultipartEngine + S3ObjectEngine;
     type Error: Send + Sync + 'static;
     fn engine(&self) -> &Self::Engine;
 
@@ -451,8 +534,9 @@ where
         let p = self.engine().get_bucket_object_lock_config(&req.bucket.bucket).await.map_err(Into::into)?;
         Ok(GetBucketObjectLockConfigResponse { xml: p.map(|d| d.body), ..Default::default() })
     }
-    async fn get_bucket_replication_config(&self, _req: GetBucketReplicationConfigRequest) -> Result<GetBucketReplicationConfigResponse, Self::Error> {
-        Ok(Default::default())
+    async fn get_bucket_replication_config(&self, req: GetBucketReplicationConfigRequest) -> Result<GetBucketReplicationConfigResponse, Self::Error> {
+        let p = self.engine().get_bucket_replication(&req.bucket.bucket).await.map_err(Into::into)?;
+        Ok(GetBucketReplicationConfigResponse { xml: p.map(|d| d.body), ..Default::default() })
     }
     async fn get_bucket_versioning(&self, req: GetBucketVersioningRequest) -> Result<GetBucketVersioningResponse, Self::Error> {
         let p = self.engine().get_bucket_versioning(&req.bucket.bucket).await.map_err(Into::into)?;
@@ -462,8 +546,8 @@ where
         let p = self.engine().get_bucket_notification(&req.bucket.bucket).await.map_err(Into::into)?;
         Ok(GetBucketNotificationResponse { xml: p.map(|d| d.body), ..Default::default() })
     }
-    async fn listen_bucket_notification(&self, _req: ListenBucketNotificationRequest) -> Result<ListenBucketNotificationResponse, Self::Error> { Ok(Default::default()) }
-    async fn reset_bucket_replication_status(&self, _req: ResetBucketReplicationStatusRequest) -> Result<ResetBucketReplicationStatusResponse, Self::Error> { Ok(Default::default()) }
+    async fn listen_bucket_notification(&self, _req: ListenBucketNotificationRequest) -> Result<ListenBucketNotificationResponse, Self::Error> { unsupported("ListenBucketNotification") }
+    async fn reset_bucket_replication_status(&self, _req: ResetBucketReplicationStatusRequest) -> Result<ResetBucketReplicationStatusResponse, Self::Error> { unsupported("ResetBucketReplicationStatus") }
     async fn get_bucket_acl(&self, _req: GetBucketAclRequest) -> Result<GetBucketAclResponse, Self::Error> { Ok(Default::default()) }
     async fn put_bucket_acl(&self, _req: PutBucketAclRequest) -> Result<PutBucketAclResponse, Self::Error> { Ok(Default::default()) }
     async fn get_bucket_cors(&self, _req: GetBucketCorsRequest) -> Result<GetBucketCorsResponse, Self::Error> { Ok(Default::default()) }
@@ -520,7 +604,10 @@ where
         self.engine().put_bucket_lifecycle(&req.bucket.bucket, req.xml).await.map_err(Into::into)?;
         Ok(Default::default())
     }
-    async fn put_bucket_replication_config(&self, _req: PutBucketReplicationConfigRequest) -> Result<PutBucketReplicationConfigResponse, Self::Error> { Ok(Default::default()) }
+    async fn put_bucket_replication_config(&self, req: PutBucketReplicationConfigRequest) -> Result<PutBucketReplicationConfigResponse, Self::Error> {
+        self.engine().put_bucket_replication(&req.bucket.bucket, req.xml).await.map_err(Into::into)?;
+        Ok(Default::default())
+    }
     async fn put_bucket_encryption(&self, req: PutBucketEncryptionRequest) -> Result<PutBucketEncryptionResponse, Self::Error> {
         self.engine().put_bucket_encryption(&req.bucket.bucket, req.xml).await.map_err(Into::into)?;
         Ok(Default::default())
@@ -545,7 +632,7 @@ where
         self.engine().put_bucket_notification(&req.bucket.bucket, req.xml).await.map_err(Into::into)?;
         Ok(Default::default())
     }
-    async fn reset_bucket_replication_start(&self, _req: ResetBucketReplicationStartRequest) -> Result<ResetBucketReplicationStartResponse, Self::Error> { Ok(Default::default()) }
+    async fn reset_bucket_replication_start(&self, _req: ResetBucketReplicationStartRequest) -> Result<ResetBucketReplicationStartResponse, Self::Error> { unsupported("ResetBucketReplicationStart") }
     async fn put_bucket(&self, req: PutBucketRequest) -> Result<PutBucketResponse, Self::Error> {
         let _ = self
             .engine()
@@ -558,13 +645,39 @@ where
         let _ = self.engine().head_bucket(&req.bucket.bucket).await.map_err(Into::into)?;
         Ok(Default::default())
     }
-    async fn post_policy(&self, _req: PostPolicyRequest) -> Result<PostPolicyResponse, Self::Error> { Ok(Default::default()) }
-    async fn delete_multiple_objects(&self, _req: DeleteMultipleObjectsRequest) -> Result<DeleteMultipleObjectsResponse, Self::Error> { Ok(Default::default()) }
+    async fn post_policy(&self, _req: PostPolicyRequest) -> Result<PostPolicyResponse, Self::Error> { unsupported("PostPolicy") }
+    async fn delete_multiple_objects(&self, req: DeleteMultipleObjectsRequest) -> Result<DeleteMultipleObjectsResponse, Self::Error> {
+        let keys = parse_delete_keys(&req.payload.xml);
+        if keys.is_empty() {
+            return Err(S3HandlerBridgeError::InvalidRequest("DeleteMultipleObjects payload has no <Key>".to_string()).into());
+        }
+        let r = self
+            .engine()
+            .delete_objects(&req.bucket.bucket, keys, DeleteObjectOptions::default())
+            .await
+            .map_err(Into::into)?;
+        Ok(DeleteMultipleObjectsResponse {
+            deleted: r.deleted.into_iter().filter_map(|d| d.version_id).collect(),
+            errors: r
+                .errors
+                .into_iter()
+                .map(|e| ErrorBody {
+                    code: e.code,
+                    message: e.message,
+                    resource: e.key,
+                })
+                .collect(),
+            ..Default::default()
+        })
+    }
     async fn delete_bucket_policy(&self, req: DeleteBucketPolicyRequest) -> Result<DeleteBucketPolicyResponse, Self::Error> {
         self.engine().delete_bucket_policy(&req.bucket.bucket).await.map_err(Into::into)?;
         Ok(Default::default())
     }
-    async fn delete_bucket_replication(&self, _req: DeleteBucketReplicationRequest) -> Result<DeleteBucketReplicationResponse, Self::Error> { Ok(Default::default()) }
+    async fn delete_bucket_replication(&self, req: DeleteBucketReplicationRequest) -> Result<DeleteBucketReplicationResponse, Self::Error> {
+        self.engine().delete_bucket_replication(&req.bucket.bucket).await.map_err(Into::into)?;
+        Ok(Default::default())
+    }
     async fn delete_bucket_lifecycle(&self, req: DeleteBucketLifecycleRequest) -> Result<DeleteBucketLifecycleResponse, Self::Error> {
         self.engine().delete_bucket_lifecycle(&req.bucket.bucket).await.map_err(Into::into)?;
         Ok(Default::default())
@@ -599,6 +712,7 @@ where
 pub trait RootS3Handler
 where
     <Self::Engine as S3BucketEngine>::Error: Into<Self::Error>,
+    Self::Error: From<S3HandlerBridgeError>,
 {
     type Engine: S3BucketEngine;
     type Error: Send + Sync + 'static;
@@ -608,7 +722,7 @@ where
         &self,
         _req: RootListenNotificationRequest,
     ) -> Result<RootListenNotificationResponse, Self::Error> {
-        Ok(Default::default())
+        unsupported("RootListenNotification")
     }
 
     async fn list_buckets(&self, _req: ListBucketsRequest) -> Result<ListBucketsResponse, Self::Error> {
@@ -649,20 +763,41 @@ pub trait RejectedS3Handler {
 
     async fn rejected_object_torrent(
         &self,
-        _req: RejectedObjectTorrentRequest,
+        req: RejectedObjectTorrentRequest,
     ) -> Result<RejectedApiResponse, Self::Error> {
-        Ok(Default::default())
+        Ok(RejectedApiResponse {
+            error: ErrorBody {
+                code: "NotImplemented".to_string(),
+                message: "Object torrent API is not implemented".to_string(),
+                resource: Some(format!("{}/{} {}", req.object.bucket, req.object.object, req.method)),
+            },
+            ..Default::default()
+        })
     }
     async fn rejected_object_acl_delete(
         &self,
-        _req: RejectedObjectAclDeleteRequest,
+        req: RejectedObjectAclDeleteRequest,
     ) -> Result<RejectedApiResponse, Self::Error> {
-        Ok(Default::default())
+        Ok(RejectedApiResponse {
+            error: ErrorBody {
+                code: "NotImplemented".to_string(),
+                message: "Object ACL delete API is not implemented".to_string(),
+                resource: Some(format!("{}/{}", req.object.bucket, req.object.object)),
+            },
+            ..Default::default()
+        })
     }
     async fn rejected_bucket_api(
         &self,
-        _req: RejectedBucketApiRequest,
+        req: RejectedBucketApiRequest,
     ) -> Result<RejectedApiResponse, Self::Error> {
-        Ok(Default::default())
+        Ok(RejectedApiResponse {
+            error: ErrorBody {
+                code: "NotImplemented".to_string(),
+                message: format!("Bucket API {} is not implemented", req.api),
+                resource: Some(format!("{} {}", req.bucket.bucket, req.method)),
+            },
+            ..Default::default()
+        })
     }
 }
