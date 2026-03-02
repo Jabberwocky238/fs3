@@ -14,6 +14,38 @@ pub enum S3HandlerBridgeError {
     Unsupported(&'static str),
     #[error("invalid request: {0}")]
     InvalidRequest(String),
+    #[error("access denied: {0}")]
+    AccessDenied(String),
+}
+
+pub fn access_denied<T, E>(action: &str) -> Result<T, E>
+where
+    E: From<S3HandlerBridgeError>,
+{
+    Err(S3HandlerBridgeError::AccessDenied(action.to_string()).into())
+}
+
+pub async fn check_access<P: crate::types::traits::s3_policyengine::S3PolicyEngine + ?Sized, E: From<S3HandlerBridgeError>>(
+    policy: &P,
+    action: &str,
+    bucket: Option<&str>,
+    key: Option<&str>,
+) -> Result<(), E> {
+    use crate::types::traits::s3_policyengine::{PolicyEvalContext, PolicyEffect};
+    let ctx = PolicyEvalContext {
+        action: action.to_string(),
+        bucket: bucket.map(|s| s.to_string()),
+        key: key.map(|s| s.to_string()),
+        identity: String::new(),
+        groups: Vec::new(),
+        is_owner: true,
+        conditions: std::collections::HashMap::new(),
+    };
+    match policy.check_access(&ctx).await {
+        Ok(PolicyEffect::Allow) => Ok(()),
+        Ok(PolicyEffect::Deny) => access_denied(action),
+        Err(e) => Err(S3HandlerBridgeError::AccessDenied(e.to_string()).into()),
+    }
 }
 
 pub fn unsupported<T, E>(op: &'static str) -> Result<T, E>

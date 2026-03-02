@@ -28,12 +28,12 @@ def s3_endpoint():
     """Start fs3 server and return endpoint URL."""
     port = _free_port()
     root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    bin_path = os.path.join(root, "target", "release", "s3_mount_gateway_rust")
+    bin_path = os.path.join(root, "target", "release", "fs3_test_server")
     if os.name == "nt":
         bin_path += ".exe"
 
     proc = subprocess.Popen(
-        [bin_path, "--port", str(port)],
+        [bin_path, str(port)],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
