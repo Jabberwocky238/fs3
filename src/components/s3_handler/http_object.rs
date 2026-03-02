@@ -8,16 +8,17 @@ use axum::http::{HeaderMap, Method};
 use axum::routing::any;
 use axum::{Json, Router};
 
+use crate::types::s3::core::ObjectAttribute;
 use crate::types::s3::request::*;
 use crate::types::s3::response::S3Response;
-use crate::types::traits::s3_handler::{ObjectS3Handler, RejectedS3Handler};
+use crate::types::traits::s3_handler::{ObjectS3Handler, RejectedObjectS3Handler};
 
 use super::util::{body_string, get, has, header, header_eq, multipart_selector};
 use super::{HandlerError, S3Handler};
 
 pub fn routes<T, E>(state: Arc<T>) -> Router
 where
-    T: S3Handler + ObjectS3Handler<Error = E> + RejectedS3Handler<Error = E> + Send + Sync + 'static,
+    T: S3Handler + ObjectS3Handler<Error = E> + RejectedObjectS3Handler<Error = E> + Send + Sync + 'static,
     E: Display + Send + Sync + 'static,
 {
     Router::new().route("/{bucket}/{*object}", any(object_entry::<T, E>)).with_state(state)
@@ -32,7 +33,7 @@ async fn object_entry<T, E>(
     body: Bytes,
 ) -> Result<Json<S3Response>, HandlerError>
 where
-    T: S3Handler + ObjectS3Handler<Error = E> + RejectedS3Handler<Error = E> + Send + Sync,
+    T: S3Handler + ObjectS3Handler<Error = E> + RejectedObjectS3Handler<Error = E> + Send + Sync,
     E: Display + Send + Sync + 'static,
 {
     let mk = || ObjectRef { bucket: bucket.clone(), object: object_path.clone() };
@@ -63,7 +64,22 @@ where
         Method::GET if has(&q, "attributes") => S3Response::GetObjectAttributes(
             handler.get_object_attributes(GetObjectAttributesRequest {
                 object: mk(),
-                attributes: get(&q, "attributes").map(|v| v.split(',').map(|x| x.to_string()).collect()).unwrap_or_default(),
+                attributes: get(&q, "attributes")
+                    .map(|v| {
+                        v.split(',')
+                            .map(|x| x.trim().to_ascii_lowercase())
+                            .filter_map(|x| match x.as_str() {
+                                "etag" => Some(ObjectAttribute::ETag),
+                                "checksum" => Some(ObjectAttribute::Checksum),
+                                "objectparts" | "object_parts" | "parts" => Some(ObjectAttribute::ObjectParts),
+                                "storageclass" | "storage_class" => Some(ObjectAttribute::StorageClass),
+                                "objectsize" | "object_size" | "size" => Some(ObjectAttribute::ObjectSize),
+                                "lastmodified" | "last_modified" => Some(ObjectAttribute::LastModified),
+                                _ => None,
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default(),
             }).await.map_err(|e| HandlerError::internal(e.to_string()))?,
         ),
         Method::GET if has(&q, "uploadId") => S3Response::ListObjectParts(

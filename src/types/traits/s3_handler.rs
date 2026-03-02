@@ -44,6 +44,12 @@ fn to_read_opt(req: &GetObjectRequest) -> ObjectReadOptions {
         range: req.range.clone(),
         if_match: None,
         if_none_match: None,
+        want_etag: false,
+        want_checksum: false,
+        want_object_parts: false,
+        want_storage_class: false,
+        want_object_size: false,
+        want_last_modified: false,
     }
 }
 
@@ -136,9 +142,12 @@ where
         &self,
         req: GetObjectAttributesRequest,
     ) -> Result<GetObjectAttributesResponse, Self::Error> {
+        let bucket = req.object.bucket.clone();
+        let object = req.object.object.clone();
+        let opts: ObjectReadOptions = req.into();
         let obj = self
             .engine()
-            .head_object(&req.object.bucket, &req.object.object, ObjectReadOptions::default())
+            .head_object(&bucket, &object, opts)
             .await
             .map_err(Into::into)?;
         Ok(GetObjectAttributesResponse {
@@ -758,7 +767,7 @@ where
 }
 
 #[async_trait]
-pub trait RejectedS3Handler {
+pub trait RejectedObjectS3Handler {
     type Error: Send + Sync + 'static;
 
     async fn rejected_object_torrent(
@@ -787,6 +796,12 @@ pub trait RejectedS3Handler {
             ..Default::default()
         })
     }
+}
+
+#[async_trait]
+pub trait RejectedBucketS3Handler {
+    type Error: Send + Sync + 'static;
+
     async fn rejected_bucket_api(
         &self,
         req: RejectedBucketApiRequest,

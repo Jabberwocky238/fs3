@@ -10,14 +10,14 @@ use axum::{Json, Router};
 
 use crate::types::s3::request::*;
 use crate::types::s3::response::S3Response;
-use crate::types::traits::s3_handler::{BucketS3Handler, RejectedS3Handler};
+use crate::types::traits::s3_handler::{BucketS3Handler, RejectedBucketS3Handler};
 
 use super::util::{body_string, event_filter, get, has, header, list_query};
 use super::{HandlerError, S3Handler};
 
 pub fn routes<T, E>(state: Arc<T>) -> Router
 where
-    T: S3Handler + BucketS3Handler<Error = E> + RejectedS3Handler<Error = E> + Send + Sync + 'static,
+    T: S3Handler + BucketS3Handler<Error = E> + RejectedBucketS3Handler<Error = E> + Send + Sync + 'static,
     E: Display + Send + Sync + 'static,
 {
     Router::new().route("/{bucket}", any(bucket_entry::<T, E>)).with_state(state)
@@ -32,7 +32,7 @@ async fn bucket_entry<T, E>(
     body: Bytes,
 ) -> Result<Json<S3Response>, HandlerError>
 where
-    T: S3Handler + BucketS3Handler<Error = E> + RejectedS3Handler<Error = E> + Send + Sync,
+    T: S3Handler + BucketS3Handler<Error = E> + RejectedBucketS3Handler<Error = E> + Send + Sync,
     E: Display + Send + Sync + 'static,
 {
     let mk = || BucketRef { bucket: bucket_name.clone() };

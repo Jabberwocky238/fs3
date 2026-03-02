@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use crate::types::s3::core::ObjectAttribute;
 
 pub type HeaderMap = HashMap<String, String>;
 
@@ -83,7 +84,7 @@ pub struct HeadObjectRequest {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetObjectAttributesRequest {
     pub object: ObjectRef,
-    pub attributes: Vec<String>,
+    pub attributes: Vec<ObjectAttribute>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]

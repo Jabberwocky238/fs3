@@ -10,15 +10,16 @@ use axum::response::{IntoResponse, Response};
 use axum::{Json, Router};
 
 use crate::types::traits::s3_handler::{
-    BucketS3Handler, ObjectS3Handler, RejectedS3Handler, RootS3Handler,
+    BucketS3Handler, ObjectS3Handler, RejectedBucketS3Handler, RejectedObjectS3Handler,
+    RootS3Handler,
 };
 
 pub trait S3Handler:
-    ObjectS3Handler + BucketS3Handler + RootS3Handler + RejectedS3Handler
+    ObjectS3Handler + BucketS3Handler + RootS3Handler + RejectedObjectS3Handler + RejectedBucketS3Handler
 {
 }
 impl<T> S3Handler for T where
-    T: ObjectS3Handler + BucketS3Handler + RootS3Handler + RejectedS3Handler
+    T: ObjectS3Handler + BucketS3Handler + RootS3Handler + RejectedObjectS3Handler + RejectedBucketS3Handler
 {
 }
 
@@ -56,7 +57,8 @@ where
         + ObjectS3Handler<Error = E>
         + BucketS3Handler<Error = E>
         + RootS3Handler<Error = E>
-        + RejectedS3Handler<Error = E>
+        + RejectedObjectS3Handler<Error = E>
+        + RejectedBucketS3Handler<Error = E>
         + Send
         + Sync
         + 'static,

@@ -181,11 +181,68 @@ pub struct CompleteMultipartInput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub enum ObjectAttribute {
+    #[default]
+    ETag,
+    Checksum,
+    ObjectParts,
+    StorageClass,
+    ObjectSize,
+    LastModified,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct ObjectReadOptions {
     pub version_id: Option<String>,
     pub range: Option<String>,
     pub if_match: Option<String>,
     pub if_none_match: Option<String>,
+    pub want_etag: bool,
+    pub want_checksum: bool,
+    pub want_object_parts: bool,
+    pub want_storage_class: bool,
+    pub want_object_size: bool,
+    pub want_last_modified: bool,
+}
+
+impl From<crate::types::s3::request::GetObjectAttributesRequest> for ObjectReadOptions {
+    fn from(req: crate::types::s3::request::GetObjectAttributesRequest) -> Self {
+        let mut out = Self {
+            version_id: None,
+            range: None,
+            if_match: None,
+            if_none_match: None,
+            want_etag: false,
+            want_checksum: false,
+            want_object_parts: false,
+            want_storage_class: false,
+            want_object_size: false,
+            want_last_modified: false,
+        };
+        for a in req.attributes {
+            match a {
+                ObjectAttribute::ETag => out.want_etag = true,
+                ObjectAttribute::Checksum => out.want_checksum = true,
+                ObjectAttribute::ObjectParts => out.want_object_parts = true,
+                ObjectAttribute::StorageClass => out.want_storage_class = true,
+                ObjectAttribute::ObjectSize => out.want_object_size = true,
+                ObjectAttribute::LastModified => out.want_last_modified = true,
+            }
+        }
+        // S3 GetObjectAttributes without explicit list still implies basic object attrs.
+        if !out.want_etag
+            && !out.want_checksum
+            && !out.want_object_parts
+            && !out.want_storage_class
+            && !out.want_object_size
+            && !out.want_last_modified
+        {
+            out.want_etag = true;
+            out.want_object_size = true;
+            out.want_last_modified = true;
+        }
+        out
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
