@@ -143,11 +143,12 @@ impl IntoResponse for S3Response {
 
             S3Response::CompleteMultipartUpload(r) => {
                 let obj = r.object.as_ref();
+                let etag_raw = obj.and_then(|o| o.etag.as_deref()).unwrap_or("");
                 xml_response(&format!(
                     r#"<?xml version="1.0" encoding="UTF-8"?><CompleteMultipartUploadResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Bucket>{}</Bucket><Key>{}</Key><ETag>{}</ETag></CompleteMultipartUploadResult>"#,
                     xml_escape(obj.map(|o| o.bucket.as_str()).unwrap_or("")),
                     xml_escape(obj.map(|o| o.key.as_str()).unwrap_or("")),
-                    xml_escape(obj.and_then(|o| o.etag.as_deref()).unwrap_or("")),
+                    xml_escape(&quote_etag(etag_raw)),
                 ))
             }
 
@@ -156,7 +157,7 @@ impl IntoResponse for S3Response {
                 let lm = r.object.as_ref().and_then(|o| o.last_modified.as_deref()).unwrap_or("");
                 xml_response(&format!(
                     r#"<?xml version="1.0" encoding="UTF-8"?><CopyObjectResult><ETag>{}</ETag><LastModified>{}</LastModified></CopyObjectResult>"#,
-                    xml_escape(etag), xml_escape(lm)
+                    xml_escape(&quote_etag(etag)), xml_escape(lm)
                 ))
             }
 
@@ -164,7 +165,7 @@ impl IntoResponse for S3Response {
                 let etag = r.part.as_ref().and_then(|p| p.etag.as_deref()).unwrap_or("");
                 xml_response(&format!(
                     r#"<?xml version="1.0" encoding="UTF-8"?><CopyPartResult><ETag>{}</ETag></CopyPartResult>"#,
-                    xml_escape(etag)
+                    xml_escape(&quote_etag(etag))
                 ))
             }
 
@@ -172,7 +173,7 @@ impl IntoResponse for S3Response {
                 let mut resp = StatusCode::OK.into_response();
                 if let Some(obj) = &r.object {
                     if let Some(etag) = &obj.etag {
-                        if let Ok(v) = etag.parse() {
+                        if let Ok(v) = quote_etag(etag).parse() {
                             resp.headers_mut().insert("etag", v);
                         }
                     }
@@ -184,7 +185,7 @@ impl IntoResponse for S3Response {
                 let mut resp = StatusCode::OK.into_response();
                 if let Some(p) = &r.part {
                     if let Some(etag) = &p.etag {
-                        if let Ok(v) = etag.parse() {
+                        if let Ok(v) = quote_etag(etag).parse() {
                             resp.headers_mut().insert("etag", v);
                         }
                     }
@@ -327,7 +328,7 @@ fn raw_response(status: u16, meta: &ResponseMeta, body: Vec<u8>) -> Response {
     let sc = StatusCode::from_u16(status).unwrap_or(StatusCode::OK);
     let mut resp = (sc, body).into_response();
     if let Some(etag) = &meta.etag {
-        if let Ok(v) = etag.parse() {
+        if let Ok(v) = quote_etag(etag).parse() {
             resp.headers_mut().insert("etag", v);
         }
     }
