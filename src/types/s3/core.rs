@@ -1,9 +1,12 @@
 ﻿use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::io;
+use std::pin::Pin;
 
 pub type UserMetadata = HashMap<String, String>;
 pub type TagMap = HashMap<String, String>;
+pub type BoxByteStream = Pin<Box<dyn futures::Stream<Item = Result<bytes::Bytes, io::Error>> + Send>>;
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum VersioningState {

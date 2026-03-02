@@ -20,8 +20,8 @@ pub trait S3BucketEngine<E: S3EngineError> {
 #[async_trait]
 pub trait S3ObjectEngine<E: S3EngineError> {
     async fn head_object(&self, bucket: &str, key: &str, options: ObjectReadOptions) -> Result<S3Object, E>;
-    async fn get_object(&self, bucket: &str, key: &str, options: ObjectReadOptions) -> Result<(S3Object, Vec<u8>), E>;
-    async fn put_object(&self, bucket: &str, key: &str, body: Vec<u8>, options: ObjectWriteOptions) -> Result<S3Object, E>;
+    async fn get_object(&self, bucket: &str, key: &str, options: ObjectReadOptions) -> Result<(S3Object, BoxByteStream), E>;
+    async fn put_object(&self, bucket: &str, key: &str, body: BoxByteStream, options: ObjectWriteOptions) -> Result<S3Object, E>;
     async fn copy_object(&self, src_bucket: &str, src_key: &str, dst_bucket: &str, dst_key: &str, options: ObjectWriteOptions) -> Result<S3Object, E>;
     async fn delete_object(&self, bucket: &str, key: &str, options: DeleteObjectOptions) -> Result<ObjectVersionRef, E>;
     async fn delete_objects(&self, bucket: &str, keys: Vec<String>, options: DeleteObjectOptions) -> Result<DeleteResult, E>;
@@ -37,7 +37,7 @@ pub trait S3ObjectEngine<E: S3EngineError> {
 #[async_trait]
 pub trait S3MultipartEngine<E: S3EngineError> {
     async fn new_multipart_upload(&self, bucket: &str, key: &str, options: ObjectWriteOptions) -> Result<MultipartUpload, E>;
-    async fn put_object_part(&self, bucket: &str, key: &str, upload_id: &str, part_number: u32, body: Vec<u8>) -> Result<UploadedPart, E>;
+    async fn put_object_part(&self, bucket: &str, key: &str, upload_id: &str, part_number: u32, body: BoxByteStream) -> Result<UploadedPart, E>;
     async fn copy_object_part(&self, src_bucket: &str, src_key: &str, dst_bucket: &str, dst_key: &str, upload_id: &str, part_number: u32) -> Result<UploadedPart, E>;
     async fn list_object_parts(&self, bucket: &str, key: &str, upload_id: &str) -> Result<Vec<UploadedPart>, E>;
     async fn complete_multipart_upload(&self, bucket: &str, key: &str, upload_id: &str, completed: CompleteMultipartInput) -> Result<S3Object, E>;

@@ -102,12 +102,17 @@ pub struct CopyObjectPartRequest {
     pub copy_source: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct PutObjectPartRequest {
     pub object: ObjectRef,
     pub multipart: MultipartSelector,
-    pub body: Vec<u8>,
+    pub body: crate::types::s3::core::BoxByteStream,
     pub checksum: Option<String>,
+}
+
+impl std::fmt::Debug for PutObjectPartRequest {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PutObjectPartRequest").field("object", &self.object).field("body", &"<stream>").finish()
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -238,11 +243,16 @@ pub struct AppendObjectRejectedRequest {
     pub body: Vec<u8>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct PutObjectRequest {
     pub object: ObjectRef,
-    pub body: Vec<u8>,
+    pub body: crate::types::s3::core::BoxByteStream,
     pub content_type: Option<String>,
+}
+
+impl std::fmt::Debug for PutObjectRequest {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PutObjectRequest").field("object", &self.object).field("body", &"<stream>").finish()
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -559,8 +569,7 @@ pub struct RejectedBucketApiRequest {
     pub method: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(tag = "api", content = "request")]
+#[derive(Debug)]
 pub enum S3Request {
     HeadObject(HeadObjectRequest),
     GetObjectAttributes(GetObjectAttributesRequest),

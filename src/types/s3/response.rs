@@ -167,10 +167,15 @@ pub struct GetObjectLambdaResponse {
     pub body: Vec<u8>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetObjectResponse {
     pub meta: ResponseMeta,
-    pub body: Vec<u8>,
+    pub body: crate::types::s3::core::BoxByteStream,
+}
+
+impl std::fmt::Debug for GetObjectResponse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("GetObjectResponse").field("meta", &self.meta).field("body", &"<stream>").finish()
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -523,8 +528,8 @@ pub struct RejectedApiResponse {
     pub error: ErrorBody,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(tag = "api", content = "response")]
+#[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum S3Response {
     HeadObject(HeadObjectResponse),
     GetObjectAttributes(GetObjectAttributesResponse),

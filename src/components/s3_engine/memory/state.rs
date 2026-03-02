@@ -1,5 +1,6 @@
 ﻿use std::collections::{BTreeMap, HashMap};
 
+use bytes::Bytes;
 use chrono::{DateTime, Utc};
 
 use crate::components::s3_engine::memory::MemoryS3EngineError;
@@ -16,7 +17,7 @@ pub struct MemoryState {
 #[derive(Debug, Clone)]
 pub struct StoredObjectVersion {
     pub object: S3Object,
-    pub body: Vec<u8>,
+    pub body: Bytes,
 }
 
 #[derive(Debug, Clone)]
@@ -29,7 +30,7 @@ pub struct MultipartUploadState {
 #[derive(Debug, Clone)]
 pub struct MultipartPartData {
     pub uploaded: UploadedPart,
-    pub body: Vec<u8>,
+    pub body: Bytes,
 }
 
 impl MemoryState {
@@ -76,7 +77,7 @@ impl MemoryState {
         &mut self,
         bucket: &str,
         key: &str,
-        body: Vec<u8>,
+        body: Bytes,
         options: ObjectWriteOptions,
         etag: String,
         now: DateTime<Utc>,
