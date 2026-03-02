@@ -10,7 +10,9 @@ use s3_mount_gateway_rust::types::errors::S3EngineError;
 use s3_mount_gateway_rust::components::s3_metadata_storage::sqlite::{SqliteMetadataStorage, SQLITE_MEMORY};
 use s3_mount_gateway_rust::components::s3_mount::memory::MemoryMount;
 use s3_mount_gateway_rust::components::fs3_axum_handler::S3AxumHandler;
-use s3_mount_gateway_rust::components::fs3_policyengine::DefaultPolicyEngine;
+use s3_mount_gateway_rust::components::fs3_policyengine::{
+    FS3PolicyEngine, FS3IamPolicyEngine, FS3BucketPolicyEngine,
+};
 use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
 
@@ -19,8 +21,11 @@ pub const MINIO_SECRET_KEY: &str = "minioadmin";
 
 pub async fn create_minio_server() -> std::io::Result<(SocketAddr, String, JoinHandle<()>)> {
     let metadata_storage = SqliteMetadataStorage::new(SQLITE_MEMORY).await.unwrap();
+    let iam = FS3IamPolicyEngine::new(metadata_storage.clone());
+    let bucket_policy = FS3BucketPolicyEngine::new(metadata_storage.clone()).await.unwrap();
+    let policy = FS3PolicyEngine::new(iam, bucket_policy);
     let engine = FS3Engine::new(metadata_storage, MemoryMount::new());
-    let handler = S3AxumHandler::new(engine, DefaultPolicyEngine);
+    let handler = S3AxumHandler::new(engine, policy);
     let listener = TcpListener::bind(("127.0.0.1", 0)).await?;
     let addr = listener.local_addr()?;
     let endpoint = format!("http://{addr}");
