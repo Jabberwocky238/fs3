@@ -17,7 +17,8 @@ pub const MINIO_ACCESS_KEY: &str = "minioadmin";
 pub const MINIO_SECRET_KEY: &str = "minioadmin";
 
 pub async fn create_minio_server() -> std::io::Result<(SocketAddr, String, JoinHandle<()>)> {
-    let engine = S3EngineImpl::new(MemoryMetadataStorage::new(), MemoryMount::new());
+    let metadata_storage = MemoryMetadataStorage::new().await.unwrap();
+    let engine = S3EngineImpl::new(metadata_storage, MemoryMount::new());
     let handler = S3AxumHandler::new(engine);
     let listener = TcpListener::bind(("127.0.0.1", 0)).await?;
     let addr = listener.local_addr()?;
