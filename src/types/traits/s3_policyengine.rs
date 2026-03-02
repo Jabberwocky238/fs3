@@ -1,10 +1,11 @@
 use async_trait::async_trait;
+use crate::types::s3::policy::S3Action;
 
 /// S3 策略引擎的请求上下文，包含评估策略所需的全部信息
 #[derive(Debug, Clone)]
 pub struct PolicyEvalContext {
-    /// S3 动作，如 "s3:GetObject", "s3:PutObject"
-    pub action: String,
+    /// S3 动作
+    pub action: S3Action,
     /// 目标桶名
     pub bucket: Option<String>,
     /// 目标对象 key

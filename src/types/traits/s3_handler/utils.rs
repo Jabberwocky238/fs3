@@ -5,6 +5,8 @@ use crate::types::s3::core::{
     BucketFeatures, CompleteMultipartInput, DeleteObjectOptions, ListOptions,
     ObjectWriteOptions, StorageClass, UploadedPart, VersioningState,
 };
+use crate::types::traits::s3_policyengine::S3PolicyEngine;
+use crate::types::s3::policy::S3Action;
 use crate::types::s3::request::*;
 use crate::types::s3::response::*;
 
@@ -18,22 +20,22 @@ pub enum S3HandlerBridgeError {
     AccessDenied(String),
 }
 
-pub fn access_denied<T, E>(action: &str) -> Result<T, E>
+pub fn access_denied<T, E>(action: S3Action) -> Result<T, E>
 where
     E: From<S3HandlerBridgeError>,
 {
-    Err(S3HandlerBridgeError::AccessDenied(action.to_string()).into())
+    Err(S3HandlerBridgeError::AccessDenied(format!("{action}")).into())
 }
 
-pub async fn check_access<P: crate::types::traits::s3_policyengine::S3PolicyEngine + ?Sized, E: From<S3HandlerBridgeError>>(
+pub async fn check_access<P: S3PolicyEngine + ?Sized, E: From<S3HandlerBridgeError>>(
     policy: &P,
-    action: &str,
+    action: S3Action,
     bucket: Option<&str>,
     key: Option<&str>,
 ) -> Result<(), E> {
     use crate::types::traits::s3_policyengine::{PolicyEvalContext, PolicyEffect};
     let ctx = PolicyEvalContext {
-        action: action.to_string(),
+        action,
         bucket: bucket.map(|s| s.to_string()),
         key: key.map(|s| s.to_string()),
         identity: String::new(),

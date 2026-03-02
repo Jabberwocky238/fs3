@@ -10,6 +10,7 @@ use crate::types::s3::request::*;
 use crate::types::s3::response::*;
 use crate::types::traits::s3_engine::S3BucketEngine;
 use crate::types::traits::s3_policyengine::S3PolicyEngine;
+use crate::types::s3::policy::S3Action;
 pub use utils::S3HandlerBridgeError;
 
 pub use bucket::BucketS3Handler;
@@ -45,7 +46,7 @@ pub trait RootS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: Se
     }
 
     async fn list_buckets(&self, _req: ListBucketsRequest) -> Result<ListBucketsResponse, E> {
-        utils::check_access(self.policy(), "s3:ListAllMyBuckets", None, None).await?;
+        utils::check_access(self.policy(), S3Action::ListAllMyBuckets, None, None).await?;
         let list = self.engine().list_buckets().await?;
         Ok(ListBucketsResponse {
             buckets: list.into_iter().map(|b| BucketInfo {
@@ -57,7 +58,7 @@ pub trait RootS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: Se
     }
 
     async fn list_buckets_double_slash(&self, _req: ListBucketsDoubleSlashRequest) -> Result<ListBucketsDoubleSlashResponse, E> {
-        utils::check_access(self.policy(), "s3:ListAllMyBuckets", None, None).await?;
+        utils::check_access(self.policy(), S3Action::ListAllMyBuckets, None, None).await?;
         let list = self.engine().list_buckets().await?;
         Ok(ListBucketsDoubleSlashResponse {
             buckets: list.into_iter().map(|b| BucketInfo {

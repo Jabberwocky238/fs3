@@ -6,6 +6,7 @@ use crate::types::traits::s3_engine::{
     S3BucketConfigEngine, S3BucketEngine, S3MultipartEngine, S3ObjectEngine,
 };
 use crate::types::traits::s3_policyengine::S3PolicyEngine;
+use crate::types::s3::policy::S3Action;
 use crate::types::errors::S3EngineError;
 
 use super::utils::*;
@@ -18,42 +19,42 @@ pub trait BucketS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
     fn policy(&self) -> &Self::Policy;
 
     async fn get_bucket_location(&self, req: GetBucketLocationRequest) -> Result<GetBucketLocationResponse, E> {
-        check_access(self.policy(), "s3:GetBucketLocation", Some(&req.bucket.bucket), None).await?;
+        check_access(self.policy(), S3Action::GetBucketLocation, Some(&req.bucket.bucket), None).await?;
         let location = self.engine().get_bucket_location(&req.bucket.bucket).await?;
         Ok(GetBucketLocationResponse { location: Some(location), ..Default::default() })
     }
     async fn get_bucket_policy(&self, req: GetBucketPolicyRequest) -> Result<GetBucketPolicyResponse, E> {
-        check_access(self.policy(), "s3:GetBucketPolicy", Some(&req.bucket.bucket), None).await?;
+        check_access(self.policy(), S3Action::GetBucketPolicy, Some(&req.bucket.bucket), None).await?;
         let p = self.engine().get_bucket_policy(&req.bucket.bucket).await?;
         Ok(GetBucketPolicyResponse { json: p.map(|d| d.body), ..Default::default() })
     }
     async fn get_bucket_lifecycle(&self, req: GetBucketLifecycleRequest) -> Result<GetBucketLifecycleResponse, E> {
-        check_access(self.policy(), "s3:GetLifecycleConfiguration", Some(&req.bucket.bucket), None).await?;
+        check_access(self.policy(), S3Action::GetBucketLifecycle, Some(&req.bucket.bucket), None).await?;
         let p = self.engine().get_bucket_lifecycle(&req.bucket.bucket).await?;
         Ok(GetBucketLifecycleResponse { xml: p.map(|d| d.body), ..Default::default() })
     }
     async fn get_bucket_encryption(&self, req: GetBucketEncryptionRequest) -> Result<GetBucketEncryptionResponse, E> {
-        check_access(self.policy(), "s3:GetEncryptionConfiguration", Some(&req.bucket.bucket), None).await?;
+        check_access(self.policy(), S3Action::GetBucketEncryption, Some(&req.bucket.bucket), None).await?;
         let p = self.engine().get_bucket_encryption(&req.bucket.bucket).await?;
         Ok(GetBucketEncryptionResponse { xml: p.map(|d| d.body), ..Default::default() })
     }
     async fn get_bucket_object_lock_config(&self, req: GetBucketObjectLockConfigRequest) -> Result<GetBucketObjectLockConfigResponse, E> {
-        check_access(self.policy(), "s3:GetBucketObjectLockConfiguration", Some(&req.bucket.bucket), None).await?;
+        check_access(self.policy(), S3Action::GetBucketObjectLockConfiguration, Some(&req.bucket.bucket), None).await?;
         let p = self.engine().get_bucket_object_lock_config(&req.bucket.bucket).await?;
         Ok(GetBucketObjectLockConfigResponse { xml: p.map(|d| d.body), ..Default::default() })
     }
     async fn get_bucket_replication_config(&self, req: GetBucketReplicationConfigRequest) -> Result<GetBucketReplicationConfigResponse, E> {
-        check_access(self.policy(), "s3:GetReplicationConfiguration", Some(&req.bucket.bucket), None).await?;
+        check_access(self.policy(), S3Action::GetReplicationConfiguration, Some(&req.bucket.bucket), None).await?;
         let p = self.engine().get_bucket_replication(&req.bucket.bucket).await?;
         Ok(GetBucketReplicationConfigResponse { xml: p.map(|d| d.body), ..Default::default() })
     }
     async fn get_bucket_versioning(&self, req: GetBucketVersioningRequest) -> Result<GetBucketVersioningResponse, E> {
-        check_access(self.policy(), "s3:GetBucketVersioning", Some(&req.bucket.bucket), None).await?;
+        check_access(self.policy(), S3Action::GetBucketVersioning, Some(&req.bucket.bucket), None).await?;
         let p = self.engine().get_bucket_versioning(&req.bucket.bucket).await?;
         Ok(GetBucketVersioningResponse { xml: p.map(|d| d.body), ..Default::default() })
     }
     async fn get_bucket_notification(&self, req: GetBucketNotificationRequest) -> Result<GetBucketNotificationResponse, E> {
-        check_access(self.policy(), "s3:GetBucketNotification", Some(&req.bucket.bucket), None).await?;
+        check_access(self.policy(), S3Action::GetBucketNotification, Some(&req.bucket.bucket), None).await?;
         let p = self.engine().get_bucket_notification(&req.bucket.bucket).await?;
         Ok(GetBucketNotificationResponse { xml: p.map(|d| d.body), ..Default::default() })
     }
@@ -69,18 +70,18 @@ pub trait BucketS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
     async fn get_bucket_request_payment(&self, _req: GetBucketRequestPaymentRequest) -> Result<GetBucketRequestPaymentResponse, E> { Ok(Default::default()) }
     async fn get_bucket_logging(&self, _req: GetBucketLoggingRequest) -> Result<GetBucketLoggingResponse, E> { Ok(Default::default()) }
     async fn get_bucket_tagging(&self, req: GetBucketTaggingRequest) -> Result<GetBucketTaggingResponse, E> {
-        check_access(self.policy(), "s3:GetBucketTagging", Some(&req.bucket.bucket), None).await?;
+        check_access(self.policy(), S3Action::GetBucketTagging, Some(&req.bucket.bucket), None).await?;
         let p = self.engine().get_bucket_tagging(&req.bucket.bucket).await?;
         Ok(GetBucketTaggingResponse { xml: p.map(|d| d.body), ..Default::default() })
     }
     async fn delete_bucket_website(&self, _req: DeleteBucketWebsiteRequest) -> Result<DeleteBucketWebsiteResponse, E> { Ok(Default::default()) }
     async fn delete_bucket_tagging(&self, req: DeleteBucketTaggingRequest) -> Result<DeleteBucketTaggingResponse, E> {
-        check_access(self.policy(), "s3:PutBucketTagging", Some(&req.bucket.bucket), None).await?;
+        check_access(self.policy(), S3Action::PutBucketTagging, Some(&req.bucket.bucket), None).await?;
         self.engine().delete_bucket_tagging(&req.bucket.bucket).await?;
         Ok(Default::default())
     }
     async fn list_multipart_uploads(&self, req: ListMultipartUploadsRequest) -> Result<ListMultipartUploadsResponse, E> {
-        check_access(self.policy(), "s3:ListBucketMultipartUploads", Some(&req.bucket.bucket), None).await?;
+        check_access(self.policy(), S3Action::ListBucketMultipartUploads, Some(&req.bucket.bucket), None).await?;
         let uploads = self.engine().list_multipart_uploads(&req.bucket.bucket, to_list_opt(&req.query, false)).await?;
         Ok(ListMultipartUploadsResponse {
             uploads: uploads.into_iter().map(|u| MultipartUploadInfo {
@@ -92,7 +93,7 @@ pub trait BucketS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
         })
     }
     async fn list_objects_v2m(&self, req: ListObjectsV2MRequest) -> Result<ListObjectsV2MResponse, E> {
-        check_access(self.policy(), "s3:ListBucket", Some(&req.bucket.bucket), None).await?;
+        check_access(self.policy(), S3Action::ListBucket, Some(&req.bucket.bucket), None).await?;
         let p = self.engine().list_objects_v2(&req.bucket.bucket, to_list_opt(&req.query, req.metadata)).await?;
         Ok(ListObjectsV2MResponse {
             objects: p.objects.iter().map(to_resp_object).collect(),
@@ -100,12 +101,12 @@ pub trait BucketS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
         })
     }
     async fn list_objects_v2(&self, req: ListObjectsV2Request) -> Result<ListObjectsV2Response, E> {
-        check_access(self.policy(), "s3:ListBucket", Some(&req.bucket.bucket), None).await?;
+        check_access(self.policy(), S3Action::ListBucket, Some(&req.bucket.bucket), None).await?;
         let p = self.engine().list_objects_v2(&req.bucket.bucket, to_list_opt(&req.query, false)).await?;
         Ok(ListObjectsV2Response { objects: p.objects.iter().map(to_resp_object).collect(), ..Default::default() })
     }
     async fn list_object_versions_m(&self, req: ListObjectVersionsMRequest) -> Result<ListObjectVersionsMResponse, E> {
-        check_access(self.policy(), "s3:ListBucketVersions", Some(&req.bucket.bucket), None).await?;
+        check_access(self.policy(), S3Action::ListBucketVersions, Some(&req.bucket.bucket), None).await?;
         let p = self.engine().list_object_versions(&req.bucket.bucket, to_list_opt(&req.query, req.metadata)).await?;
         Ok(ListObjectVersionsMResponse { objects: p.objects.iter().map(to_resp_object).collect(), ..Default::default() })
     }
@@ -114,43 +115,53 @@ pub trait BucketS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
         Ok(ListObjectVersionsResponse { objects: p.objects.iter().map(to_resp_object).collect(), ..Default::default() })
     }
     async fn get_bucket_policy_status(&self, req: GetBucketPolicyStatusRequest) -> Result<GetBucketPolicyStatusResponse, E> {
+        check_access(self.policy(), S3Action::GetBucketPolicyStatus, Some(&req.bucket.bucket), None).await?;
         let p = self.engine().get_bucket_policy_status(&req.bucket.bucket).await?;
         Ok(GetBucketPolicyStatusResponse { is_public: Some(p.is_public), ..Default::default() })
     }
     async fn put_bucket_lifecycle(&self, req: PutBucketLifecycleRequest) -> Result<PutBucketLifecycleResponse, E> {
+        check_access(self.policy(), S3Action::PutBucketLifecycle, Some(&req.bucket.bucket), None).await?;
         self.engine().put_bucket_lifecycle(&req.bucket.bucket, req.xml).await?;
         Ok(Default::default())
     }
     async fn put_bucket_replication_config(&self, req: PutBucketReplicationConfigRequest) -> Result<PutBucketReplicationConfigResponse, E> {
+        check_access(self.policy(), S3Action::PutReplicationConfiguration, Some(&req.bucket.bucket), None).await?;
         self.engine().put_bucket_replication(&req.bucket.bucket, req.xml).await?;
         Ok(Default::default())
     }
     async fn put_bucket_encryption(&self, req: PutBucketEncryptionRequest) -> Result<PutBucketEncryptionResponse, E> {
+        check_access(self.policy(), S3Action::PutBucketEncryption, Some(&req.bucket.bucket), None).await?;
         self.engine().put_bucket_encryption(&req.bucket.bucket, req.xml).await?;
         Ok(Default::default())
     }
     async fn put_bucket_policy(&self, req: PutBucketPolicyRequest) -> Result<PutBucketPolicyResponse, E> {
+        check_access(self.policy(), S3Action::PutBucketPolicy, Some(&req.bucket.bucket), None).await?;
         self.engine().put_bucket_policy(&req.bucket.bucket, req.json).await?;
         Ok(Default::default())
     }
     async fn put_bucket_object_lock_config(&self, req: PutBucketObjectLockConfigRequest) -> Result<PutBucketObjectLockConfigResponse, E> {
+        check_access(self.policy(), S3Action::PutBucketObjectLockConfiguration, Some(&req.bucket.bucket), None).await?;
         self.engine().put_bucket_object_lock_config(&req.bucket.bucket, req.xml).await?;
         Ok(Default::default())
     }
     async fn put_bucket_tagging(&self, req: PutBucketTaggingRequest) -> Result<PutBucketTaggingResponse, E> {
+        check_access(self.policy(), S3Action::PutBucketTagging, Some(&req.bucket.bucket), None).await?;
         self.engine().put_bucket_tagging(&req.bucket.bucket, req.xml).await?;
         Ok(Default::default())
     }
     async fn put_bucket_versioning(&self, req: PutBucketVersioningRequest) -> Result<PutBucketVersioningResponse, E> {
+        check_access(self.policy(), S3Action::PutBucketVersioning, Some(&req.bucket.bucket), None).await?;
         self.engine().put_bucket_versioning(&req.bucket.bucket, req.xml).await?;
         Ok(Default::default())
     }
     async fn put_bucket_notification(&self, req: PutBucketNotificationRequest) -> Result<PutBucketNotificationResponse, E> {
+        check_access(self.policy(), S3Action::PutBucketNotification, Some(&req.bucket.bucket), None).await?;
         self.engine().put_bucket_notification(&req.bucket.bucket, req.xml).await?;
         Ok(Default::default())
     }
     async fn reset_bucket_replication_start(&self, _req: ResetBucketReplicationStartRequest) -> Result<ResetBucketReplicationStartResponse, E> { unsupported("ResetBucketReplicationStart") }
     async fn put_bucket(&self, req: PutBucketRequest) -> Result<PutBucketResponse, E> {
+        check_access(self.policy(), S3Action::CreateBucket, Some(&req.bucket.bucket), None).await?;
         let _ = self
             .engine()
             .make_bucket(&req.bucket.bucket, req.region.as_deref(), bucket_features_for_create())
@@ -159,11 +170,13 @@ pub trait BucketS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
         Ok(Default::default())
     }
     async fn head_bucket(&self, req: HeadBucketRequest) -> Result<HeadBucketResponse, E> {
+        check_access(self.policy(), S3Action::HeadBucket, Some(&req.bucket.bucket), None).await?;
         let _ = self.engine().head_bucket(&req.bucket.bucket).await?;
         Ok(Default::default())
     }
     async fn post_policy(&self, _req: PostPolicyRequest) -> Result<PostPolicyResponse, E> { unsupported("PostPolicy") }
     async fn delete_multiple_objects(&self, req: DeleteMultipleObjectsRequest) -> Result<DeleteMultipleObjectsResponse, E> {
+        check_access(self.policy(), S3Action::DeleteObject, Some(&req.bucket.bucket), None).await?;
         let keys = parse_delete_keys(&req.payload.xml);
         if keys.is_empty() {
             return Err(S3HandlerBridgeError::InvalidRequest("DeleteMultipleObjects payload has no <Key>".to_string()).into());
@@ -188,22 +201,27 @@ pub trait BucketS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
         })
     }
     async fn delete_bucket_policy(&self, req: DeleteBucketPolicyRequest) -> Result<DeleteBucketPolicyResponse, E> {
+        check_access(self.policy(), S3Action::DeleteBucketPolicy, Some(&req.bucket.bucket), None).await?;
         self.engine().delete_bucket_policy(&req.bucket.bucket).await?;
         Ok(Default::default())
     }
     async fn delete_bucket_replication(&self, req: DeleteBucketReplicationRequest) -> Result<DeleteBucketReplicationResponse, E> {
+        check_access(self.policy(), S3Action::PutReplicationConfiguration, Some(&req.bucket.bucket), None).await?;
         self.engine().delete_bucket_replication(&req.bucket.bucket).await?;
         Ok(Default::default())
     }
     async fn delete_bucket_lifecycle(&self, req: DeleteBucketLifecycleRequest) -> Result<DeleteBucketLifecycleResponse, E> {
+        check_access(self.policy(), S3Action::PutBucketLifecycle, Some(&req.bucket.bucket), None).await?;
         self.engine().delete_bucket_lifecycle(&req.bucket.bucket).await?;
         Ok(Default::default())
     }
     async fn delete_bucket_encryption(&self, req: DeleteBucketEncryptionRequest) -> Result<DeleteBucketEncryptionResponse, E> {
+        check_access(self.policy(), S3Action::PutBucketEncryption, Some(&req.bucket.bucket), None).await?;
         self.engine().delete_bucket_encryption(&req.bucket.bucket).await?;
         Ok(Default::default())
     }
     async fn delete_bucket(&self, req: DeleteBucketRequest) -> Result<DeleteBucketResponse, E> {
+        check_access(self.policy(), S3Action::DeleteBucket, Some(&req.bucket.bucket), None).await?;
         self.engine().delete_bucket(&req.bucket.bucket, false).await?;
         Ok(Default::default())
     }
@@ -220,6 +238,7 @@ pub trait BucketS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
         Ok(ValidateBucketReplicationCredsResponse { valid: v.valid, ..Default::default() })
     }
     async fn list_objects_v1(&self, req: ListObjectsV1Request) -> Result<ListObjectsV1Response, E> {
+        check_access(self.policy(), S3Action::ListBucket, Some(&req.bucket.bucket), None).await?;
         let p = self.engine().list_objects_v1(&req.bucket.bucket, to_list_opt(&req.query, false)).await?;
         Ok(ListObjectsV1Response { objects: p.objects.iter().map(to_resp_object).collect(), ..Default::default() })
     }
