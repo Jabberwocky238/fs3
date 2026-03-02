@@ -5,17 +5,12 @@ use std::collections::HashMap;
 pub type UserMetadata = HashMap<String, String>;
 pub type TagMap = HashMap<String, String>;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum VersioningState {
+    #[default]
     Off,
     Enabled,
     Suspended,
-}
-
-impl Default for VersioningState {
-    fn default() -> Self {
-        Self::Off
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -24,8 +19,9 @@ pub enum ObjectLockMode {
     Compliance,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ReplicationState {
+    #[default]
     None,
     Pending,
     Completed,
@@ -33,14 +29,10 @@ pub enum ReplicationState {
     Replica,
 }
 
-impl Default for ReplicationState {
-    fn default() -> Self {
-        Self::None
-    }
-}
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum StorageClass {
+    #[default]
     Standard,
     StandardIa,
     OneZoneIa,
@@ -51,11 +43,6 @@ pub enum StorageClass {
     Custom(String),
 }
 
-impl Default for StorageClass {
-    fn default() -> Self {
-        Self::Standard
-    }
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct BucketFeatures {

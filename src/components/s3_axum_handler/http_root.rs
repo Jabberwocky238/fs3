@@ -4,7 +4,7 @@ use std::sync::Arc;
 use axum::extract::{Query, State};
 use axum::http::Method;
 use axum::routing::{any, get};
-use axum::{Json, Router};
+use axum::Router;
 
 use crate::types::s3::request::{ListBucketsDoubleSlashRequest, ListBucketsRequest, RootListenNotificationRequest};
 use crate::types::s3::response::S3Response;
@@ -25,7 +25,7 @@ where
         .with_state(state)
 }
 
-async fn root_double_slash<T, E>(State(handler): State<Arc<T>>) -> Result<Json<S3Response>, HandlerError>
+async fn root_double_slash<T, E>(State(handler): State<Arc<T>>) -> Result<S3Response, HandlerError>
 where
     T: S3Handler<E> + Send + Sync,
     E: S3EngineError + From<S3HandlerBridgeError>,
@@ -34,14 +34,14 @@ where
         .list_buckets_double_slash(ListBucketsDoubleSlashRequest)
         .await
         .map_err(|e| HandlerError::internal(e.to_string()))?;
-    Ok(Json(S3Response::ListBucketsDoubleSlash(v)))
+    Ok(S3Response::ListBucketsDoubleSlash(v))
 }
 
 async fn root_entry<T, E>(
     State(handler): State<Arc<T>>,
     method: Method,
     Query(q): Query<HashMap<String, String>>,
-) -> Result<Json<S3Response>, HandlerError>
+) -> Result<S3Response, HandlerError>
 where
     T: S3Handler<E> + Send + Sync,
     E: S3EngineError + From<S3HandlerBridgeError>,
@@ -54,11 +54,11 @@ where
             .root_listen_notification(RootListenNotificationRequest { filter: event_filter(&q) })
             .await
             .map_err(|e| HandlerError::internal(e.to_string()))?;
-        return Ok(Json(S3Response::RootListenNotification(v)));
+        return Ok(S3Response::RootListenNotification(v));
     }
     let v = handler
         .list_buckets(ListBucketsRequest)
         .await
         .map_err(|e| HandlerError::internal(e.to_string()))?;
-    Ok(Json(S3Response::ListBuckets(v)))
+    Ok(S3Response::ListBuckets(v))
 }

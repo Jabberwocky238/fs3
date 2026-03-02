@@ -7,7 +7,7 @@ use std::fmt::{Display, Formatter};
 use std::sync::Arc;
 
 use axum::response::{IntoResponse, Response};
-use axum::{Json, Router};
+use axum::Router;
 
 use crate::types::traits::s3_engine::S3EngineError;
 use crate::types::traits::s3_handler::{S3Handler, S3HandlerBridgeError};
@@ -20,13 +20,22 @@ pub struct HandlerError {
 
 impl HandlerError {
     pub fn internal(msg: impl Into<String>) -> Self {
-        Self { status: axum::http::StatusCode::INTERNAL_SERVER_ERROR, message: msg.into() }
+        let message = msg.into();
+        let status = Self::infer_status(&message);
+        Self { status, message }
     }
     pub fn bad_request(msg: impl Into<String>) -> Self {
         Self { status: axum::http::StatusCode::BAD_REQUEST, message: msg.into() }
     }
     pub fn method_not_allowed(msg: impl Into<String>) -> Self {
         Self { status: axum::http::StatusCode::METHOD_NOT_ALLOWED, message: msg.into() }
+    }
+    fn infer_status(msg: &str) -> axum::http::StatusCode {
+        use axum::http::StatusCode;
+        if msg.contains("not found") { StatusCode::NOT_FOUND }
+        else if msg.contains("already exists") { StatusCode::CONFLICT }
+        else if msg.contains("not empty") { StatusCode::CONFLICT }
+        else { StatusCode::INTERNAL_SERVER_ERROR }
     }
 }
 
@@ -36,7 +45,19 @@ impl Display for HandlerError {
 
 impl IntoResponse for HandlerError {
     fn into_response(self) -> Response {
-        (self.status, Json(serde_json::json!({ "error": self.message }))).into_response()
+        let code = match self.status {
+            axum::http::StatusCode::BAD_REQUEST => "BadRequest",
+            axum::http::StatusCode::METHOD_NOT_ALLOWED => "MethodNotAllowed",
+            axum::http::StatusCode::NOT_FOUND => "NoSuchKey",
+            axum::http::StatusCode::CONFLICT => "Conflict",
+            _ => "InternalError",
+        };
+        let body = format!(
+            r#"<?xml version="1.0" encoding="UTF-8"?><Error><Code>{}</Code><Message>{}</Message></Error>"#,
+            code,
+            self.message.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;")
+        );
+        (self.status, [("content-type", "application/xml")], body).into_response()
     }
 }
 

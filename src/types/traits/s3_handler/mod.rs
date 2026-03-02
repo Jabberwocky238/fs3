@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use chrono::SecondsFormat;
 
 mod bucket;
 mod object;
@@ -91,7 +92,7 @@ pub trait RootS3Handler<E: S3EngineError + From<S3HandlerBridgeError>>: Send + S
         Ok(ListBucketsResponse {
             buckets: list.into_iter().map(|b| BucketInfo {
                 name: b.identity.name,
-                creation_date: Some(b.identity.created_at.to_rfc3339()),
+                creation_date: Some(b.identity.created_at.to_rfc3339_opts(SecondsFormat::Secs, true)),
             }).collect(),
             ..Default::default()
         })
@@ -102,7 +103,7 @@ pub trait RootS3Handler<E: S3EngineError + From<S3HandlerBridgeError>>: Send + S
         Ok(ListBucketsDoubleSlashResponse {
             buckets: list.into_iter().map(|b| BucketInfo {
                 name: b.identity.name,
-                creation_date: Some(b.identity.created_at.to_rfc3339()),
+                creation_date: Some(b.identity.created_at.to_rfc3339_opts(SecondsFormat::Secs, true)),
             }).collect(),
             ..Default::default()
         })

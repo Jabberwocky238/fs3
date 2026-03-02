@@ -5,7 +5,7 @@ use axum::body::Bytes;
 use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, Method};
 use axum::routing::any;
-use axum::{Json, Router};
+use axum::Router;
 
 use crate::types::s3::request::*;
 use crate::types::s3::response::S3Response;
@@ -30,7 +30,7 @@ async fn bucket_entry<T, E>(
     headers: HeaderMap,
     Query(q): Query<HashMap<String, String>>,
     body: Bytes,
-) -> Result<Json<S3Response>, HandlerError>
+) -> Result<S3Response, HandlerError>
 where
     T: S3Handler<E> + Send + Sync,
     E: S3EngineError + From<S3HandlerBridgeError>,
@@ -45,7 +45,7 @@ where
             })
             .await
             .map_err(|e| HandlerError::internal(e.to_string()))?;
-        return Ok(Json(S3Response::RejectedApi(v)));
+        return Ok(S3Response::RejectedApi(v));
     }
 
     let text = String::from_utf8_lossy(&body).to_string();
@@ -107,7 +107,7 @@ where
         Method::HEAD => S3Response::HeadBucket(handler.head_bucket(HeadBucketRequest { bucket: mk() }).await.map_err(|e| HandlerError::internal(e.to_string()))?),
         _ => return Err(HandlerError::method_not_allowed("unsupported bucket API")),
     };
-    Ok(Json(resp))
+    Ok(resp)
 }
 
 fn rejected_api(q: &HashMap<String, String>, method: &Method) -> Option<&'static str> {
