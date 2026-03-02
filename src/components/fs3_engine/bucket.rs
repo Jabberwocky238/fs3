@@ -6,10 +6,10 @@ use crate::types::traits::s3_engine::S3BucketEngine;
 use crate::types::traits::s3_metadata_storage::*;
 use crate::types::traits::s3_mount::*;
 
-use super::S3EngineImpl;
+use super::FS3Engine;
 
 #[async_trait]
-impl<S, M> S3BucketEngine for S3EngineImpl<S, M>
+impl<S, M> S3BucketEngine for FS3Engine<S, M>
 where
     S: S3MetadataStorageBucket
         + S3MetadataStorageObject

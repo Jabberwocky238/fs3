@@ -8,12 +8,12 @@ mod config;
 mod multipart;
 mod object;
 
-pub struct S3EngineImpl<S, M> {
+pub struct FS3Engine<S, M> {
     pub metadata: S,
     pub mount: M,
 }
 
-impl<S, M> S3EngineImpl<S, M> {
+impl<S, M> FS3Engine<S, M> {
     pub fn new(metadata: S, mount: M) -> Self {
         Self { metadata, mount }
     }

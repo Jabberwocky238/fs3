@@ -5,9 +5,9 @@ use crate::types::errors::S3EngineError;
 use crate::types::traits::s3_engine::S3BucketConfigEngine;
 use crate::types::traits::s3_metadata_storage::*;
 
-use super::S3EngineImpl;
+use super::FS3Engine;
 
-impl<S, M> S3EngineImpl<S, M>
+impl<S, M> FS3Engine<S, M>
 where
     S: S3MetadataStorageBucket + Send + Sync,
     M: Send + Sync,
@@ -20,7 +20,7 @@ where
 }
 
 #[async_trait]
-impl<S, M> S3BucketConfigEngine for S3EngineImpl<S, M>
+impl<S, M> S3BucketConfigEngine for FS3Engine<S, M>
 where
     S: S3MetadataStorageBucket + Send + Sync,
     M: Send + Sync,
