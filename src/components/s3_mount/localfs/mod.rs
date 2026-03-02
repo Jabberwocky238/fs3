@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::types::s3::mount_error::S3MountError;
+use crate::types::errors::S3MountError;
 
 mod bucket;
 mod multipart;

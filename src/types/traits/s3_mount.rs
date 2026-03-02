@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 
 use crate::types::s3::core::*;
-use crate::types::s3::mount_error::S3MountError;
+use crate::types::errors::S3MountError;
 
 /// Trait for mounting object data to a file system.
 /// Handles reading/writing the actual bytes of objects.

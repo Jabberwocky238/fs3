@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 
 use crate::types::s3::core::*;
-use crate::types::s3::metadata_storage_error::S3MetadataStorageError;
+use crate::types::errors::S3MetadataStorageError;
 
 type Result<T> = std::result::Result<T, S3MetadataStorageError>;
 

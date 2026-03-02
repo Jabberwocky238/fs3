@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 
-use crate::types::s3::mount_error::S3MountError;
+use crate::types::errors::S3MountError;
 use crate::types::traits::s3_mount::S3MountBucket;
 
 use super::LocalFsMount;

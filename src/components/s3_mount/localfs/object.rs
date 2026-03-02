@@ -1,9 +1,9 @@
 use async_trait::async_trait;
-use futures::stream;
 use futures::StreamExt;
+use futures::stream;
 
+use crate::types::errors::S3MountError;
 use crate::types::s3::core::*;
-use crate::types::s3::mount_error::S3MountError;
 use crate::types::traits::s3_mount::{S3MountRead, S3MountWrite};
 
 use super::LocalFsMount;
@@ -14,19 +14,32 @@ impl S3MountRead for LocalFsMount {
         let path = self.object_path(bucket, key)?;
         let data = tokio::fs::read(&path).await.map_err(|e| {
             if e.kind() == std::io::ErrorKind::NotFound {
-                S3MountError::NoSuchKey { bucket: bucket.to_owned(), key: key.to_owned() }
+                S3MountError::NoSuchKey {
+                    bucket: bucket.to_owned(),
+                    key: key.to_owned(),
+                }
             } else {
                 S3MountError::from(e)
             }
         })?;
-        Ok(Box::pin(stream::once(async move { Ok(bytes::Bytes::from(data)) })))
+        Ok(Box::pin(stream::once(async move {
+            Ok(bytes::Bytes::from(data))
+        })))
     }
 
-    async fn read_object_range(&self, bucket: &str, key: &str, range: &str) -> Result<BoxByteStream, S3MountError> {
+    async fn read_object_range(
+        &self,
+        bucket: &str,
+        key: &str,
+        range: &str,
+    ) -> Result<BoxByteStream, S3MountError> {
         let path = self.object_path(bucket, key)?;
         let data = tokio::fs::read(&path).await.map_err(|e| {
             if e.kind() == std::io::ErrorKind::NotFound {
-                S3MountError::NoSuchKey { bucket: bucket.to_owned(), key: key.to_owned() }
+                S3MountError::NoSuchKey {
+                    bucket: bucket.to_owned(),
+                    key: key.to_owned(),
+                }
             } else {
                 S3MountError::from(e)
             }
@@ -44,7 +57,10 @@ impl S3MountRead for LocalFsMount {
         let path = self.object_path(bucket, key)?;
         let meta = tokio::fs::metadata(&path).await.map_err(|e| {
             if e.kind() == std::io::ErrorKind::NotFound {
-                S3MountError::NoSuchKey { bucket: bucket.to_owned(), key: key.to_owned() }
+                S3MountError::NoSuchKey {
+                    bucket: bucket.to_owned(),
+                    key: key.to_owned(),
+                }
             } else {
                 S3MountError::from(e)
             }
@@ -55,7 +71,12 @@ impl S3MountRead for LocalFsMount {
 
 #[async_trait]
 impl S3MountWrite for LocalFsMount {
-    async fn write_object(&self, bucket: &str, key: &str, body: BoxByteStream) -> Result<u64, S3MountError> {
+    async fn write_object(
+        &self,
+        bucket: &str,
+        key: &str,
+        body: BoxByteStream,
+    ) -> Result<u64, S3MountError> {
         let path = self.object_path(bucket, key)?;
         if let Some(parent) = path.parent() {
             tokio::fs::create_dir_all(parent).await?;
@@ -79,7 +100,13 @@ impl S3MountWrite for LocalFsMount {
         Ok(())
     }
 
-    async fn copy_object(&self, src_bucket: &str, src_key: &str, dst_bucket: &str, dst_key: &str) -> Result<u64, S3MountError> {
+    async fn copy_object(
+        &self,
+        src_bucket: &str,
+        src_key: &str,
+        dst_bucket: &str,
+        dst_key: &str,
+    ) -> Result<u64, S3MountError> {
         let src = self.object_path(src_bucket, src_key)?;
         let dst = self.object_path(dst_bucket, dst_key)?;
         if let Some(parent) = dst.parent() {
@@ -87,7 +114,10 @@ impl S3MountWrite for LocalFsMount {
         }
         let size = tokio::fs::copy(&src, &dst).await.map_err(|e| {
             if e.kind() == std::io::ErrorKind::NotFound {
-                S3MountError::NoSuchKey { bucket: src_bucket.to_owned(), key: src_key.to_owned() }
+                S3MountError::NoSuchKey {
+                    bucket: src_bucket.to_owned(),
+                    key: src_key.to_owned(),
+                }
             } else {
                 S3MountError::from(e)
             }
@@ -98,19 +128,29 @@ impl S3MountWrite for LocalFsMount {
 
 fn apply_range(body: &[u8], range: &str) -> Result<bytes::Bytes, S3MountError> {
     let raw = range.trim();
-    let raw = raw.strip_prefix("bytes=")
+    let raw = raw
+        .strip_prefix("bytes=")
         .ok_or_else(|| S3MountError::Io(format!("invalid range: {raw}")))?;
-    let (start_s, end_s) = raw.split_once('-')
+    let (start_s, end_s) = raw
+        .split_once('-')
         .ok_or_else(|| S3MountError::Io(format!("invalid range: {range}")))?;
     let len = body.len() as i64;
 
     let (start, end) = if start_s.is_empty() {
-        let suffix: i64 = end_s.parse().map_err(|_| S3MountError::Io(format!("invalid range: {range}")))?;
+        let suffix: i64 = end_s
+            .parse()
+            .map_err(|_| S3MountError::Io(format!("invalid range: {range}")))?;
         ((len - suffix).max(0), len.saturating_sub(1))
     } else {
-        let start: i64 = start_s.parse().map_err(|_| S3MountError::Io(format!("invalid range: {range}")))?;
-        let end: i64 = if end_s.is_empty() { len.saturating_sub(1) } else {
-            end_s.parse().map_err(|_| S3MountError::Io(format!("invalid range: {range}")))?
+        let start: i64 = start_s
+            .parse()
+            .map_err(|_| S3MountError::Io(format!("invalid range: {range}")))?;
+        let end: i64 = if end_s.is_empty() {
+            len.saturating_sub(1)
+        } else {
+            end_s
+                .parse()
+                .map_err(|_| S3MountError::Io(format!("invalid range: {range}")))?
         };
         (start, end.min(len.saturating_sub(1)))
     };
@@ -118,5 +158,7 @@ fn apply_range(body: &[u8], range: &str) -> Result<bytes::Bytes, S3MountError> {
     if start < 0 || end < start || start >= len {
         return Err(S3MountError::Io(format!("invalid range: {range}")));
     }
-    Ok(bytes::Bytes::copy_from_slice(&body[start as usize..=end as usize]))
+    Ok(bytes::Bytes::copy_from_slice(
+        &body[start as usize..=end as usize],
+    ))
 }

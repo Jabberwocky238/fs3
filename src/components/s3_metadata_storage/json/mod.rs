@@ -3,7 +3,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::types::s3::core::*;
-use crate::types::s3::metadata_storage_error::S3MetadataStorageError;
+use crate::types::errors::S3MetadataStorageError;
 
 mod bucket;
 mod multipart;
