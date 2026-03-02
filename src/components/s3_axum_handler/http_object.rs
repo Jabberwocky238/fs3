@@ -10,7 +10,7 @@ use axum::Router;
 use crate::types::s3::core::ObjectAttribute;
 use crate::types::s3::request::*;
 use crate::types::s3::response::S3Response;
-use crate::types::traits::s3_engine::S3EngineError;
+use crate::types::errors::S3EngineError;
 use crate::types::traits::s3_handler::{S3Handler, S3HandlerBridgeError};
 
 use super::util::{body_string, get, has, header, header_eq, multipart_selector};
@@ -30,7 +30,7 @@ fn object_err(e: impl std::fmt::Display) -> HandlerError {
 pub fn routes<T, E>(state: Arc<T>) -> Router
 where
     T: S3Handler<E> + Send + Sync + 'static,
-    E: S3EngineError + From<S3HandlerBridgeError>,
+    E: std::fmt::Display + From<S3HandlerBridgeError> + From<S3EngineError> + 'static,
 {
     Router::new().route("/{bucket}/{*object}", any(object_entry::<T, E>)).with_state(state)
 }
@@ -45,7 +45,7 @@ async fn object_entry<T, E>(
 ) -> Result<S3Response, HandlerError>
 where
     T: S3Handler<E> + Send + Sync,
-    E: S3EngineError + From<S3HandlerBridgeError>,
+    E: std::fmt::Display + From<S3HandlerBridgeError> + From<S3EngineError> + 'static,
 {
     let mk = || ObjectRef { bucket: bucket.clone(), object: object_path.clone() };
     if has(&q, "torrent") && matches!(method, Method::GET | Method::PUT | Method::DELETE) {

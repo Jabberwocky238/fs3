@@ -14,6 +14,9 @@ pub enum S3MetadataStorageError {
     Json(#[from] serde_json::Error),
     #[error("{0}")]
     HandlerBridge(#[from] S3HandlerBridgeError),
+    #[cfg(feature = "storage-sqlite")]
+    #[error("sqlite error: {0}")]
+    Sqlite(#[from] sqlx::Error),
     #[error("{0}")]
     Other(String),
 }
