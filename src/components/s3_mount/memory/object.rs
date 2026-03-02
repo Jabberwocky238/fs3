@@ -32,7 +32,7 @@ impl S3MountRead for MemoryMount {
 
     async fn object_exists(&self, bucket: &str, key: &str) -> Result<bool, S3MountError> {
         let state = self.state.read().await;
-        Ok(state.buckets.get(bucket).map_or(false, |b| b.contains_key(key)))
+        Ok(state.buckets.get(bucket).is_some_and(|b| b.contains_key(key)))
     }
 
     async fn object_size(&self, bucket: &str, key: &str) -> Result<u64, S3MountError> {

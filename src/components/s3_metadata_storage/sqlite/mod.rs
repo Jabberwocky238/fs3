@@ -11,6 +11,8 @@ pub struct SqliteMetadataStorage {
     pool: SqlitePool,
 }
 
+pub const SQLITE_MEMORY: &str = "sqlite::memory:";
+
 impl SqliteMetadataStorage {
     pub async fn new(url: &str) -> Result<Self, S3MetadataStorageError> {
         let pool = SqlitePool::connect(url).await?;
