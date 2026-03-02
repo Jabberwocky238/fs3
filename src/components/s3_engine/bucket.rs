@@ -36,3 +36,55 @@ where
         self.mount.create_bucket_dir(bucket).await?;
         Ok(bucket_obj)
     }
+
+    async fn head_bucket(&self, bucket: &str) -> Result<S3Bucket, S3EngineError> {
+        self.metadata.load_bucket(bucket).await?
+            .ok_or_else(|| S3EngineError::BucketNotFound(bucket.to_owned()))
+    }
+
+    async fn get_bucket(&self, bucket: &str) -> Result<S3Bucket, S3EngineError> {
+        self.head_bucket(bucket).await
+    }
+
+    async fn list_buckets(&self) -> Result<Vec<S3Bucket>, S3EngineError> {
+        let mut out = self.metadata.list_buckets().await?;
+        out.sort_by(|a, b| a.identity.name.cmp(&b.identity.name));
+        Ok(out)
+    }
+
+    async fn delete_bucket(&self, bucket: &str, force: bool) -> Result<(), S3EngineError> {
+        self.head_bucket(bucket).await?;
+        let page = self.metadata.list_objects(bucket, &ListOptions { max_keys: Some(1), ..Default::default() }).await?;
+        if !page.objects.is_empty() && !force {
+            return Err(S3EngineError::BucketNotEmpty(bucket.to_owned()));
+        }
+        if force {
+            let all = self.metadata.list_objects(bucket, &ListOptions::default()).await?;
+            for obj in &all.objects {
+                self.metadata.delete_object_meta(bucket, &obj.key).await?;
+            }
+            let uploads = self.metadata.list_multipart_uploads(bucket).await?;
+            for u in &uploads {
+                self.metadata.delete_multipart(&u.upload_id).await?;
+            }
+        }
+        self.metadata.delete_bucket(bucket).await?;
+        self.mount.delete_bucket_dir(bucket).await?;
+        Ok(())
+    }
+
+    async fn list_objects_v1(&self, bucket: &str, options: ListOptions) -> Result<ObjectListPage, S3EngineError> {
+        self.head_bucket(bucket).await?;
+        self.metadata.list_objects(bucket, &options).await
+    }
+
+    async fn list_objects_v2(&self, bucket: &str, options: ListOptions) -> Result<ObjectListPage, S3EngineError> {
+        self.head_bucket(bucket).await?;
+        self.metadata.list_objects(bucket, &options).await
+    }
+
+    async fn list_object_versions(&self, bucket: &str, options: ListOptions) -> Result<ObjectListPage, S3EngineError> {
+        self.head_bucket(bucket).await?;
+        self.metadata.list_objects(bucket, &options).await
+    }
+}
