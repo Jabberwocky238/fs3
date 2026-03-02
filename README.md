@@ -61,3 +61,49 @@ FS3 uses CLI arguments via `clap`. Run with `--help` for available options.
 ## License
 
 This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+
+## Roadmap
+
+### Milestone 1 — Core S3 API (Done)
+
+- [x] Bucket CRUD (create, delete, head, list)
+- [x] Object CRUD (put, get, head, copy, delete, batch delete)
+- [x] Multipart upload (initiate, upload part, copy part, complete, abort, list)
+- [x] S3-compatible ETag (MD5 for single-part, `MD5(parts)-N` for multipart)
+- [x] Object tagging, retention, legal hold
+- [x] Bucket policy, tagging, versioning config, lifecycle config, encryption config
+- [x] Notification, replication, object-lock config storage
+- [x] Range reads
+- [x] SQLite and JSON metadata backends
+- [x] Local filesystem and in-memory mount backends
+
+### Milestone 2 — Enforcement & Correctness
+
+- [ ] Object versioning enforcement (currently config-only)
+- [ ] ACL enforcement (currently returns defaults)
+- [ ] CORS enforcement on responses
+- [ ] Object lock enforcement (WORM)
+- [ ] Lifecycle rule execution (expiration, transition)
+- [ ] Pre-signed URL support
+- [ ] Content-MD5 validation on upload
+- [ ] Conditional requests (If-Match, If-None-Match)
+
+### Milestone 3 — Advanced Features
+
+- [ ] Server-side encryption (SSE-S3, SSE-C)
+- [ ] Event notifications (SNS/SQS/Kafka)
+- [ ] S3 Select (SelectObjectContent)
+- [ ] POST policy (form-based upload)
+- [ ] Bucket replication (active sync)
+- [ ] Glacier-style restore
+
+### Milestone 4 — Production Readiness
+
+- [ ] PostgreSQL metadata backend
+- [ ] Kubernetes ConfigMap metadata backend
+- [ ] Authentication (Signature V4)
+- [ ] Rate limiting and request throttling
+- [ ] Metrics and observability (Prometheus)
+- [ ] Distributed mode (multi-node)
+- [ ] TLS termination
+- [ ] Docker image and Helm chart
