@@ -99,7 +99,8 @@ clippy:
 	cargo clippy --no-default-features --features $(FEAT_FULL) -- -D warnings
 
 test-boto3: release-default
-	pytest tests/boto3/ -v
+	bash tests/boto3/setup_venv.sh
+	tests/boto3/venv/bin/pytest tests/boto3/ -v
 
 fmt:
 	cargo fmt
