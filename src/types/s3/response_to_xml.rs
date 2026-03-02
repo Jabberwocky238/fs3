@@ -9,7 +9,6 @@ impl IntoResponse for S3Response {
         match self {
             // Empty 200
             S3Response::PutBucket(_)
-            | S3Response::HeadBucket(_)
             | S3Response::PutBucketPolicy(_)
             | S3Response::PutBucketTagging(_)
             | S3Response::PutBucketVersioning(_)
@@ -27,6 +26,11 @@ impl IntoResponse for S3Response {
             | S3Response::ResetBucketReplicationStart(_)
             | S3Response::ResetBucketReplicationStatus(_)
             | S3Response::PostRestoreObject(_) => StatusCode::OK.into_response(),
+
+            S3Response::HeadBucket(r) => {
+                let sc = StatusCode::from_u16(r.meta.status_code).unwrap_or(StatusCode::OK);
+                (sc, "").into_response()
+            }
 
             // Empty 204
             S3Response::DeleteBucket(_)

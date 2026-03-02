@@ -13,51 +13,77 @@ use crate::types::traits::s3_engine::S3EngineError;
 use crate::types::traits::s3_handler::{S3Handler, S3HandlerBridgeError};
 
 #[derive(Debug)]
-pub struct HandlerError {
-    pub status: axum::http::StatusCode,
-    pub message: String,
+pub enum HandlerError {
+    Bucket(BucketError),
+    Object(ObjectError),
+    Handler(HandlerOnlyError),
+}
+
+#[derive(Debug)]
+pub enum BucketError {
+    NotFound(String),
+    AlreadyExists(String),
+    NotEmpty(String),
+    Internal(String),
+}
+
+#[derive(Debug)]
+pub enum ObjectError {
+    NotFound(String),
+    UploadNotFound(String),
+    Internal(String),
+}
+
+#[derive(Debug)]
+pub enum HandlerOnlyError {
+    BadRequest(String),
+    MethodNotAllowed(String),
+    Internal(String),
 }
 
 impl HandlerError {
     pub fn internal(msg: impl Into<String>) -> Self {
-        let message = msg.into();
-        let status = Self::infer_status(&message);
-        Self { status, message }
+        Self::Handler(HandlerOnlyError::Internal(msg.into()))
     }
     pub fn bad_request(msg: impl Into<String>) -> Self {
-        Self { status: axum::http::StatusCode::BAD_REQUEST, message: msg.into() }
+        Self::Handler(HandlerOnlyError::BadRequest(msg.into()))
     }
     pub fn method_not_allowed(msg: impl Into<String>) -> Self {
-        Self { status: axum::http::StatusCode::METHOD_NOT_ALLOWED, message: msg.into() }
-    }
-    fn infer_status(msg: &str) -> axum::http::StatusCode {
-        use axum::http::StatusCode;
-        if msg.contains("not found") { StatusCode::NOT_FOUND }
-        else if msg.contains("already exists") { StatusCode::CONFLICT }
-        else if msg.contains("not empty") { StatusCode::CONFLICT }
-        else { StatusCode::INTERNAL_SERVER_ERROR }
+        Self::Handler(HandlerOnlyError::MethodNotAllowed(msg.into()))
     }
 }
 
 impl Display for HandlerError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result { write!(f, "{}", self.message) }
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Bucket(e) => write!(f, "{e:?}"),
+            Self::Object(e) => write!(f, "{e:?}"),
+            Self::Handler(e) => write!(f, "{e:?}"),
+        }
+    }
 }
 
 impl IntoResponse for HandlerError {
     fn into_response(self) -> Response {
-        let code = match self.status {
-            axum::http::StatusCode::BAD_REQUEST => "BadRequest",
-            axum::http::StatusCode::METHOD_NOT_ALLOWED => "MethodNotAllowed",
-            axum::http::StatusCode::NOT_FOUND => "NoSuchKey",
-            axum::http::StatusCode::CONFLICT => "Conflict",
-            _ => "InternalError",
+        use axum::http::StatusCode;
+        let (status, code, msg) = match self {
+            Self::Bucket(BucketError::NotFound(m)) => (StatusCode::NOT_FOUND, "NoSuchBucket", m),
+            Self::Bucket(BucketError::AlreadyExists(m)) => (StatusCode::CONFLICT, "BucketAlreadyOwnedByYou", m),
+            Self::Bucket(BucketError::NotEmpty(m)) => (StatusCode::CONFLICT, "BucketNotEmpty", m),
+            Self::Bucket(BucketError::Internal(m)) => (StatusCode::INTERNAL_SERVER_ERROR, "InternalError", m),
+            Self::Object(ObjectError::NotFound(m)) => (StatusCode::NOT_FOUND, "NoSuchKey", m),
+            Self::Object(ObjectError::UploadNotFound(m)) => (StatusCode::NOT_FOUND, "NoSuchUpload", m),
+            Self::Object(ObjectError::Internal(m)) => (StatusCode::INTERNAL_SERVER_ERROR, "InternalError", m),
+            Self::Handler(HandlerOnlyError::BadRequest(m)) => (StatusCode::BAD_REQUEST, "BadRequest", m),
+            Self::Handler(HandlerOnlyError::MethodNotAllowed(m)) => (StatusCode::METHOD_NOT_ALLOWED, "MethodNotAllowed", m),
+            Self::Handler(HandlerOnlyError::Internal(m)) => (StatusCode::INTERNAL_SERVER_ERROR, "InternalError", m),
         };
         let body = format!(
             r#"<?xml version="1.0" encoding="UTF-8"?><Error><Code>{}</Code><Message>{}</Message></Error>"#,
             code,
-            self.message.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;")
+            msg.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;")
         );
-        (self.status, [("content-type", "application/xml")], body).into_response()
+        (status, [("content-type", "application/xml")], body).into_response()
     }
 }
 
