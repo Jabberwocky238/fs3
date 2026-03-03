@@ -46,10 +46,6 @@ pub trait S3MultipartEngine {
 #[async_trait]
 pub trait S3BucketConfigEngine {
     async fn get_bucket_location(&self, bucket: &str) -> Result<String, S3EngineError>;
-    async fn get_bucket_policy(&self, bucket: &str) -> Result<Option<TimedDocument>, S3EngineError>;
-    async fn put_bucket_policy(&self, bucket: &str, policy_json: String) -> Result<(), S3EngineError>;
-    async fn delete_bucket_policy(&self, bucket: &str) -> Result<(), S3EngineError>;
-    async fn get_bucket_policy_status(&self, bucket: &str) -> Result<BucketPolicyStatus, S3EngineError>;
     async fn get_bucket_lifecycle(&self, bucket: &str) -> Result<Option<TimedDocument>, S3EngineError>;
     async fn put_bucket_lifecycle(&self, bucket: &str, lifecycle_xml: String) -> Result<(), S3EngineError>;
     async fn delete_bucket_lifecycle(&self, bucket: &str) -> Result<(), S3EngineError>;

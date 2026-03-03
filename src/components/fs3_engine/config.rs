@@ -31,29 +31,6 @@ where
         Ok(b.region.unwrap_or_else(|| "us-east-1".to_owned()))
     }
 
-    async fn get_bucket_policy(&self, bucket: &str) -> Result<Option<TimedDocument>, S3EngineError> {
-        self.ensure_bucket_meta(bucket).await.map(|m| m.policy_json)
-    }
-    async fn put_bucket_policy(&self, bucket: &str, policy_json: String) -> Result<(), S3EngineError> {
-        let mut m = self.ensure_bucket_meta(bucket).await?;
-        m.policy_json = Some(Self::now_doc(policy_json));
-        self.metadata.store_bucket_metadata(bucket, &m).await?;
-        Ok(())
-    }
-    async fn delete_bucket_policy(&self, bucket: &str) -> Result<(), S3EngineError> {
-        let mut m = self.ensure_bucket_meta(bucket).await?;
-        m.policy_json = None;
-        self.metadata.store_bucket_metadata(bucket, &m).await?;
-        Ok(())
-    }
-    async fn get_bucket_policy_status(&self, bucket: &str) -> Result<BucketPolicyStatus, S3EngineError> {
-        let m = self.ensure_bucket_meta(bucket).await?;
-        let is_public = m.policy_json.as_ref()
-            .map(|d| d.body.to_ascii_lowercase().contains("\"effect\":\"allow\""))
-            .unwrap_or(false);
-        Ok(BucketPolicyStatus { is_public })
-    }
-
     async fn get_bucket_lifecycle(&self, bucket: &str) -> Result<Option<TimedDocument>, S3EngineError> {
         self.ensure_bucket_meta(bucket).await.map(|m| m.lifecycle_xml)
     }

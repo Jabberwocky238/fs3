@@ -33,7 +33,7 @@ pub async fn check_access<P: S3PolicyEngine + ?Sized>(
         key: key.map(|s| s.to_string()),
         identity: String::new(),
         groups: Vec::new(),
-        is_owner: true,
+        is_owner: false,
         conditions: std::collections::HashMap::new(),
     };
     match policy.check_access(&ctx).await {

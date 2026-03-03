@@ -69,7 +69,7 @@ pub trait S3BucketPolicyEngine: Send + Sync {
 
 /// 组合策略引擎 — 统一入口，串联 IAM + 桶策略
 #[async_trait]
-pub trait S3PolicyEngine: Send + Sync {
+pub trait S3PolicyEngine: Send + Sync + S3IamPolicyEngine + S3BucketPolicyEngine {
     /// 综合评估：owner 直接放行，否则 IAM 策略 + 桶策略联合判定
     async fn check_access(&self, ctx: &PolicyEvalContext) -> Result<PolicyEffect, PolicyEngineError>;
 }

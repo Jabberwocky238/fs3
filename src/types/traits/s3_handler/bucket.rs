@@ -5,7 +5,7 @@ use crate::types::s3::response::*;
 use crate::types::traits::s3_engine::{
     S3BucketConfigEngine, S3BucketEngine, S3MultipartEngine, S3ObjectEngine,
 };
-use crate::types::traits::s3_policyengine::S3PolicyEngine;
+use crate::types::traits::s3_policyengine::{S3PolicyEngine, S3BucketPolicyEngine};
 use crate::types::s3::policy::S3Action;
 use crate::types::errors::S3EngineError;
 
@@ -25,8 +25,9 @@ pub trait BucketS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
     }
     async fn get_bucket_policy(&self, req: GetBucketPolicyRequest) -> Result<GetBucketPolicyResponse, E> {
         check_access(self.policy(), S3Action::GetBucketPolicy, Some(&req.bucket.bucket), None).await?;
-        let p = self.engine().get_bucket_policy(&req.bucket.bucket).await?;
-        Ok(GetBucketPolicyResponse { json: p.map(|d| d.body), ..Default::default() })
+        let p = self.policy().get_bucket_policy(&req.bucket.bucket).await
+            .map_err(|e| S3EngineError::InvalidPolicy(e.to_string()))?;
+        Ok(GetBucketPolicyResponse { json: p, ..Default::default() })
     }
     async fn get_bucket_lifecycle(&self, req: GetBucketLifecycleRequest) -> Result<GetBucketLifecycleResponse, E> {
         check_access(self.policy(), S3Action::GetBucketLifecycle, Some(&req.bucket.bucket), None).await?;
@@ -116,8 +117,12 @@ pub trait BucketS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
     }
     async fn get_bucket_policy_status(&self, req: GetBucketPolicyStatusRequest) -> Result<GetBucketPolicyStatusResponse, E> {
         check_access(self.policy(), S3Action::GetBucketPolicyStatus, Some(&req.bucket.bucket), None).await?;
-        let p = self.engine().get_bucket_policy_status(&req.bucket.bucket).await?;
-        Ok(GetBucketPolicyStatusResponse { is_public: Some(p.is_public), ..Default::default() })
+        let p = self.policy().get_bucket_policy(&req.bucket.bucket).await
+            .map_err(|e| S3EngineError::InvalidPolicy(e.to_string()))?;
+        let is_public = p.as_ref()
+            .map(|d| d.to_ascii_lowercase().contains("\"effect\":\"allow\""))
+            .unwrap_or(false);
+        Ok(GetBucketPolicyStatusResponse { is_public: Some(is_public), ..Default::default() })
     }
     async fn put_bucket_lifecycle(&self, req: PutBucketLifecycleRequest) -> Result<PutBucketLifecycleResponse, E> {
         check_access(self.policy(), S3Action::PutBucketLifecycle, Some(&req.bucket.bucket), None).await?;
@@ -136,7 +141,8 @@ pub trait BucketS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
     }
     async fn put_bucket_policy(&self, req: PutBucketPolicyRequest) -> Result<PutBucketPolicyResponse, E> {
         check_access(self.policy(), S3Action::PutBucketPolicy, Some(&req.bucket.bucket), None).await?;
-        self.engine().put_bucket_policy(&req.bucket.bucket, req.json).await?;
+        self.policy().put_bucket_policy(&req.bucket.bucket, &req.json).await
+            .map_err(|e| S3EngineError::InvalidPolicy(e.to_string()))?;
         Ok(Default::default())
     }
     async fn put_bucket_object_lock_config(&self, req: PutBucketObjectLockConfigRequest) -> Result<PutBucketObjectLockConfigResponse, E> {
@@ -202,7 +208,8 @@ pub trait BucketS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
     }
     async fn delete_bucket_policy(&self, req: DeleteBucketPolicyRequest) -> Result<DeleteBucketPolicyResponse, E> {
         check_access(self.policy(), S3Action::DeleteBucketPolicy, Some(&req.bucket.bucket), None).await?;
-        self.engine().delete_bucket_policy(&req.bucket.bucket).await?;
+        self.policy().delete_bucket_policy(&req.bucket.bucket).await
+            .map_err(|e| S3EngineError::InvalidPolicy(e.to_string()))?;
         Ok(Default::default())
     }
     async fn delete_bucket_replication(&self, req: DeleteBucketReplicationRequest) -> Result<DeleteBucketReplicationResponse, E> {

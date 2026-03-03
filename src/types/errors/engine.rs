@@ -18,6 +18,8 @@ pub enum S3EngineError {
     MultipartPartMissing { upload_id: String, part_number: u32 },
     #[error("invalid range header: {0}")]
     InvalidRange(String),
+    #[error("invalid policy: {0}")]
+    InvalidPolicy(String),
     #[error("storage error: {0}")]
     Storage(String),
     #[error("mount error: {0}")]
