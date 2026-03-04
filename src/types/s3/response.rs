@@ -13,18 +13,28 @@ pub struct ResponseMeta {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename = "Contents")]
 pub struct ObjectInfo {
+    #[serde(skip)]
     pub bucket: String,
+    #[serde(rename = "Key")]
     pub key: String,
+    #[serde(rename = "Size")]
     pub size: u64,
+    #[serde(rename = "ETag", skip_serializing_if = "Option::is_none")]
     pub etag: Option<String>,
+    #[serde(rename = "LastModified", skip_serializing_if = "Option::is_none")]
     pub last_modified: Option<String>,
+    #[serde(rename = "StorageClass", skip_serializing_if = "Option::is_none")]
     pub storage_class: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename = "Bucket")]
 pub struct BucketInfo {
+    #[serde(rename = "Name")]
     pub name: String,
+    #[serde(rename = "CreationDate", skip_serializing_if = "Option::is_none")]
     pub creation_date: Option<String>,
 }
 
@@ -36,16 +46,24 @@ pub struct ErrorBody {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename = "Part")]
 pub struct MultipartPartInfo {
+    #[serde(rename = "PartNumber")]
     pub part_number: u32,
+    #[serde(rename = "ETag", skip_serializing_if = "Option::is_none")]
     pub etag: Option<String>,
+    #[serde(rename = "Size")]
     pub size: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename = "Upload")]
 pub struct MultipartUploadInfo {
+    #[serde(rename = "Key")]
     pub key: String,
+    #[serde(rename = "UploadId")]
     pub upload_id: String,
+    #[serde(rename = "Initiated", skip_serializing_if = "Option::is_none")]
     pub initiated: Option<String>,
 }
 

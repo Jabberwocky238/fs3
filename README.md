@@ -86,7 +86,7 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE) for detai
 | 🚧 | 🚧 | AWS S3 | Object | Basic ops (put/get/head/delete) | `minio/cmd/object-handlers.go` | `tests/minio/object.rs` |
 | 🚧 | 🚧 | AWS S3 | Object | Copy object | `minio/cmd/object-handlers.go` | `tests/minio/object_advanced.rs` |
 | 🚧 | 🚧 | AWS S3 | Object | Delete multiple | `minio/cmd/bucket-handlers.go` | `tests/minio/batch_version.rs` |
-| 🚧 | 🚧 | AWS S3 | Object | Tagging (get/put/delete) | `minio/cmd/object-handlers.go` | `tests/minio/object_features.rs` |
+| ✅ | ✅ | AWS S3 | Object | Tagging (get/put/delete) | `minio/cmd/object-handlers.go` | `tests/minio/object_advanced.rs` |
 | 🚧 | 🚧 | AWS S3 | Object | Retention & legal hold | `minio/cmd/object-handlers.go` | `tests/minio/object_lock.rs` |
 | 🚧 | 🚧 | AWS S3 | Object | ACL (get/put) | `minio/cmd/acl-handlers.go` | `tests/minio/object_acl.rs` |
 | 🚧 | 🚧 | AWS S3 | Object | Attributes (get) | `minio/cmd/object-handlers.go` | `tests/minio/object_attributes.rs` |

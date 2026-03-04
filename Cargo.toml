@@ -29,6 +29,7 @@ tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
 uuid = { version = "1", features = ["v4"] }
 aws-sdk-s3 = "1.124.0"
 serde-xml-rs = "0.8.2"
+quick-xml = { version = "0.36", features = ["serialize"] }
 
 [build-dependencies]
 

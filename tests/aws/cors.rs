@@ -3,7 +3,8 @@ use aws_sdk_s3::types::{CorsConfiguration, CorsRule};
 
 #[tokio::test]
 async fn test_put_bucket_cors() {
-    let client = setup_client().await;
+    let (_addr, endpoint, _handle) = create_test_server().await.unwrap();
+    let client = create_aws_client(&endpoint);
     let bucket = random_bucket_name();
     client.create_bucket(&bucket).send().await.unwrap();
 
@@ -23,7 +24,8 @@ async fn test_put_bucket_cors() {
 
 #[tokio::test]
 async fn test_get_bucket_cors() {
-    let client = setup_client().await;
+    let (_addr, endpoint, _handle) = create_test_server().await.unwrap();
+    let client = create_aws_client(&endpoint);
     let bucket = random_bucket_name();
     client.create_bucket(&bucket).send().await.unwrap();
 
@@ -42,7 +44,8 @@ async fn test_get_bucket_cors() {
 
 #[tokio::test]
 async fn test_delete_bucket_cors() {
-    let client = setup_client().await;
+    let (_addr, endpoint, _handle) = create_test_server().await.unwrap();
+    let client = create_aws_client(&endpoint);
     let bucket = random_bucket_name();
     client.create_bucket(&bucket).send().await.unwrap();
 

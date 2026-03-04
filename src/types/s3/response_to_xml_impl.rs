@@ -1,292 +1,386 @@
 use super::response::*;
+use serde::Serialize;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct XMLResponse {
     pub body: String,
 }
 
-fn xml_escape(s: &str) -> String {
-    s.replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-        .replace('"', "&quot;")
-        .replace('\'', "&apos;")
+fn to_xml<T: Serialize>(value: &T) -> String {
+    format!(
+        r#"<?xml version="1.0" encoding="UTF-8"?>{}"#,
+        quick_xml::se::to_string(value).unwrap()
+    )
+}
+
+#[derive(Serialize)]
+#[serde(rename = "LocationConstraint")]
+struct LocationConstraintXml {
+    #[serde(rename = "@xmlns")]
+    xmlns: &'static str,
+    #[serde(rename = "$value")]
+    location: String,
 }
 
 impl From<&GetBucketLocationResponse> for XMLResponse {
     fn from(r: &GetBucketLocationResponse) -> Self {
-        let loc = r.location.as_deref().unwrap_or("");
-        XMLResponse {
-            body: format!(
-                r#"<?xml version="1.0" encoding="UTF-8"?><LocationConstraint xmlns="http://s3.amazonaws.com/doc/2006-03-01/">{}</LocationConstraint>"#,
-                xml_escape(loc)
-            )
-        }
+        let xml = LocationConstraintXml {
+            xmlns: "http://s3.amazonaws.com/doc/2006-03-01/",
+            location: r.location.clone().unwrap_or_default(),
+        };
+        XMLResponse { body: to_xml(&xml) }
     }
+}
+
+#[derive(Serialize)]
+#[serde(rename = "ListAllMyBucketsResult")]
+struct ListBucketsXml {
+    #[serde(rename = "@xmlns")]
+    xmlns: &'static str,
+    #[serde(rename = "Buckets")]
+    buckets: BucketsWrapper,
+}
+
+#[derive(Serialize)]
+struct BucketsWrapper {
+    #[serde(rename = "Bucket")]
+    bucket: Vec<BucketInfo>,
 }
 
 impl From<&ListBucketsResponse> for XMLResponse {
     fn from(r: &ListBucketsResponse) -> Self {
-        let mut xml = String::from(r#"<?xml version="1.0" encoding="UTF-8"?><ListAllMyBucketsResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Buckets>"#);
-        for b in &r.buckets {
-            xml.push_str(&format!(
-                "<Bucket><Name>{}</Name><CreationDate>{}</CreationDate></Bucket>",
-                xml_escape(&b.name),
-                b.creation_date.as_deref().unwrap_or("")
-            ));
-        }
-        xml.push_str("</Buckets></ListAllMyBucketsResult>");
-        XMLResponse { body: xml }
+        let xml = ListBucketsXml {
+            xmlns: "http://s3.amazonaws.com/doc/2006-03-01/",
+            buckets: BucketsWrapper { bucket: r.buckets.clone() },
+        };
+        XMLResponse { body: to_xml(&xml) }
     }
+}
+
+#[derive(Serialize)]
+#[serde(rename = "ListBucketResult")]
+struct ListObjectsXml {
+    #[serde(rename = "@xmlns")]
+    xmlns: &'static str,
+    #[serde(rename = "Name")]
+    name: String,
+    #[serde(rename = "Contents")]
+    contents: Vec<ObjectInfo>,
 }
 
 impl From<&ListObjectsV1Response> for XMLResponse {
     fn from(r: &ListObjectsV1Response) -> Self {
-        let mut xml = String::from(r#"<?xml version="1.0" encoding="UTF-8"?><ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">"#);
-        if let Some(first) = r.objects.first() {
-            xml.push_str(&format!("<Name>{}</Name>", xml_escape(&first.bucket)));
-        }
-        for o in &r.objects {
-            xml.push_str(&format!(
-                "<Contents><Key>{}</Key><Size>{}</Size><ETag>{}</ETag><LastModified>{}</LastModified><StorageClass>{}</StorageClass></Contents>",
-                xml_escape(&o.key), o.size,
-                xml_escape(o.etag.as_deref().unwrap_or("")),
-                xml_escape(o.last_modified.as_deref().unwrap_or("")),
-                xml_escape(o.storage_class.as_deref().unwrap_or("STANDARD")),
-            ));
-        }
-        xml.push_str("</ListBucketResult>");
-        XMLResponse { body: xml }
+        let name = r.objects.first().map(|o| o.bucket.clone()).unwrap_or_default();
+        let xml = ListObjectsXml {
+            xmlns: "http://s3.amazonaws.com/doc/2006-03-01/",
+            name,
+            contents: r.objects.clone(),
+        };
+        XMLResponse { body: to_xml(&xml) }
     }
+}
+
+#[derive(Serialize)]
+#[serde(rename = "InitiateMultipartUploadResult")]
+struct InitiateMultipartXml {
+    #[serde(rename = "@xmlns")]
+    xmlns: &'static str,
+    #[serde(rename = "Bucket")]
+    bucket: String,
+    #[serde(rename = "Key")]
+    key: String,
+    #[serde(rename = "UploadId")]
+    upload_id: String,
 }
 
 impl From<&NewMultipartUploadResponse> for XMLResponse {
     fn from(r: &NewMultipartUploadResponse) -> Self {
-        XMLResponse {
-            body: format!(
-                r#"<?xml version="1.0" encoding="UTF-8"?><InitiateMultipartUploadResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Bucket>{}</Bucket><Key>{}</Key><UploadId>{}</UploadId></InitiateMultipartUploadResult>"#,
-                xml_escape(r.bucket.as_deref().unwrap_or("")),
-                xml_escape(r.key.as_deref().unwrap_or("")),
-                xml_escape(r.upload_id.as_deref().unwrap_or(""))
-            )
-        }
+        let xml = InitiateMultipartXml {
+            xmlns: "http://s3.amazonaws.com/doc/2006-03-01/",
+            bucket: r.bucket.clone().unwrap_or_default(),
+            key: r.key.clone().unwrap_or_default(),
+            upload_id: r.upload_id.clone().unwrap_or_default(),
+        };
+        XMLResponse { body: to_xml(&xml) }
     }
+}
+
+#[derive(Serialize)]
+#[serde(rename = "AbortMultipartUploadResult")]
+struct AbortMultipartXml {
+    #[serde(rename = "@xmlns")]
+    xmlns: &'static str,
+    #[serde(rename = "UploadId")]
+    upload_id: String,
 }
 
 impl From<&AbortMultipartUploadResponse> for XMLResponse {
     fn from(r: &AbortMultipartUploadResponse) -> Self {
-        XMLResponse {
-            body: format!(
-                r#"<?xml version="1.0" encoding="UTF-8"?><AbortMultipartUploadResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><UploadId>{}</UploadId></AbortMultipartUploadResult>"#,
-                xml_escape(r.upload_id.as_deref().unwrap_or(""))
-            )
-        }
+        let xml = AbortMultipartXml {
+            xmlns: "http://s3.amazonaws.com/doc/2006-03-01/",
+            upload_id: r.upload_id.clone().unwrap_or_default(),
+        };
+        XMLResponse { body: to_xml(&xml) }
     }
+}
+
+#[derive(Serialize)]
+#[serde(rename = "CopyObjectResult")]
+struct CopyObjectXml {
+    #[serde(rename = "@xmlns")]
+    xmlns: &'static str,
+    #[serde(rename = "ETag")]
+    etag: String,
+    #[serde(rename = "LastModified")]
+    last_modified: String,
 }
 
 impl From<&CopyObjectResponse> for XMLResponse {
     fn from(r: &CopyObjectResponse) -> Self {
         let obj = r.object.as_ref();
-        XMLResponse {
-            body: format!(
-                r#"<?xml version="1.0" encoding="UTF-8"?><CopyObjectResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><ETag>{}</ETag><LastModified>{}</LastModified></CopyObjectResult>"#,
-                xml_escape(obj.and_then(|o| o.etag.as_deref()).unwrap_or("")),
-                xml_escape(obj.and_then(|o| o.last_modified.as_deref()).unwrap_or(""))
-            )
-        }
+        let xml = CopyObjectXml {
+            xmlns: "http://s3.amazonaws.com/doc/2006-03-01/",
+            etag: obj.and_then(|o| o.etag.clone()).unwrap_or_default(),
+            last_modified: obj.and_then(|o| o.last_modified.clone()).unwrap_or_default(),
+        };
+        XMLResponse { body: to_xml(&xml) }
     }
+}
+
+#[derive(Serialize)]
+#[serde(rename = "PutObjectResult")]
+struct PutObjectXml {
+    #[serde(rename = "@xmlns")]
+    xmlns: &'static str,
+    #[serde(rename = "ETag")]
+    etag: String,
 }
 
 impl From<&PutObjectResponse> for XMLResponse {
     fn from(r: &PutObjectResponse) -> Self {
-        XMLResponse {
-            body: format!(
-                r#"<?xml version="1.0" encoding="UTF-8"?><PutObjectResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><ETag>{}</ETag></PutObjectResult>"#,
-                xml_escape(r.meta.etag.as_deref().unwrap_or(""))
-            )
-        }
+        let xml = PutObjectXml {
+            xmlns: "http://s3.amazonaws.com/doc/2006-03-01/",
+            etag: r.meta.etag.clone().unwrap_or_default(),
+        };
+        XMLResponse { body: to_xml(&xml) }
     }
+}
+
+#[derive(Serialize)]
+#[serde(rename = "Tagging")]
+struct TaggingXml {
+    #[serde(rename = "@xmlns")]
+    xmlns: &'static str,
+    #[serde(rename = "TagSet")]
+    tag_set: TagSetWrapper,
+}
+
+#[derive(Serialize)]
+struct TagSetWrapper {
+    #[serde(rename = "Tag")]
+    tags: Vec<TagXml>,
+}
+
+#[derive(Serialize)]
+struct TagXml {
+    #[serde(rename = "Key")]
+    key: String,
+    #[serde(rename = "Value")]
+    value: String,
 }
 
 impl From<&GetObjectTaggingResponse> for XMLResponse {
     fn from(r: &GetObjectTaggingResponse) -> Self {
-        let mut xml = String::from(r#"<?xml version="1.0" encoding="UTF-8"?><Tagging xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><TagSet>"#);
-        for (k, v) in &r.tags {
-            xml.push_str(&format!("<Tag><Key>{}</Key><Value>{}</Value></Tag>", xml_escape(k), xml_escape(v)));
-        }
-        xml.push_str("</TagSet></Tagging>");
-        XMLResponse { body: xml }
+        let tags = r.tags.iter().map(|(k, v)| TagXml { key: k.clone(), value: v.clone() }).collect();
+        let xml = TaggingXml {
+            xmlns: "http://s3.amazonaws.com/doc/2006-03-01/",
+            tag_set: TagSetWrapper { tags },
+        };
+        XMLResponse { body: to_xml(&xml) }
     }
 }
 
 impl From<&GetBucketTaggingResponse> for XMLResponse {
     fn from(r: &GetBucketTaggingResponse) -> Self {
-        let mut xml = String::from(r#"<?xml version="1.0" encoding="UTF-8"?><Tagging xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><TagSet>"#);
-        for (k, v) in &r.tags {
-            xml.push_str(&format!("<Tag><Key>{}</Key><Value>{}</Value></Tag>", xml_escape(k), xml_escape(v)));
-        }
-        xml.push_str("</TagSet></Tagging>");
-        XMLResponse { body: xml }
+        let tags = r.tags.iter().map(|(k, v)| TagXml { key: k.clone(), value: v.clone() }).collect();
+        let xml = TaggingXml {
+            xmlns: "http://s3.amazonaws.com/doc/2006-03-01/",
+            tag_set: TagSetWrapper { tags },
+        };
+        XMLResponse { body: to_xml(&xml) }
     }
+}
+
+#[derive(Serialize)]
+#[serde(rename = "VersioningConfiguration")]
+struct VersioningXml {
+    #[serde(rename = "@xmlns")]
+    xmlns: &'static str,
+    #[serde(rename = "Status")]
+    status: String,
+    #[serde(rename = "MfaDelete", skip_serializing_if = "Option::is_none")]
+    mfa_delete: Option<String>,
 }
 
 impl From<&GetBucketVersioningResponse> for XMLResponse {
     fn from(r: &GetBucketVersioningResponse) -> Self {
-        let mut xml = String::from(r#"<?xml version="1.0" encoding="UTF-8"?><VersioningConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">"#);
-        let status = r.status.as_deref().unwrap_or("Enabled");
-        xml.push_str(&format!("<Status>{}</Status>", xml_escape(status)));
-        if let Some(mfa) = &r.mfa_delete {
-            xml.push_str(&format!("<MfaDelete>{}</MfaDelete>", xml_escape(mfa)));
-        }
-        xml.push_str("</VersioningConfiguration>");
-        XMLResponse { body: xml }
+        let xml = VersioningXml {
+            xmlns: "http://s3.amazonaws.com/doc/2006-03-01/",
+            status: r.status.clone().unwrap_or_else(|| "Enabled".to_string()),
+            mfa_delete: r.mfa_delete.clone(),
+        };
+        XMLResponse { body: to_xml(&xml) }
     }
+}
+
+#[derive(Serialize)]
+#[serde(rename = "NotificationConfiguration")]
+struct NotificationXml {
+    #[serde(rename = "@xmlns")]
+    xmlns: &'static str,
 }
 
 impl From<&GetBucketNotificationResponse> for XMLResponse {
     fn from(_r: &GetBucketNotificationResponse) -> Self {
-        XMLResponse {
-            body: r#"<?xml version="1.0" encoding="UTF-8"?><NotificationConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/"></NotificationConfiguration>"#.to_string()
-        }
+        let xml = NotificationXml {
+            xmlns: "http://s3.amazonaws.com/doc/2006-03-01/",
+        };
+        XMLResponse { body: to_xml(&xml) }
     }
+}
+
+#[derive(Serialize)]
+#[serde(rename = "ListMultipartUploadsResult")]
+struct ListMultipartUploadsXml {
+    #[serde(rename = "@xmlns")]
+    xmlns: &'static str,
+    #[serde(rename = "Upload")]
+    uploads: Vec<MultipartUploadInfo>,
 }
 
 impl From<&ListMultipartUploadsResponse> for XMLResponse {
     fn from(r: &ListMultipartUploadsResponse) -> Self {
-        let mut xml = String::from(r#"<?xml version="1.0" encoding="UTF-8"?><ListMultipartUploadsResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">"#);
-        for u in &r.uploads {
-            xml.push_str(&format!(
-                "<Upload><Key>{}</Key><UploadId>{}</UploadId></Upload>",
-                xml_escape(&u.key), xml_escape(&u.upload_id)
-            ));
-        }
-        xml.push_str("</ListMultipartUploadsResult>");
-        XMLResponse { body: xml }
+        let xml = ListMultipartUploadsXml {
+            xmlns: "http://s3.amazonaws.com/doc/2006-03-01/",
+            uploads: r.uploads.clone(),
+        };
+        XMLResponse { body: to_xml(&xml) }
     }
+}
+
+#[derive(Serialize)]
+#[serde(rename = "ListPartsResult")]
+struct ListPartsXml {
+    #[serde(rename = "@xmlns")]
+    xmlns: &'static str,
+    #[serde(rename = "UploadId", skip_serializing_if = "Option::is_none")]
+    upload_id: Option<String>,
+    #[serde(rename = "Part")]
+    parts: Vec<MultipartPartInfo>,
 }
 
 impl From<&ListObjectPartsResponse> for XMLResponse {
     fn from(r: &ListObjectPartsResponse) -> Self {
-        let mut xml = String::from(r#"<?xml version="1.0" encoding="UTF-8"?><ListPartsResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">"#);
-        if let Some(uid) = &r.upload_id {
-            xml.push_str(&format!("<UploadId>{}</UploadId>", xml_escape(uid)));
-        }
-        for p in &r.parts {
-            xml.push_str(&format!(
-                "<Part><PartNumber>{}</PartNumber><ETag>{}</ETag><Size>{}</Size></Part>",
-                p.part_number, xml_escape(p.etag.as_deref().unwrap_or("")), p.size
-            ));
-        }
-        xml.push_str("</ListPartsResult>");
-        XMLResponse { body: xml }
+        let xml = ListPartsXml {
+            xmlns: "http://s3.amazonaws.com/doc/2006-03-01/",
+            upload_id: r.upload_id.clone(),
+            parts: r.parts.clone(),
+        };
+        XMLResponse { body: to_xml(&xml) }
     }
 }
 
 impl From<&ListBucketsDoubleSlashResponse> for XMLResponse {
     fn from(r: &ListBucketsDoubleSlashResponse) -> Self {
-        let mut xml = String::from(r#"<?xml version="1.0" encoding="UTF-8"?><ListAllMyBucketsResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Buckets>"#);
-        for b in &r.buckets {
-            xml.push_str(&format!(
-                "<Bucket><Name>{}</Name><CreationDate>{}</CreationDate></Bucket>",
-                xml_escape(&b.name),
-                b.creation_date.as_deref().unwrap_or("")
-            ));
-        }
-        xml.push_str("</Buckets></ListAllMyBucketsResult>");
-        XMLResponse { body: xml }
+        let xml = ListBucketsXml {
+            xmlns: "http://s3.amazonaws.com/doc/2006-03-01/",
+            buckets: BucketsWrapper { bucket: r.buckets.clone() },
+        };
+        XMLResponse { body: to_xml(&xml) }
     }
 }
 
 impl From<&ListObjectsV2Response> for XMLResponse {
     fn from(r: &ListObjectsV2Response) -> Self {
-        let mut xml = String::from(r#"<?xml version="1.0" encoding="UTF-8"?><ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">"#);
-        if let Some(first) = r.objects.first() {
-            xml.push_str(&format!("<Name>{}</Name>", xml_escape(&first.bucket)));
-        }
-        for o in &r.objects {
-            xml.push_str(&format!(
-                "<Contents><Key>{}</Key><Size>{}</Size><ETag>{}</ETag><LastModified>{}</LastModified><StorageClass>{}</StorageClass></Contents>",
-                xml_escape(&o.key), o.size,
-                xml_escape(o.etag.as_deref().unwrap_or("")),
-                xml_escape(o.last_modified.as_deref().unwrap_or("")),
-                xml_escape(o.storage_class.as_deref().unwrap_or("STANDARD")),
-            ));
-        }
-        xml.push_str("</ListBucketResult>");
-        XMLResponse { body: xml }
+        let name = r.objects.first().map(|o| o.bucket.clone()).unwrap_or_default();
+        let xml = ListObjectsXml {
+            xmlns: "http://s3.amazonaws.com/doc/2006-03-01/",
+            name,
+            contents: r.objects.clone(),
+        };
+        XMLResponse { body: to_xml(&xml) }
     }
 }
 
 impl From<&ListObjectsV2MResponse> for XMLResponse {
     fn from(r: &ListObjectsV2MResponse) -> Self {
-        let mut xml = String::from(r#"<?xml version="1.0" encoding="UTF-8"?><ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">"#);
-        if let Some(first) = r.objects.first() {
-            xml.push_str(&format!("<Name>{}</Name>", xml_escape(&first.bucket)));
-        }
-        for o in &r.objects {
-            xml.push_str(&format!(
-                "<Contents><Key>{}</Key><Size>{}</Size><ETag>{}</ETag><LastModified>{}</LastModified><StorageClass>{}</StorageClass></Contents>",
-                xml_escape(&o.key), o.size,
-                xml_escape(o.etag.as_deref().unwrap_or("")),
-                xml_escape(o.last_modified.as_deref().unwrap_or("")),
-                xml_escape(o.storage_class.as_deref().unwrap_or("STANDARD")),
-            ));
-        }
-        xml.push_str("</ListBucketResult>");
-        XMLResponse { body: xml }
+        let name = r.objects.first().map(|o| o.bucket.clone()).unwrap_or_default();
+        let xml = ListObjectsXml {
+            xmlns: "http://s3.amazonaws.com/doc/2006-03-01/",
+            name,
+            contents: r.objects.clone(),
+        };
+        XMLResponse { body: to_xml(&xml) }
     }
+}
+
+#[derive(Serialize)]
+#[serde(rename = "ListVersionsResult")]
+struct ListVersionsXml {
+    #[serde(rename = "@xmlns")]
+    xmlns: &'static str,
+    #[serde(rename = "Name")]
+    name: String,
+    #[serde(rename = "Contents")]
+    contents: Vec<ObjectInfo>,
 }
 
 impl From<&ListObjectVersionsResponse> for XMLResponse {
     fn from(r: &ListObjectVersionsResponse) -> Self {
-        let mut xml = String::from(r#"<?xml version="1.0" encoding="UTF-8"?><ListVersionsResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">"#);
-        if let Some(first) = r.objects.first() {
-            xml.push_str(&format!("<Name>{}</Name>", xml_escape(&first.bucket)));
-        }
-        for o in &r.objects {
-            xml.push_str(&format!(
-                "<Contents><Key>{}</Key><Size>{}</Size><ETag>{}</ETag><LastModified>{}</LastModified><StorageClass>{}</StorageClass></Contents>",
-                xml_escape(&o.key), o.size,
-                xml_escape(o.etag.as_deref().unwrap_or("")),
-                xml_escape(o.last_modified.as_deref().unwrap_or("")),
-                xml_escape(o.storage_class.as_deref().unwrap_or("STANDARD")),
-            ));
-        }
-        xml.push_str("</ListVersionsResult>");
-        XMLResponse { body: xml }
+        let name = r.objects.first().map(|o| o.bucket.clone()).unwrap_or_default();
+        let xml = ListVersionsXml {
+            xmlns: "http://s3.amazonaws.com/doc/2006-03-01/",
+            name,
+            contents: r.objects.clone(),
+        };
+        XMLResponse { body: to_xml(&xml) }
     }
 }
 
 impl From<&ListObjectVersionsMResponse> for XMLResponse {
     fn from(r: &ListObjectVersionsMResponse) -> Self {
-        let mut xml = String::from(r#"<?xml version="1.0" encoding="UTF-8"?><ListVersionsResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">"#);
-        if let Some(first) = r.objects.first() {
-            xml.push_str(&format!("<Name>{}</Name>", xml_escape(&first.bucket)));
-        }
-        for o in &r.objects {
-            xml.push_str(&format!(
-                "<Contents><Key>{}</Key><Size>{}</Size><ETag>{}</ETag><LastModified>{}</LastModified><StorageClass>{}</StorageClass></Contents>",
-                xml_escape(&o.key), o.size,
-                xml_escape(o.etag.as_deref().unwrap_or("")),
-                xml_escape(o.last_modified.as_deref().unwrap_or("")),
-                xml_escape(o.storage_class.as_deref().unwrap_or("STANDARD")),
-            ));
-        }
-        xml.push_str("</ListVersionsResult>");
-        XMLResponse { body: xml }
+        let name = r.objects.first().map(|o| o.bucket.clone()).unwrap_or_default();
+        let xml = ListVersionsXml {
+            xmlns: "http://s3.amazonaws.com/doc/2006-03-01/",
+            name,
+            contents: r.objects.clone(),
+        };
+        XMLResponse { body: to_xml(&xml) }
     }
+}
+
+#[derive(Serialize)]
+#[serde(rename = "CompleteMultipartUploadResult")]
+struct CompleteMultipartXml {
+    #[serde(rename = "@xmlns")]
+    xmlns: &'static str,
+    #[serde(rename = "Bucket")]
+    bucket: String,
+    #[serde(rename = "Key")]
+    key: String,
+    #[serde(rename = "ETag")]
+    etag: String,
 }
 
 impl From<&CompleteMultipartUploadResponse> for XMLResponse {
     fn from(r: &CompleteMultipartUploadResponse) -> Self {
         let obj = r.object.as_ref();
-        XMLResponse {
-            body: format!(
-                r#"<?xml version="1.0" encoding="UTF-8"?><CompleteMultipartUploadResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Bucket>{}</Bucket><Key>{}</Key><ETag>{}</ETag></CompleteMultipartUploadResult>"#,
-                xml_escape(obj.map(|o| o.bucket.as_str()).unwrap_or("")),
-                xml_escape(obj.map(|o| o.key.as_str()).unwrap_or("")),
-                xml_escape(obj.and_then(|o| o.etag.as_deref()).unwrap_or(""))
-            )
-        }
+        let xml = CompleteMultipartXml {
+            xmlns: "http://s3.amazonaws.com/doc/2006-03-01/",
+            bucket: obj.map(|o| o.bucket.clone()).unwrap_or_default(),
+            key: obj.map(|o| o.key.clone()).unwrap_or_default(),
+            etag: obj.and_then(|o| o.etag.clone()).unwrap_or_default(),
+        };
+        XMLResponse { body: to_xml(&xml) }
     }
 }
