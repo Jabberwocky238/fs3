@@ -68,79 +68,28 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE) for detai
 
 | Status | Progress | From | Group | Feature | MinIO Source | Test File |
 |--------|----------|------|-------|---------|--------------|-----------|
-| ✅ | ✅ | AWS S3 | Bucket | Create bucket | `minio/cmd/bucket-handlers.go` | `tests/minio/bucket.rs` |
-| ✅ | ✅ | AWS S3 | Bucket | Delete bucket | `minio/cmd/bucket-handlers.go` | `tests/minio/bucket.rs` |
-| ✅ | ✅ | AWS S3 | Bucket | Head bucket | `minio/cmd/bucket-handlers.go` | `tests/minio/bucket.rs` |
-| ✅ | ✅ | AWS S3 | Bucket | List buckets | `minio/cmd/bucket-handlers.go` | `tests/minio/bucket.rs` |
-| ✅ | ✅ | AWS S3 | Bucket | Get bucket location | `minio/cmd/bucket-handlers.go` | `tests/minio/bucket.rs` |
-| ✅ | ✅ | AWS S3 | Bucket | Bucket policy | `minio/cmd/bucket-policy-handlers.go` | `tests/minio/policy.rs` |
-| ✅ | ✅ | AWS S3 | Bucket | Bucket policy status | `minio/cmd/bucket-policy-handlers.go` | `tests/minio/policy.rs` |
-| ✅ | ✅ | AWS S3 | Bucket | Bucket tagging | `minio/cmd/bucket-handlers.go` | `tests/minio/bucket_config.rs` |
-| ✅ | ✅ | AWS S3 | Bucket | Bucket versioning | `minio/cmd/bucket-versioning-handler.go` | `tests/minio/versioning.rs` |
-| ✅ | ✅ | AWS S3 | Bucket | Bucket lifecycle | `minio/cmd/bucket-lifecycle-handlers.go` | `tests/minio/bucket_config.rs` |
-| ✅ | ✅ | AWS S3 | Bucket | Bucket encryption | `minio/cmd/bucket-encryption-handlers.go` | `tests/minio/bucket_config.rs` |
-| ✅ | ✅ | AWS S3 | Bucket | Bucket notification | `minio/cmd/bucket-notification-handlers.go` | `tests/minio/bucket_config.rs` |
-| ✅ | ✅ | AWS S3 | Bucket | Bucket replication | `minio/cmd/bucket-replication-handlers.go` | `tests/minio/bucket_config.rs` |
-| ✅ | ✅ | AWS S3 | Bucket | Bucket object lock | `minio/cmd/bucket-object-lock.go` | `tests/minio/object_lock.rs` |
-| ✅ | ✅ | AWS S3 | Bucket | Bucket ACL (dummy) | `minio/cmd/bucket-handlers.go` | - |
-| ⬜ | ⬜ | AWS S3 | Bucket | Bucket CORS | `minio/cmd/bucket-handlers.go` | `tests/minio/cors.rs` |
-| ✅ | ✅ | AWS S3 | Bucket | Bucket website | `minio/cmd/bucket-handlers.go` | `tests/aws/website.rs` |
-| ⬜ | ⬜ | AWS S3 | Bucket | Bucket logging | `minio/cmd/bucket-handlers.go` | `tests/minio/logging.rs` |
-| ⬜ | ⬜ | AWS S3 | Bucket | Bucket accelerate | `minio/cmd/bucket-handlers.go` | `tests/minio/accelerate.rs` |
-| ⬜ | ⬜ | AWS S3 | Bucket | Bucket request payment | `minio/cmd/bucket-handlers.go` | `tests/minio/request_payment.rs` |
-| ⬜ | ⬜ | AWS S3 | Bucket | Bucket analytics | `minio/cmd/bucket-handlers.go` | `tests/minio/analytics.rs` |
-| ⬜ | ⬜ | AWS S3 | Bucket | Bucket metrics | `minio/cmd/bucket-handlers.go` | `tests/minio/metrics_config.rs` |
-| ⬜ | ⬜ | AWS S3 | Bucket | Bucket inventory | `minio/cmd/bucket-handlers.go` | `tests/minio/inventory.rs` |
-| 🚧 | 🚧 | AWS S3 | Object | Put object | `minio/cmd/object-handlers.go` | `tests/minio/object.rs` |
-| 🚧 | 🚧 | AWS S3 | Object | Get object | `minio/cmd/object-handlers.go` | `tests/minio/object.rs` |
-| 🚧 | 🚧 | AWS S3 | Object | Head object | `minio/cmd/object-handlers.go` | `tests/minio/object.rs` |
-| 🚧 | 🚧 | AWS S3 | Object | Delete object | `minio/cmd/object-handlers.go` | `tests/minio/object.rs` |
-| 🚧 | 🚧 | AWS S3 | Object | Delete multiple objects | `minio/cmd/object-handlers.go` | `tests/minio/batch_version.rs` |
-| 🚧 | 🚧 | AWS S3 | Object | Copy object | `minio/cmd/object-handlers.go` | `tests/minio/object_advanced.rs` |
-| 🚧 | 🚧 | AWS S3 | Object | Get object attributes | `minio/cmd/object-handlers.go` | `tests/minio/object_features.rs` |
-| 🚧 | 🚧 | AWS S3 | Object | Object tagging | `minio/cmd/object-handlers.go` | `tests/minio/object_features.rs` |
-| 🚧 | 🚧 | AWS S3 | Object | Object retention | `minio/cmd/object-handlers.go` | `tests/minio/object_lock.rs` |
-| 🚧 | 🚧 | AWS S3 | Object | Object legal hold | `minio/cmd/object-handlers.go` | `tests/minio/object_lock.rs` |
-| 🚧 | 🚧 | AWS S3 | Object | Object ACL (dummy) | `minio/cmd/object-handlers.go` | - |
-| 🚧 | 🚧 | AWS S3 | Object | Range reads | `minio/cmd/object-handlers.go` | `tests/minio/object_advanced.rs` |
-| 🚧 | 🚧 | AWS S3 | Object | Content-MD5 validation | `minio/cmd/object-handlers.go` | `tests/minio/content_md5.rs` |
-| 🚧 | 🚧 | AWS S3 | Object | Conditional requests | `minio/cmd/object-handlers.go` | `tests/minio/conditional.rs` |
-| 🚧 | 🚧 | AWS S3 | Object | Select object content | `minio/cmd/object-handlers.go` | `tests/minio/select.rs` |
-| ⬜ | ⬜ | AWS S3 | Object | Restore object | `minio/cmd/object-handlers.go` | `tests/minio/restore.rs` |
-| ✅ | ✅ | AWS S3 | Multipart | Initiate multipart | `minio/cmd/object-multipart-handlers.go` | `tests/aws/multipart.rs` |
-| ✅ | ✅ | AWS S3 | Multipart | Upload part | `minio/cmd/object-multipart-handlers.go` | `tests/aws/multipart.rs` |
-| 🚧 | 🚧 | AWS S3 | Multipart | Upload part copy | `minio/cmd/object-multipart-handlers.go` | `tests/minio/multipart.rs` |
-| ✅ | ✅ | AWS S3 | Multipart | Complete multipart | `minio/cmd/object-multipart-handlers.go` | `tests/aws/multipart.rs` |
-| ✅ | ✅ | AWS S3 | Multipart | Abort multipart | `minio/cmd/object-multipart-handlers.go` | `tests/aws/multipart.rs` |
-| 🚧 | 🚧 | AWS S3 | Multipart | List parts | `minio/cmd/object-multipart-handlers.go` | `tests/minio/multipart.rs` |
-| 🚧 | 🚧 | AWS S3 | Multipart | List multipart uploads | `minio/cmd/object-multipart-handlers.go` | `tests/minio/multipart.rs` |
-| ✅ | ✅ | AWS S3 | List | List objects v1 | `minio/cmd/bucket-handlers.go` | `tests/minio/list_objects.rs` |
-| ✅ | ✅ | AWS S3 | List | List objects v2 | `minio/cmd/bucket-handlers.go` | `tests/minio/list_objects.rs` |
-| ✅ | ✅ | AWS S3 | List | List objects v2 (metadata) | `minio/cmd/bucket-handlers.go` | `tests/minio/list_advanced.rs` |
-| ✅ | ✅ | AWS S3 | List | List object versions | `minio/cmd/bucket-handlers.go` | `tests/minio/versioning.rs` |
-| ✅ | ✅ | AWS S3 | List | List versions (metadata) | `minio/cmd/bucket-handlers.go` | `tests/minio/list_advanced.rs` |
-| ✅ | ✅ | AWS S3 | Versioning | Versioning config | `minio/cmd/bucket-versioning-handler.go` | `tests/minio/versioning.rs` |
-| ⬜ | ⬜ | AWS S3 | Versioning | Versioning enforcement | `minio/cmd/erasure.go` | `tests/minio/versioning_enforcement.rs` |
-| ✅ | ✅ | AWS S3 | Versioning | Object lock config | `minio/cmd/bucket-object-lock.go` | `tests/minio/object_lock.rs` |
-| ⬜ | ⬜ | AWS S3 | Versioning | Object lock enforcement | `minio/cmd/object-handlers.go` | `tests/minio/object_lock_enforcement.rs` |
-| ✅ | ✅ | AWS S3 | Security | Bucket policy evaluation | `minio/internal/bucket/policy` | `tests/minio/policy.rs` |
-| ✅ | ✅ | AWS S3 | Security | ACL (dummy) | `minio/cmd/bucket-handlers.go` | - |
-| ⬜ | ⬜ | AWS S3 | Security | Pre-signed URLs | `minio/cmd/signature-v4.go` | `tests/minio/presigned.rs` |
-| ⬜ | ⬜ | AWS S3 | Security | POST policy | `minio/cmd/postpolicyform.go` | `tests/minio/post_policy.rs` |
-| ⬜ | ⬜ | AWS S3 | Security | Signature V4 auth | `minio/cmd/signature-v4.go` | `tests/minio/auth_v4.rs` |
-| ⬜ | ⬜ | AWS S3 | Security | CORS enforcement | `minio/cmd/bucket-handlers.go` | `tests/minio/cors_enforcement.rs` |
-| ⬜ | ⬜ | AWS S3 | Advanced | SSE-S3 encryption | `minio/internal/crypto/crypto.go` | `tests/minio/sse_s3.rs` |
-| ⬜ | ⬜ | AWS S3 | Advanced | SSE-C encryption | `minio/internal/crypto/crypto.go` | `tests/minio/sse_c.rs` |
-| ⬜ | ⬜ | AWS S3 | Advanced | SSE-KMS encryption | `minio/internal/crypto/crypto.go` | `tests/minio/sse_kms.rs` |
-| ⬜ | ⬜ | AWS S3 | Advanced | Event notifications | `minio/cmd/bucket-notification-handlers.go` | `tests/minio/notifications.rs` |
-| ⬜ | ⬜ | AWS S3 | Advanced | Replication sync | `minio/cmd/bucket-replication.go` | `tests/minio/replication_sync.rs` |
-| ⬜ | ⬜ | AWS S3 | Advanced | Lifecycle execution | `minio/cmd/bucket-lifecycle.go` | `tests/minio/lifecycle_execution.rs` |
+| ✅ | ✅ | AWS S3 | Bucket | Basic ops (create/delete/head/list/location) | `minio/cmd/bucket-handlers.go` | `tests/minio/bucket.rs` |
+| ✅ | ✅ | AWS S3 | Bucket | Policy & policy status | `minio/cmd/bucket-policy-handlers.go` | `tests/minio/policy.rs` |
+| ✅ | ✅ | AWS S3 | Bucket | Config (tagging/lifecycle/encryption/notification/replication) | Various handlers | `tests/minio/bucket_config.rs` |
+| ✅ | ✅ | AWS S3 | Bucket | Versioning | `minio/cmd/bucket-versioning-handler.go` | `tests/minio/versioning.rs` |
+| ✅ | ✅ | AWS S3 | Bucket | Object lock | `minio/cmd/bucket-object-lock.go` | `tests/minio/object_lock.rs` |
+| ✅ | ✅ | AWS S3 | Bucket | Website | `minio/cmd/bucket-handlers.go` | `tests/aws/website.rs` |
+| ⬜ | ⬜ | AWS S3 | Bucket | CORS/logging/accelerate/payment/analytics/metrics/inventory | `minio/cmd/bucket-handlers.go` | Various |
+| 🚧 | 🚧 | AWS S3 | Object | Basic ops (put/get/head/delete/copy) | `minio/cmd/object-handlers.go` | `tests/minio/object.rs` |
+| 🚧 | 🚧 | AWS S3 | Object | Advanced (attributes/tagging/retention/legal hold/range/MD5/conditional/select) | `minio/cmd/object-handlers.go` | Various |
+| ✅ | ✅ | AWS S3 | Multipart | Full support (initiate/upload/complete/abort) | `minio/cmd/object-multipart-handlers.go` | `tests/aws/multipart.rs` |
+| 🚧 | 🚧 | AWS S3 | Multipart | Upload part copy, list parts/uploads | `minio/cmd/object-multipart-handlers.go` | `tests/minio/multipart.rs` |
+| ✅ | ✅ | AWS S3 | List | List objects v1/v2, versions (with metadata) | `minio/cmd/bucket-handlers.go` | Various |
+| ⬜ | ⬜ | AWS S3 | Versioning | Enforcement & object lock enforcement | Various | Various |
+| ✅ | ✅ | AWS S3 | Security | Policy evaluation, ACL (dummy) | `minio/internal/bucket/policy` | `tests/minio/policy.rs` |
+| ⬜ | ⬜ | AWS S3 | Security | Pre-signed URLs, POST policy, Signature V4, CORS | Various | Various |
+| ⬜ | ⬜ | AWS S3 | Advanced | SSE encryption (S3/C/KMS) | `minio/internal/crypto/crypto.go` | Various |
+| ⬜ | ⬜ | AWS S3 | Advanced | Event notifications, replication, lifecycle execution | Various | Various |
 | ✅ | ✅ | AWS S3 | Advanced | S3 Select | `minio/cmd/select-objectcontent-handler.go` | `tests/minio/select.rs` |
-| ⬜ | ⬜ | AWS S3 | Advanced | Glacier restore | `minio/cmd/object-handlers.go` | `tests/minio/restore.rs` |
-| ⬜ | ⬜ | MinIO | Storage | Erasure coding (EC) | `minio/cmd/erasure-coding.go` | `tests/minio/erasure_coding.rs` |
-| ⬜ | ⬜ | MinIO | Storage | Multi-disk sets | `minio/cmd/erasure-sets.go` | `tests/minio/erasure_sets.rs` |
-| ⬜ | ⬜ | MinIO | Storage | Server pools | `minio/cmd/erasure-server-pool.go` | `tests/minio/server_pools.rs` |
-| ⬜ | ⬜ | MinIO | Storage | Healing & repair | `minio/cmd/erasure-healing.go` | `tests/minio/healing.rs` |
+| ⬜ | ⬜ | MinIO | Storage | Erasure coding, multi-disk, server pools, healing, bitrot | Various | Various |
+| ⬜ | ⬜ | MinIO | Metadata | xl.meta, .metadata.bin | Various | Various |
+| ⬜ | ⬜ | MinIO | Production | Rate limiting, metrics, distributed mode | Various | Various |
+
 | ⬜ | ⬜ | MinIO | Storage | Bitrot protection | `minio/cmd/erasure.go` | `tests/minio/bitrot.rs` |
 | ⬜ | ⬜ | MinIO | Metadata | xl.meta per object | `minio/cmd/xl-storage.go` | `tests/minio/xl_meta.rs` |
 | ⬜ | ⬜ | MinIO | Metadata | .metadata.bin per bucket | `minio/cmd/bucket-metadata.go` | `tests/minio/bucket_metadata.rs` |
