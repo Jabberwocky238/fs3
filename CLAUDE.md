@@ -3,23 +3,6 @@
 ## Project Goal
 Build a lightweight S3-compatible object storage gateway in Rust, compatible with MinIO API.
 
-## Architecture
-
-```
-Client → Axum Handler → S3 Engine → Storage (Mount + Metadata)
-```
-
-## Core Modules
-
-| Module | Path | Purpose |
-|--------|------|---------|
-| **HTTP Handler** | `src/components/fs3_axum_handler/` | Axum routes, request/response conversion |
-| **S3 Engine** | `src/components/fs3_engine/` | Business logic for buckets, objects, multipart |
-| **Policy Engine** | `src/components/fs3_policyengine/` | Bucket policy evaluation |
-| **Storage Mount** | `src/components/s3_mount/` | Local filesystem, in-memory backends |
-| **Metadata Storage** | `src/components/s3_metadata_storage/` | SQLite, JSON, in-memory metadata |
-| **Type Definitions** | `src/types/` | Request/response types, traits, errors |
-
 ## Finding Truth
 
 0. **ROADMAP**: `README.md` - ALL FEATURES
@@ -32,6 +15,8 @@ Client → Axum Handler → S3 Engine → Storage (Mount + Metadata)
 ## Testing
 
 **IMPORTANT: Run tests ONE AT A TIME, not all together**
+
+当前有三个测试文件夹，aws，minio和boto3，aws和minio是rust的集成测试，使用cargo test启动。
 
 ```bash
 # Run single test (RECOMMENDED)
@@ -46,8 +31,17 @@ cargo test --test minio_tests cors
 # Verify compilation (faster than build)
 cargo check
 ```
+tests/boto3是个特殊文件夹，使用`cd /d/1-code/__trash__/fs3/tests/boto3 && python test_xxx.py 127.0.0.1:9000`来进行调用。
 
-Test files: `tests/minio/*.rs` - Each feature has corresponding test
+你需要使用make build和make build-minio来构建minio.exe和fs3.exe，构建完成后，在项目目录下启动。
+
+```bash
+fs3.exe server --address 127.0.0.1:9100 .debug/fs3
+
+minio.exe  server --address 127.0.0.1:9000 .debug/minio
+```
+
+然后使用boto3文件夹里的测试py脚本，分别调用两个api，观察文件夹变化，如果fs3有行为不一致的地方，则需要修改。
 
 ## CRITICAL: Development Workflow
 

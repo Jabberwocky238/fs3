@@ -64,6 +64,8 @@ struct ListObjectsXml {
     xmlns: &'static str,
     #[serde(rename = "Name")]
     name: String,
+    #[serde(rename = "KeyCount")]
+    key_count: usize,
     #[serde(rename = "Contents")]
     contents: Vec<ObjectInfo>,
 }
@@ -74,6 +76,7 @@ impl From<&ListObjectsV1Response> for XMLResponse {
         let xml = ListObjectsXml {
             xmlns: "http://s3.amazonaws.com/doc/2006-03-01/",
             name,
+            key_count: r.objects.len(),
             contents: r.objects.clone(),
         };
         XMLResponse { body: to_xml(&xml) }
@@ -306,6 +309,7 @@ impl From<&ListObjectsV2Response> for XMLResponse {
         let xml = ListObjectsXml {
             xmlns: "http://s3.amazonaws.com/doc/2006-03-01/",
             name,
+            key_count: r.objects.len(),
             contents: r.objects.clone(),
         };
         XMLResponse { body: to_xml(&xml) }
@@ -318,6 +322,7 @@ impl From<&ListObjectsV2MResponse> for XMLResponse {
         let xml = ListObjectsXml {
             xmlns: "http://s3.amazonaws.com/doc/2006-03-01/",
             name,
+            key_count: r.objects.len(),
             contents: r.objects.clone(),
         };
         XMLResponse { body: to_xml(&xml) }
