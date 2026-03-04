@@ -102,6 +102,7 @@ impl From<S3HandlerBridgeError> for HandlerError {
             S3HandlerBridgeError::AccessDenied(msg) => Self::Handler(HandlerOnlyError::BadRequest(msg)),
             S3HandlerBridgeError::PreconditionFailed => Self::Object(ObjectError::PreconditionFailed("precondition failed".to_string())),
             S3HandlerBridgeError::NotModified => Self::Object(ObjectError::NotModified("not modified".to_string())),
+            S3HandlerBridgeError::InvalidVersioningStatus(msg) => Self::Handler(HandlerOnlyError::BadRequest(msg)),
         }
     }
 }

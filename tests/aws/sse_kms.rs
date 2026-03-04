@@ -3,7 +3,7 @@ use aws_sdk_s3::types::ServerSideEncryption;
 
 #[tokio::test]
 async fn test_put_object_sse_kms() {
-    let client = setup_client().await;
+    let client = create_aws_client().await;
     let bucket = random_bucket_name();
     client.create_bucket(&bucket).send().await.unwrap();
 

@@ -6,10 +6,6 @@ build = "build.rs"
 
 [features]
 default = []
-storage-k8sconfigmap = []
-storage-postgres = ["sqlx/postgres"]
-
-
 
 [dependencies]
 anyhow = "1"
@@ -32,6 +28,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
 uuid = { version = "1", features = ["v4"] }
 aws-sdk-s3 = "1.124.0"
+serde-xml-rs = "0.8.2"
 
 [build-dependencies]
 
