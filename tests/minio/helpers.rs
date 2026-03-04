@@ -2,10 +2,12 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::path::PathBuf;
 
-use minio::s3::client::Client;
+use aws_sdk_s3::Client as AwsClient;
+use aws_sdk_s3::config::{Credentials, Region};
+use minio::s3::Client as MinioClient;
 use minio::s3::creds::StaticProvider;
-use minio::s3::error::Error as MinioError;
 use minio::s3::http::BaseUrl;
+use minio::s3::error::Error as MinioError;
 use s3_mount_gateway_rust::axum_router;
 use s3_mount_gateway_rust::components::fs3_engine::FS3Engine;
 use s3_mount_gateway_rust::components::xl_storage::XlStorage;
@@ -37,15 +39,21 @@ pub async fn create_minio_server() -> std::io::Result<(SocketAddr, String, JoinH
     Ok((addr, endpoint, task))
 }
 
-pub fn create_minio_client(endpoint: &str) -> Result<Client, MinioError> {
+pub fn create_minio_client(endpoint: &str) -> Result<MinioClient, MinioError> {
     let base_url: BaseUrl = endpoint.parse()?;
     let provider = StaticProvider::new(MINIO_ACCESS_KEY, MINIO_SECRET_KEY, None);
-    Client::new(base_url, Some(Box::new(provider)), None, Some(true))
+    MinioClient::new(base_url, Some(Box::new(provider)), None, Some(true))
 }
 
-pub async fn setup_client() -> Client {
-    let (_addr, endpoint, _handle) = create_minio_server().await.unwrap();
-    create_minio_client(&endpoint).unwrap()
+pub fn create_aws_client(endpoint: &str) -> AwsClient {
+    let creds = Credentials::new(MINIO_ACCESS_KEY, MINIO_SECRET_KEY, None, None, "static");
+    let config = aws_sdk_s3::Config::builder()
+        .endpoint_url(endpoint)
+        .region(Region::new("us-east-1"))
+        .credentials_provider(creds)
+        .force_path_style(true)
+        .build();
+    AwsClient::from_conf(config)
 }
 
 pub fn random_bucket_name() -> String {

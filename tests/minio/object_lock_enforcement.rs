@@ -1,5 +1,6 @@
 use super::helpers::*;
 use aws_sdk_s3::types::{ObjectLockRetention, ObjectLockRetentionMode};
+use aws_sdk_s3::primitives::DateTime;
 
 #[tokio::test]
 async fn test_object_lock_worm() {
@@ -13,7 +14,7 @@ async fn test_object_lock_worm() {
 
     let retention = ObjectLockRetention::builder()
         .mode(ObjectLockRetentionMode::Compliance)
-        .retain_until_date(aws_smithy_types::DateTime::from_secs(chrono::Utc::now().timestamp() + 86400))
+        .retain_until_date(DateTime::from_secs(chrono::Utc::now().timestamp() + 86400))
         .build().unwrap();
 
     client.put_object_retention().bucket(&bucket).key(key).retention(retention).send().await.unwrap();
