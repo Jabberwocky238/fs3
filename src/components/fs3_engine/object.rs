@@ -3,7 +3,7 @@ use crate::types::traits::s3_engine::*;
 use crate::types::s3::core::*;
 use crate::types::errors::S3EngineError;
 use super::FS3Engine;
-use futures::TryStreamExt;
+// use futures::TryStreamExt;
 
 #[async_trait]
 impl S3ObjectEngine for FS3Engine {
@@ -110,8 +110,12 @@ impl S3ObjectEngine for FS3Engine {
 
     async fn copy_object(&self, src_bucket: &str, src_key: &str, dst_bucket: &str, dst_key: &str, options: ObjectWriteOptions) -> Result<S3Object, S3EngineError> {
         let ctx = crate::types::s3::object_layer_types::Context { request_id: "".to_string() };
-        let src_opts = crate::types::s3::object_layer_types::ObjectOptions { version_id: None, user_defined: Default::default() };
-        let dst_opts = crate::types::s3::object_layer_types::ObjectOptions { version_id: None, user_defined: options.user_metadata.clone() };
+        let src_opts = crate::types::s3::object_layer_types::ObjectOptions { 
+            version_id: None, user_defined: Default::default(), range: None 
+        };
+        let dst_opts = crate::types::s3::object_layer_types::ObjectOptions { 
+            version_id: None, user_defined: options.user_metadata.clone(), range: None 
+        };
 
         let src_info = self.object_layer.get_object_info(&ctx, src_bucket, src_key, src_opts.clone()).await
             .map_err(|e| S3EngineError::Storage(e.to_string()))?;
@@ -141,9 +145,13 @@ impl S3ObjectEngine for FS3Engine {
         })
     }
 
-    async fn delete_object(&self, bucket: &str, key: &str, _options: DeleteObjectOptions) -> Result<ObjectVersionRef, S3EngineError> {
+    async fn delete_object(&self, bucket: &str, key: &str, options: DeleteObjectOptions) -> Result<ObjectVersionRef, S3EngineError> {
         let ctx = crate::types::s3::object_layer_types::Context { request_id: "".to_string() };
-        let opts = crate::types::s3::object_layer_types::ObjectOptions { version_id: None, user_defined: Default::default() };
+        let opts = crate::types::s3::object_layer_types::ObjectOptions { 
+            version_id: options.version_id, 
+            user_defined: Default::default(),
+            range: None
+        };
 
         self.object_layer.delete_object(&ctx, bucket, key, opts).await
             .map_err(|e| S3EngineError::Storage(e.to_string()))?;

@@ -96,6 +96,7 @@ pub fn to_write_opt(content_type: Option<String>) -> ObjectWriteOptions {
         retention: None,
         legal_hold: None,
         sse_algorithm: None,
+        size: None,
     }
 }
 
