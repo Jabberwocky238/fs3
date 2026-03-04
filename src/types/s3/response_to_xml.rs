@@ -46,7 +46,7 @@ impl From<&S3Response> for Option<XMLResponse> {
         S3Response::ListMultipartUploads(r) => Some(r.into()),
         S3Response::ListObjectParts(r) => Some(r.into()),
         S3Response::NewMultipartUpload(r) => Some(r.into()),
-        S3Response::AbortMultipartUpload(_) => None,
+        S3Response::AbortMultipartUpload(r) => Some(r.into()),
         S3Response::CompleteMultipartUpload(r) => Some(r.into()),
 
         S3Response::GetBucketLifecycle(_) => None,

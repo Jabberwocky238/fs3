@@ -49,7 +49,7 @@ where
     S: S3MetadataStorageBucket + Send + Sync,
     M: Send + Sync,
 {
-    async fn get_bucket_lifecycle(&self, bucket: &str) -> Result<Vec<String>, S3EngineError> {
+    async fn get_bucket_lifecycle(&self, _bucket: &str) -> Result<Vec<String>, S3EngineError> {
         Ok(vec![])
     }
 
@@ -117,15 +117,18 @@ where
     M: Send + Sync,
 {
     async fn get_bucket_versioning(&self, bucket: &str) -> Result<Option<BucketVersioning>, S3EngineError> {
-        self.metadata.load_bucket(bucket).await?
-            .ok_or_else(|| S3EngineError::BucketNotFound(bucket.to_owned()))?;
-        Ok(None)
+        let meta = self.get_bucket_metadata(bucket).await?;
+        Ok(meta.versioning_status.map(|status| BucketVersioning {
+            status,
+            mfa_delete: meta.versioning_mfa_delete,
+        }))
     }
 
-    async fn put_bucket_versioning(&self, bucket: &str, _status: String, _mfa_delete: Option<String>) -> Result<(), S3EngineError> {
-        self.metadata.load_bucket(bucket).await?
-            .ok_or_else(|| S3EngineError::BucketNotFound(bucket.to_owned()))?;
-        Ok(())
+    async fn put_bucket_versioning(&self, bucket: &str, status: String, mfa_delete: Option<String>) -> Result<(), S3EngineError> {
+        let mut meta = self.get_bucket_metadata(bucket).await?;
+        meta.versioning_status = Some(status);
+        meta.versioning_mfa_delete = mfa_delete;
+        self.put_bucket_metadata(bucket, meta).await
     }
 }
 

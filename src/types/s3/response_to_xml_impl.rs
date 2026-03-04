@@ -1,5 +1,4 @@
 use super::response::*;
-use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct XMLResponse {
@@ -68,6 +67,17 @@ impl From<&NewMultipartUploadResponse> for XMLResponse {
                 r#"<?xml version="1.0" encoding="UTF-8"?><InitiateMultipartUploadResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Bucket>{}</Bucket><Key>{}</Key><UploadId>{}</UploadId></InitiateMultipartUploadResult>"#,
                 xml_escape(r.bucket.as_deref().unwrap_or("")),
                 xml_escape(r.key.as_deref().unwrap_or("")),
+                xml_escape(r.upload_id.as_deref().unwrap_or(""))
+            )
+        }
+    }
+}
+
+impl From<&AbortMultipartUploadResponse> for XMLResponse {
+    fn from(r: &AbortMultipartUploadResponse) -> Self {
+        XMLResponse {
+            body: format!(
+                r#"<?xml version="1.0" encoding="UTF-8"?><AbortMultipartUploadResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><UploadId>{}</UploadId></AbortMultipartUploadResult>"#,
                 xml_escape(r.upload_id.as_deref().unwrap_or(""))
             )
         }

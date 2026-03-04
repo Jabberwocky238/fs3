@@ -1,4 +1,3 @@
-use chrono::Utc;
 use uuid::Uuid;
 
 use crate::types::s3::core::*;
@@ -39,9 +38,5 @@ impl<S, M> FS3Engine<S, M> {
             }
         }
         format!("{:x}-{}", md5::compute(&bin), part_etags.len())
-    }
-
-    fn now_doc(body: String) -> TimedDocument {
-        TimedDocument { body, updated_at: Utc::now() }
     }
 }

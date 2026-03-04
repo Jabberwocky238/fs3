@@ -15,21 +15,21 @@ pub trait ObjectTaggingS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineEr
     fn object_tagging_policy_provider(&self) -> &Self::Policy;
 
     async fn get_object_tagging(&self, req: GetObjectTaggingRequest) -> Result<GetObjectTaggingResponse, E> {
-        check_access(self.object_tagging_policy_provider(), S3Action::GetObjectTagging, Some(&req.bucket.bucket), Some(&req.object.key)).await?;
-        let tags = self.object_tagging_engine_provider().get_object_tagging(&req.bucket.bucket, &req.object.key).await?;
+        check_access(self.object_tagging_policy_provider(), S3Action::GetObjectTagging, Some(&req.object.bucket), Some(&req.object.object)).await?;
+        let tags = self.object_tagging_engine_provider().get_object_tagging(&req.object.bucket, &req.object.object).await?;
         Ok(GetObjectTaggingResponse { tags, ..Default::default() })
     }
 
     async fn put_object_tagging(&self, req: PutObjectTaggingRequest) -> Result<PutObjectTaggingResponse, E> {
-        check_access(self.object_tagging_policy_provider(), S3Action::PutObjectTagging, Some(&req.bucket.bucket), Some(&req.object.key)).await?;
+        check_access(self.object_tagging_policy_provider(), S3Action::PutObjectTagging, Some(&req.object.bucket), Some(&req.object.object)).await?;
         let tags = parse_tags_xml(&req.xml);
-        self.object_tagging_engine_provider().put_object_tagging(&req.bucket.bucket, &req.object.key, tags).await?;
+        self.object_tagging_engine_provider().put_object_tagging(&req.object.bucket, &req.object.object, tags).await?;
         Ok(Default::default())
     }
 
     async fn delete_object_tagging(&self, req: DeleteObjectTaggingRequest) -> Result<DeleteObjectTaggingResponse, E> {
-        check_access(self.object_tagging_policy_provider(), S3Action::DeleteObjectTagging, Some(&req.bucket.bucket), Some(&req.object.key)).await?;
-        self.object_tagging_engine_provider().delete_object_tagging(&req.bucket.bucket, &req.object.key).await?;
+        check_access(self.object_tagging_policy_provider(), S3Action::DeleteObjectTagging, Some(&req.object.bucket), Some(&req.object.object)).await?;
+        self.object_tagging_engine_provider().delete_object_tagging(&req.object.bucket, &req.object.object).await?;
         Ok(Default::default())
     }
 }

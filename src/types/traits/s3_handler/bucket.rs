@@ -2,7 +2,7 @@ use async_trait::async_trait;
 
 use crate::types::s3::request::*;
 use crate::types::s3::response::*;
-use crate::types::traits::s3_engine::{S3BucketEngine, S3MultipartEngine};
+use crate::types::traits::s3_engine::{S3BucketEngine, S3MultipartEngine, S3ObjectEngine, S3BucketConfigEngine};
 use crate::types::traits::s3_policyengine::{S3PolicyEngine, S3BucketPolicyEngine};
 use crate::types::s3::policy::S3Action;
 use crate::types::errors::S3EngineError;
@@ -10,36 +10,11 @@ use crate::types::errors::S3EngineError;
 use super::utils::*;
 
 #[async_trait]
-pub trait BucketS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>:
-    super::BucketLifecycleS3Handler<E>
-    + super::BucketEncryptionS3Handler<E>
-    + super::BucketObjectLockS3Handler<E>
-    + super::BucketVersioningS3Handler<E>
-    + super::BucketNotificationS3Handler<E>
-    + super::BucketReplicationS3Handler<E>
-    + super::BucketTaggingS3Handler<E>
-    + Send
-    + Sync
-{
-    type Engine: S3BucketEngine + S3MultipartEngine + Send + Sync;
+pub trait BucketS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: Send + Sync {
+    type Engine: S3BucketEngine + S3MultipartEngine + S3ObjectEngine + Send + Sync;
     type Policy: S3PolicyEngine;
     fn engine(&self) -> &Self::Engine;
     fn policy(&self) -> &Self::Policy;
-
-    fn bucket_lifecycle_engine_provider(&self) -> &<Self as super::BucketLifecycleS3Handler<E>>::Engine { self.engine() }
-    fn bucket_lifecycle_policy_provider(&self) -> &<Self as super::BucketLifecycleS3Handler<E>>::Policy { self.policy() }
-    fn bucket_encryption_engine_provider(&self) -> &<Self as super::BucketEncryptionS3Handler<E>>::Engine { self.engine() }
-    fn bucket_encryption_policy_provider(&self) -> &<Self as super::BucketEncryptionS3Handler<E>>::Policy { self.policy() }
-    fn bucket_object_lock_engine_provider(&self) -> &<Self as super::BucketObjectLockS3Handler<E>>::Engine { self.engine() }
-    fn bucket_object_lock_policy_provider(&self) -> &<Self as super::BucketObjectLockS3Handler<E>>::Policy { self.policy() }
-    fn bucket_versioning_engine_provider(&self) -> &<Self as super::BucketVersioningS3Handler<E>>::Engine { self.engine() }
-    fn bucket_versioning_policy_provider(&self) -> &<Self as super::BucketVersioningS3Handler<E>>::Policy { self.policy() }
-    fn bucket_notification_engine_provider(&self) -> &<Self as super::BucketNotificationS3Handler<E>>::Engine { self.engine() }
-    fn bucket_notification_policy_provider(&self) -> &<Self as super::BucketNotificationS3Handler<E>>::Policy { self.policy() }
-    fn bucket_replication_engine_provider(&self) -> &<Self as super::BucketReplicationS3Handler<E>>::Engine { self.engine() }
-    fn bucket_replication_policy_provider(&self) -> &<Self as super::BucketReplicationS3Handler<E>>::Policy { self.policy() }
-    fn bucket_tagging_engine_provider(&self) -> &<Self as super::BucketTaggingS3Handler<E>>::Engine { self.engine() }
-    fn bucket_tagging_policy_provider(&self) -> &<Self as super::BucketTaggingS3Handler<E>>::Policy { self.policy() }
 
     async fn get_bucket_location(&self, req: GetBucketLocationRequest) -> Result<GetBucketLocationResponse, E> {
         check_access(self.policy(), S3Action::GetBucketLocation, Some(&req.bucket.bucket), None).await?;

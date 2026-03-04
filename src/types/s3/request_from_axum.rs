@@ -24,6 +24,12 @@ fn object_ref(v: ObjectEntryRef<'_>) -> ObjectRef {
     }
 }
 
+fn bucket_ref(v: ObjectEntryRef<'_>) -> BucketRef {
+    BucketRef {
+        bucket: v.bucket.to_string(),
+    }
+}
+
 fn q(v: ObjectEntryRef<'_>, key: &str) -> Option<String> {
     v.q.get(key).cloned()
 }
@@ -204,13 +210,13 @@ impl<'a> From<ObjectEntryRef<'a>> for SelectObjectContentRequest {
 
 impl<'a> From<ObjectEntryRef<'a>> for GetObjectRetentionRequest {
     fn from(v: ObjectEntryRef<'a>) -> Self {
-        Self { object: object_ref(v) }
+        Self { bucket: bucket_ref(v), object: object_ref(v) }
     }
 }
 
 impl<'a> From<ObjectEntryRef<'a>> for GetObjectLegalHoldRequest {
     fn from(v: ObjectEntryRef<'a>) -> Self {
-        Self { object: object_ref(v) }
+        Self { bucket: bucket_ref(v), object: object_ref(v) }
     }
 }
 
@@ -250,6 +256,7 @@ impl<'a> From<ObjectEntryRef<'a>> for CopyObjectRequest {
 impl<'a> From<ObjectEntryRef<'a>> for PutObjectRetentionRequest {
     fn from(v: ObjectEntryRef<'a>) -> Self {
         Self {
+            bucket: bucket_ref(v),
             object: object_ref(v),
             xml: body_string(v),
         }
@@ -259,6 +266,7 @@ impl<'a> From<ObjectEntryRef<'a>> for PutObjectRetentionRequest {
 impl<'a> From<ObjectEntryRef<'a>> for PutObjectLegalHoldRequest {
     fn from(v: ObjectEntryRef<'a>) -> Self {
         Self {
+            bucket: bucket_ref(v),
             object: object_ref(v),
             xml: body_string(v),
         }

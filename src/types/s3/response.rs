@@ -116,6 +116,7 @@ pub struct NewMultipartUploadResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct AbortMultipartUploadResponse {
     pub meta: ResponseMeta,
+    pub upload_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]

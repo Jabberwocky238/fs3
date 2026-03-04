@@ -112,10 +112,10 @@ where
             handler.get_object_tagging(GetObjectTaggingRequest { object: mk() }).await.map_err(object_err)?,
         ),
         Method::GET if has(&q, "retention") => S3Response::GetObjectRetention(
-            handler.get_object_retention(GetObjectRetentionRequest { object: mk() }).await.map_err(object_err)?,
+            handler.get_object_retention(GetObjectRetentionRequest { bucket: BucketRef { bucket: bucket.clone() }, object: mk() }).await.map_err(object_err)?,
         ),
         Method::GET if has(&q, "legal-hold") => S3Response::GetObjectLegalHold(
-            handler.get_object_legal_hold(GetObjectLegalHoldRequest { object: mk() }).await.map_err(object_err)?,
+            handler.get_object_legal_hold(GetObjectLegalHoldRequest { bucket: BucketRef { bucket: bucket.clone() }, object: mk() }).await.map_err(object_err)?,
         ),
         Method::GET if has(&q, "lambdaArn") => S3Response::GetObjectLambda(
             handler.get_object_lambda(GetObjectLambdaRequest {
@@ -157,10 +157,10 @@ where
             handler.put_object_tagging(PutObjectTaggingRequest { object: mk(), xml: text }).await.map_err(object_err)?,
         ),
         Method::PUT if has(&q, "retention") => S3Response::PutObjectRetention(
-            handler.put_object_retention(PutObjectRetentionRequest { object: mk(), xml: text }).await.map_err(object_err)?,
+            handler.put_object_retention(PutObjectRetentionRequest { bucket: BucketRef { bucket: bucket.clone() }, object: mk(), xml: text }).await.map_err(object_err)?,
         ),
         Method::PUT if has(&q, "legal-hold") => S3Response::PutObjectLegalHold(
-            handler.put_object_legal_hold(PutObjectLegalHoldRequest { object: mk(), xml: text }).await.map_err(object_err)?,
+            handler.put_object_legal_hold(PutObjectLegalHoldRequest { bucket: BucketRef { bucket: bucket.clone() }, object: mk(), xml: text }).await.map_err(object_err)?,
         ),
         Method::PUT if header_eq(&headers, "x-amz-snowball-extract", "true") => S3Response::PutObjectExtract(
             handler.put_object_extract(PutObjectExtractRequest { object: mk(), body: body.to_vec() }).await.map_err(object_err)?,

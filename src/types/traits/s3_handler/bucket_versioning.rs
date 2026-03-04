@@ -16,8 +16,12 @@ pub trait BucketVersioningS3Handler<E: From<S3HandlerBridgeError> + From<S3Engin
 
     async fn get_bucket_versioning(&self, req: GetBucketVersioningRequest) -> Result<GetBucketVersioningResponse, E> {
         check_access(self.bucket_versioning_policy_provider(), S3Action::GetBucketVersioning, Some(&req.bucket.bucket), None).await?;
-        let _p = self.bucket_versioning_engine_provider().get_bucket_versioning(&req.bucket.bucket).await?;
-        Ok(GetBucketVersioningResponse { ..Default::default() })
+        let v = self.bucket_versioning_engine_provider().get_bucket_versioning(&req.bucket.bucket).await?;
+        Ok(GetBucketVersioningResponse {
+            status: v.as_ref().map(|x| x.status.clone()),
+            mfa_delete: v.as_ref().and_then(|x| x.mfa_delete.clone()),
+            ..Default::default()
+        })
     }
 
     async fn put_bucket_versioning(&self, req: PutBucketVersioningRequest) -> Result<PutBucketVersioningResponse, E> {
