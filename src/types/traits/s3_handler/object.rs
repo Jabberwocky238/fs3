@@ -266,18 +266,7 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
         )
         .await?;
 
-        // S3 Select requires parsing SQL and executing against CSV/JSON/Parquet
-        // Return error message in event stream format
-        let error_msg = br#"<?xml version="1.0" encoding="UTF-8"?>
-<Error>
-  <Code>NotImplemented</Code>
-  <Message>S3 Select is not yet implemented</Message>
-</Error>"#;
-
-        Ok(SelectObjectContentResponse {
-            meta: Default::default(),
-            payload: error_msg.to_vec(),
-        })
+        unsupported("SelectObjectContent")
     }
 
     async fn get_object_lambda(

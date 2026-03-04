@@ -14,4 +14,5 @@ mod batch_version;
 mod object_lock;
 mod content_md5;
 mod conditional;
+mod select;
 pub mod helpers;
