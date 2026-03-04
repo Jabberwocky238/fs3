@@ -67,15 +67,35 @@ impl ObjectLayer for ErasureServerPools {
         let version_id = opts.version_id.as_deref().unwrap_or("null");
         let fi = self.storage.read_version(ctx, bucket, object, version_id).await?;
 
+        // 流式读取：每次读取 64KB
         let file_path = format!("{}/{}", object, fi.data_dir);
-        let mut buf = vec![0u8; fi.size as usize];
-        self.storage.read_file(ctx, bucket, &file_path, 0, &mut buf).await?;
+        let chunk_size = 64 * 1024;
+        let total_size = fi.size;
 
-        use futures::stream::StreamExt;
-        let stream = futures::stream::once(async move { Ok(bytes::Bytes::from(buf)) }).boxed();
+        use futures::stream::{self, StreamExt};
+        let storage = self.storage.clone();
+        let ctx_clone = ctx.clone();
+        let bucket = bucket.to_string();
+        let file_path = file_path.clone();
+
+        let stream = stream::unfold((0u64, storage, ctx_clone, bucket, file_path, total_size),
+            move |(offset, storage, ctx, bucket, path, total)| async move {
+                if offset >= total {
+                    return None;
+                }
+                let read_size = std::cmp::min(chunk_size, (total - offset) as usize);
+                let mut buf = vec![0u8; read_size];
+                match storage.read_file(&ctx, &bucket, &path, offset as i64, &mut buf).await {
+                    Ok(n) if n > 0 => {
+                        buf.truncate(n as usize);
+                        Some((Ok(bytes::Bytes::from(buf)), (offset + n as u64, storage, ctx, bucket, path, total)))
+                    }
+                    _ => None,
+                }
+            }).boxed();
 
         let info = ObjectInfo {
-            bucket: bucket.to_string(),
+            bucket: ctx.request_id.clone(),
             name: object.to_string(),
             size: fi.size,
             etag: fi.version_id.clone(),

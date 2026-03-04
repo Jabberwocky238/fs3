@@ -31,12 +31,17 @@ Client → Axum Handler → S3 Engine → Storage (Mount + Metadata)
 
 ## Testing
 
+**IMPORTANT: Run tests ONE AT A TIME, not all together**
+
 ```bash
-# Run all MinIO compatibility tests
-cargo test --test minio_tests
+# Run single test (RECOMMENDED)
+cargo test --test minio_tests test_put_bucket_cors
 
 # Run specific test file
-cargo test --test minio_tests bucket
+cargo test --test minio_tests cors
+
+# DO NOT run all tests at once
+# cargo test --test minio_tests  # ❌ AVOID THIS
 
 # Verify compilation (faster than build)
 cargo check

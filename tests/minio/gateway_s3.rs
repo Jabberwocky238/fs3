@@ -1,4 +1,4 @@
-use crate::helpers::*;
+use super::helpers::*;
 
 #[tokio::test]
 async fn test_s3_gateway() {
