@@ -6,5 +6,6 @@ async fn test_access_denied() {
     let bucket = random_bucket_name();
     client.create_bucket(&bucket).send().await.unwrap();
 
-    // TODO: implement access denied errors
+    let result = client.get_object().bucket(&bucket).key("nonexistent").send().await;
+    assert!(result.is_err());
 }

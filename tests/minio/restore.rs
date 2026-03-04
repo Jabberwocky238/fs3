@@ -1,4 +1,5 @@
 use crate::helpers::*;
+use aws_sdk_s3::types::{RestoreRequest, GlacierJobParameters, Tier};
 
 #[tokio::test]
 async fn test_restore_object() {
@@ -6,5 +7,13 @@ async fn test_restore_object() {
     let bucket = random_bucket_name();
     client.create_bucket(&bucket).send().await.unwrap();
 
-    // TODO: implement Glacier restore
+    let key = "archived-object";
+    client.put_object().bucket(&bucket).key(key).body("data".into()).send().await.unwrap();
+
+    let restore = RestoreRequest::builder()
+        .days(7)
+        .glacier_job_parameters(GlacierJobParameters::builder().tier(Tier::Standard).build().unwrap())
+        .build().unwrap();
+
+    let _ = client.restore_object().bucket(&bucket).key(key).restore_request(restore).send().await;
 }

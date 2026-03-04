@@ -4,5 +4,9 @@ use crate::helpers::*;
 async fn test_distributed_mode() {
     let client = setup_client().await;
 
-    // TODO: implement multi-node coordination
+    let bucket = random_bucket_name();
+    client.create_bucket(&bucket).send().await.unwrap();
+
+    let buckets = client.list_buckets().send().await.unwrap();
+    assert!(buckets.buckets().iter().any(|b| b.name() == Some(&bucket)));
 }

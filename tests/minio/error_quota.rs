@@ -6,5 +6,7 @@ async fn test_quota_exceeded() {
     let bucket = random_bucket_name();
     client.create_bucket(&bucket).send().await.unwrap();
 
-    // TODO: implement quota limits
+    let key = "test-object";
+    let data = vec![0u8; 1024];
+    client.put_object().bucket(&bucket).key(key).body(data.into()).send().await.unwrap();
 }

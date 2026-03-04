@@ -1,4 +1,5 @@
 use crate::helpers::*;
+use aws_sdk_s3::types::{ObjectLockRetention, ObjectLockRetentionMode};
 
 #[tokio::test]
 async fn test_object_lock_worm() {
@@ -6,5 +7,13 @@ async fn test_object_lock_worm() {
     let bucket = random_bucket_name();
     client.create_bucket(&bucket).send().await.unwrap();
 
-    // TODO: implement WORM enforcement
+    let key = "locked-object";
+    client.put_object().bucket(&bucket).key(key).body("immutable".into()).send().await.unwrap();
+
+    let retention = ObjectLockRetention::builder()
+        .mode(ObjectLockRetentionMode::Compliance)
+        .retain_until_date(aws_smithy_types::DateTime::from_secs(chrono::Utc::now().timestamp() + 86400))
+        .build().unwrap();
+
+    client.put_object_retention().bucket(&bucket).key(key).retention(retention).send().await.unwrap();
 }

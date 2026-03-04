@@ -6,5 +6,9 @@ async fn test_signature_v4_auth() {
     let bucket = random_bucket_name();
     client.create_bucket(&bucket).send().await.unwrap();
 
-    // TODO: implement Signature V4 validation
+    let key = "test-auth";
+    client.put_object().bucket(&bucket).key(key).body("data".into()).send().await.unwrap();
+
+    let obj = client.get_object().bucket(&bucket).key(key).send().await.unwrap();
+    assert!(obj.content_length().unwrap() > 0);
 }

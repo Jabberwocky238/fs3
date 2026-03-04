@@ -4,5 +4,6 @@ use crate::helpers::*;
 async fn test_health_check() {
     let client = setup_client().await;
 
-    // TODO: implement health endpoints
+    let result = client.list_buckets().send().await;
+    assert!(result.is_ok());
 }

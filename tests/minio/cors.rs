@@ -1,4 +1,5 @@
 use crate::helpers::*;
+use aws_sdk_s3::types::{CorsConfiguration, CorsRule};
 
 #[tokio::test]
 async fn test_put_bucket_cors() {
@@ -6,8 +7,14 @@ async fn test_put_bucket_cors() {
     let bucket = random_bucket_name();
     client.create_bucket(&bucket).send().await.unwrap();
 
-    // CORS not implemented - expect error
-    // TODO: implement CORS config
+    let cors = CorsConfiguration::builder()
+        .cors_rules(CorsRule::builder()
+            .allowed_methods("GET")
+            .allowed_origins("*")
+            .build().unwrap())
+        .build();
+
+    client.put_bucket_cors().bucket(&bucket).cors_configuration(cors).send().await.unwrap();
 }
 
 #[tokio::test]
@@ -16,7 +23,16 @@ async fn test_get_bucket_cors() {
     let bucket = random_bucket_name();
     client.create_bucket(&bucket).send().await.unwrap();
 
-    // TODO: implement get CORS
+    let cors = CorsConfiguration::builder()
+        .cors_rules(CorsRule::builder()
+            .allowed_methods("GET")
+            .allowed_origins("*")
+            .build().unwrap())
+        .build();
+
+    client.put_bucket_cors().bucket(&bucket).cors_configuration(cors).send().await.unwrap();
+    let result = client.get_bucket_cors().bucket(&bucket).send().await.unwrap();
+    assert_eq!(result.cors_rules().len(), 1);
 }
 
 #[tokio::test]
@@ -25,5 +41,5 @@ async fn test_delete_bucket_cors() {
     let bucket = random_bucket_name();
     client.create_bucket(&bucket).send().await.unwrap();
 
-    // TODO: implement delete CORS
+    client.delete_bucket_cors().bucket(&bucket).send().await.unwrap();
 }
