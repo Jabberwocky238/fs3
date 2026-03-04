@@ -12,7 +12,7 @@ async fn test_lifecycle_expiration() {
         .rules(LifecycleRule::builder()
             .id("expire-old")
             .status(ExpirationStatus::Enabled)
-            .filter(LifecycleRuleFilter::Prefix("logs/".to_string()))
+            .filter(LifecycleRuleFilter::builder().prefix("logs/").build())
             .expiration(LifecycleExpiration::builder().days(30).build())
             .build().unwrap())
         .build().unwrap();

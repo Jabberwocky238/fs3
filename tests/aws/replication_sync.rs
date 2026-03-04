@@ -16,7 +16,7 @@ async fn test_replication_sync() {
             .id("rule1")
             .status(ReplicationRuleStatus::Enabled)
             .priority(1)
-            .filter(ReplicationRuleFilter::Prefix("docs/".to_string()))
+            .filter(ReplicationRuleFilter::builder().prefix("docs/").build())
             .destination(Destination::builder()
                 .bucket(format!("arn:aws:s3:::{}", dest_bucket))
                 .build().unwrap())
