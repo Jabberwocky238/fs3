@@ -10,6 +10,7 @@ pub struct Context {
 pub struct ObjectOptions {
     pub version_id: Option<String>,
     pub user_defined: HashMap<String, String>,
+    pub range: Option<(u64, u64)>,
 }
 
 #[derive(Debug, Clone, Default)]

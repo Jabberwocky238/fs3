@@ -75,9 +75,13 @@ impl S3ObjectEngine for FS3Engine {
         })
     }
 
-    async fn get_object(&self, bucket: &str, key: &str, _options: ObjectReadOptions) -> Result<(S3Object, BoxByteStream), S3EngineError> {
+    async fn get_object(&self, bucket: &str, key: &str, options: ObjectReadOptions) -> Result<(S3Object, BoxByteStream), S3EngineError> {
         let ctx = crate::types::s3::object_layer_types::Context { request_id: "".to_string() };
-        let opts = crate::types::s3::object_layer_types::ObjectOptions { version_id: None, user_defined: Default::default() };
+        let opts = crate::types::s3::object_layer_types::ObjectOptions {
+            version_id: options.version_id,
+            user_defined: Default::default(),
+            range: options.range,
+        };
 
         let (info, stream) = self.object_layer.get_object(&ctx, bucket, key, opts).await
             .map_err(|e| S3EngineError::Storage(e.to_string()))?;

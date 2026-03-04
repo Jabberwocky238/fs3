@@ -237,9 +237,15 @@ impl From<crate::types::s3::request::GetObjectAttributesRequest> for ObjectReadO
 
 impl From<&crate::types::s3::request::HeadObjectRequest> for ObjectReadOptions {
     fn from(req: &crate::types::s3::request::HeadObjectRequest) -> Self {
+        fn parse_range(s: &str) -> Option<(u64, u64)> {
+            let s = s.strip_prefix("bytes=")?;
+            let parts: Vec<&str> = s.split('-').collect();
+            if parts.len() != 2 { return None; }
+            Some((parts[0].parse().ok()?, parts[1].parse().ok()?))
+        }
         Self {
             version_id: req.version_id.clone(),
-            range: req.range.clone(),
+            range: req.range.as_ref().and_then(|r| parse_range(r)),
             if_match: req.if_match.clone(),
             if_none_match: req.if_none_match.clone(),
             want_etag: false,
@@ -254,9 +260,15 @@ impl From<&crate::types::s3::request::HeadObjectRequest> for ObjectReadOptions {
 
 impl From<&crate::types::s3::request::GetObjectRequest> for ObjectReadOptions {
     fn from(req: &crate::types::s3::request::GetObjectRequest) -> Self {
+        fn parse_range(s: &str) -> Option<(u64, u64)> {
+            let s = s.strip_prefix("bytes=")?;
+            let parts: Vec<&str> = s.split('-').collect();
+            if parts.len() != 2 { return None; }
+            Some((parts[0].parse().ok()?, parts[1].parse().ok()?))
+        }
         Self {
             version_id: req.version_id.clone(),
-            range: req.range.clone(),
+            range: req.range.as_ref().and_then(|r| parse_range(r)),
             if_match: None,
             if_none_match: None,
             want_etag: false,
@@ -271,9 +283,15 @@ impl From<&crate::types::s3::request::GetObjectRequest> for ObjectReadOptions {
 
 impl From<&crate::types::s3::request::GetObjectLambdaRequest> for ObjectReadOptions {
     fn from(req: &crate::types::s3::request::GetObjectLambdaRequest) -> Self {
+        fn parse_range(s: &str) -> Option<(u64, u64)> {
+            let s = s.strip_prefix("bytes=")?;
+            let parts: Vec<&str> = s.split('-').collect();
+            if parts.len() != 2 { return None; }
+            Some((parts[0].parse().ok()?, parts[1].parse().ok()?))
+        }
         Self {
             version_id: req.version_id.clone(),
-            range: req.range.clone(),
+            range: req.range.as_ref().and_then(|r| parse_range(r)),
             if_match: req.if_match.clone(),
             if_none_match: req.if_none_match.clone(),
             want_etag: false,

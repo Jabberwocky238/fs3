@@ -30,7 +30,11 @@ impl ObjectObjectLayer for ErasureServerPools {
 
         let file_path = format!("{}/{}", object, fi.data_dir);
         let chunk_size = 64 * 1024;
-        let total_size = fi.size;
+        let (start_offset, total_size) = if let Some((start, end)) = opts.range {
+            (start, end.min(fi.size - 1) + 1)
+        } else {
+            (0, fi.size)
+        };
 
         use futures::stream::{self, StreamExt};
         let storage = self.storage.clone();
@@ -38,7 +42,7 @@ impl ObjectObjectLayer for ErasureServerPools {
         let bucket = bucket.to_string();
         let file_path = file_path.clone();
 
-        let stream = stream::unfold((0u64, storage, ctx_clone, bucket, file_path, total_size),
+        let stream = stream::unfold((start_offset, storage, ctx_clone, bucket, file_path, total_size),
             move |(offset, storage, ctx, bucket, path, total)| async move {
                 if offset >= total {
                     return None;
