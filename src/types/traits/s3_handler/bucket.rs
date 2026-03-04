@@ -27,7 +27,7 @@ pub trait BucketS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
         check_access(self.policy(), S3Action::GetBucketPolicy, Some(&req.bucket.bucket), None).await?;
         let p = self.policy().get_bucket_policy(&req.bucket.bucket).await
             .map_err(|e| S3EngineError::InvalidPolicy(e.to_string()))?;
-        Ok(GetBucketPolicyResponse { json: p, ..Default::default() })
+        Ok(GetBucketPolicyResponse { config: p.unwrap_or_default(), json: None, ..Default::default() })
     }
     async fn get_bucket_lifecycle(&self, req: GetBucketLifecycleRequest) -> Result<GetBucketLifecycleResponse, E> {
         check_access(self.policy(), S3Action::GetBucketLifecycle, Some(&req.bucket.bucket), None).await?;
@@ -73,7 +73,7 @@ pub trait BucketS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
     async fn get_bucket_tagging(&self, req: GetBucketTaggingRequest) -> Result<GetBucketTaggingResponse, E> {
         check_access(self.policy(), S3Action::GetBucketTagging, Some(&req.bucket.bucket), None).await?;
         let p = self.engine().get_bucket_tagging(&req.bucket.bucket).await?;
-        Ok(GetBucketTaggingResponse { xml: p.map(|d| d.body), ..Default::default() })
+        Ok(GetBucketTaggingResponse { tags: Default::default(), xml: p.map(|d| d.body), ..Default::default() })
     }
     async fn delete_bucket_website(&self, _req: DeleteBucketWebsiteRequest) -> Result<DeleteBucketWebsiteResponse, E> { Ok(Default::default()) }
     async fn delete_bucket_tagging(&self, req: DeleteBucketTaggingRequest) -> Result<DeleteBucketTaggingResponse, E> {

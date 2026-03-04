@@ -132,6 +132,8 @@ pub struct PutObjectAclResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetObjectTaggingResponse {
     pub meta: ResponseMeta,
+    pub tags: HashMap<String, String>,
+    #[deprecated]
     pub xml: Option<String>,
 }
 
@@ -234,6 +236,8 @@ pub struct GetBucketLocationResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetBucketPolicyResponse {
     pub meta: ResponseMeta,
+    pub config: String,
+    #[deprecated]
     pub json: Option<String>,
 }
 
@@ -338,6 +342,8 @@ pub struct GetBucketLoggingResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetBucketTaggingResponse {
     pub meta: ResponseMeta,
+    pub tags: HashMap<String, String>,
+    #[deprecated]
     pub xml: Option<String>,
 }
 

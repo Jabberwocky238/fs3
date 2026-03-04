@@ -217,17 +217,7 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
             .get_object_tagging(&req.object.bucket, &req.object.object)
             .await
             ?;
-        let xml = if tags.is_empty() {
-            None
-        } else {
-            Some(
-                tags.into_iter()
-                    .map(|(k, v)| format!("{k}={v}"))
-                    .collect::<Vec<_>>()
-                    .join("&"),
-            )
-        };
-        Ok(GetObjectTaggingResponse { xml, ..Default::default() })
+        Ok(GetObjectTaggingResponse { tags, xml: None, ..Default::default() })
     }
 
     async fn put_object_tagging(
@@ -428,4 +418,15 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
     ) -> Result<PostRestoreObjectResponse, E> {
         unsupported("PostRestoreObject")
     }
+}
+
+fn tags_to_tagging_xml(tags: &std::collections::HashMap<String, String>) -> String {
+    let mut xml = String::from(r#"<?xml version="1.0" encoding="UTF-8"?><Tagging xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><TagSet>"#);
+    for (k, v) in tags {
+        xml.push_str(&format!("<Tag><Key>{}</Key><Value>{}</Value></Tag>",
+            k.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;"),
+            v.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;")));
+    }
+    xml.push_str("</TagSet></Tagging>");
+    xml
 }

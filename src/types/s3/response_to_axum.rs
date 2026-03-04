@@ -68,8 +68,7 @@ impl IntoResponse for S3Response {
 
             // JSON response
             S3Response::GetBucketPolicy(r) => {
-                let body = r.json.unwrap_or_default();
-                (StatusCode::OK, [("content-type", "application/json")], body).into_response()
+                (StatusCode::OK, [("content-type", "application/json")], r.config.clone()).into_response()
             }
 
             // XML responses

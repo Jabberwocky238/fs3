@@ -1,4 +1,5 @@
 use super::response::*;
+use std::collections::HashMap;
 
 pub fn s3_response_to_xml(resp: &S3Response) -> Option<String> {
     match resp {
@@ -62,9 +63,18 @@ pub fn s3_response_to_xml(resp: &S3Response) -> Option<String> {
         S3Response::GetBucketLogging(r) => r.xml.clone(),
         S3Response::GetBucketTagging(r) => r.xml.clone(),
         S3Response::GetObjectAcl(r) => r.xml.clone(),
-        S3Response::GetObjectTagging(r) => r.xml.clone(),
+        S3Response::GetObjectTagging(r) => Some(tags_to_tagging_xml(&r.tags)),
         S3Response::GetObjectRetention(r) => r.xml.clone(),
         S3Response::GetObjectLegalHold(r) => r.xml.clone(),
+
+        S3Response::CopyObject(r) => Some(copy_object_xml(r)),
+        S3Response::PutObject(r) => Some(put_object_xml(r)),
+        S3Response::GetBucketTagging(r) => Some(tags_to_tagging_xml(&r.tags)),
+        S3Response::HeadObject(_) => None,
+        S3Response::GetObject(_) => None,
+        S3Response::GetObjectLambda(_) => None,
+        S3Response::SelectObjectContent(_) => None,
+        S3Response::GetBucketPolicy(_) => None,
 
         _ => None,
     }
@@ -167,6 +177,37 @@ fn complete_multipart_upload_xml(r: &CompleteMultipartUploadResponse) -> String 
         xml_escape(obj.map(|o| o.key.as_str()).unwrap_or("")),
         xml_escape(etag_raw)
     )
+}
+
+fn copy_object_xml(r: &CopyObjectResponse) -> String {
+    let obj = r.object.as_ref();
+    let etag = obj.and_then(|o| o.etag.as_deref()).unwrap_or("");
+    let last_modified = obj.and_then(|o| o.last_modified.as_deref()).unwrap_or("");
+    format!(
+        r#"<?xml version="1.0" encoding="UTF-8"?><CopyObjectResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><ETag>{}</ETag><LastModified>{}</LastModified></CopyObjectResult>"#,
+        xml_escape(etag), xml_escape(last_modified)
+    )
+}
+
+fn put_object_xml(r: &PutObjectResponse) -> String {
+    let etag = r.meta.etag.as_deref().unwrap_or("");
+    format!(
+        r#"<?xml version="1.0" encoding="UTF-8"?><PutObjectResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><ETag>{}</ETag></PutObjectResult>"#,
+        xml_escape(etag)
+    )
+}
+
+fn empty_tagging_xml() -> String {
+    r#"<?xml version="1.0" encoding="UTF-8"?><Tagging xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><TagSet/></Tagging>"#.to_string()
+}
+
+fn tags_to_tagging_xml(tags: &HashMap<String, String>) -> String {
+    let mut xml = String::from(r#"<?xml version="1.0" encoding="UTF-8"?><Tagging xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><TagSet>"#);
+    for (k, v) in tags {
+        xml.push_str(&format!("<Tag><Key>{}</Key><Value>{}</Value></Tag>", xml_escape(k), xml_escape(v)));
+    }
+    xml.push_str("</TagSet></Tagging>");
+    xml
 }
 
 #[cfg(test)]
