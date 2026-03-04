@@ -9,7 +9,13 @@ impl S3ObjectEngine for FS3Engine {
     async fn put_object(&self, bucket: &str, key: &str, body: BoxByteStream, options: ObjectWriteOptions) -> Result<S3Object, S3EngineError> {
         let ctx = crate::types::s3::object_layer_types::Context { request_id: "".to_string() };
 
-        let data = crate::types::s3::storage_types::PutObjReader { reader: body, size: 0 };
+        use futures::TryStreamExt;
+        let chunks: Vec<bytes::Bytes> = body.try_collect().await
+            .map_err(|e| S3EngineError::Storage(e.to_string()))?;
+        let size = chunks.iter().map(|c| c.len()).sum::<usize>();
+        let stream: BoxByteStream = Box::pin(futures::stream::iter(chunks.into_iter().map(Ok)));
+
+        let data = crate::types::s3::storage_types::PutObjReader { reader: stream, size: size as i64 };
         let opts = crate::types::s3::object_layer_types::ObjectOptions {
             version_id: None,
             user_defined: options.user_metadata.clone(),

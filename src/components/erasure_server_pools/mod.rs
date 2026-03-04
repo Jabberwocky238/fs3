@@ -29,7 +29,11 @@ impl ObjectLayer for ErasureServerPools {
     }
 
     async fn get_bucket_info(&self, ctx: &Context, bucket: &str, _opts: BucketOptions) -> Result<BucketInfo, S3Error> {
-        let vol = self.storage.stat_vol(ctx, bucket).await?;
+        let vol = self.storage.stat_vol(ctx, bucket).await
+            .map_err(|e| match e {
+                crate::types::errors::StorageError::VolumeNotFound(msg) => S3Error::NoSuchBucket(msg),
+                _ => S3Error::Storage(e),
+            })?;
         Ok(BucketInfo {
             name: vol.name,
             created: vol.created,
