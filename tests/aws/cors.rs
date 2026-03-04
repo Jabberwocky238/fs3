@@ -13,7 +13,7 @@ async fn test_put_bucket_cors() {
             .allowed_methods("GET")
             .allowed_origins("https://example.com")
             .build().unwrap())
-        .build();
+        .build().unwrap();
 
     client.put_bucket_cors().bucket(&bucket).cors_configuration(cors).send().await.unwrap();
 
@@ -35,7 +35,7 @@ async fn test_get_bucket_cors() {
             .allowed_methods("POST")
             .allowed_origins("*")
             .build().unwrap())
-        .build();
+        .build().unwrap();
 
     client.put_bucket_cors().bucket(&bucket).cors_configuration(cors).send().await.unwrap();
     let result = client.get_bucket_cors().bucket(&bucket).send().await.unwrap();
@@ -54,7 +54,7 @@ async fn test_delete_bucket_cors() {
             .allowed_methods("GET")
             .allowed_origins("*")
             .build().unwrap())
-        .build();
+        .build().unwrap();
 
     client.put_bucket_cors().bucket(&bucket).cors_configuration(cors).send().await.unwrap();
     client.delete_bucket_cors().bucket(&bucket).send().await.unwrap();

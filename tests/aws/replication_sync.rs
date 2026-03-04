@@ -8,7 +8,7 @@ async fn test_replication_sync() {
     let bucket = random_bucket_name();
     let dest_bucket = random_bucket_name();
     client.create_bucket().bucket(&bucket).send().await.unwrap();
-    client.create_bucket(&dest_bucket).send().await.unwrap();
+    client.create_bucket().bucket(&dest_bucket).send().await.unwrap();
 
     let replication = ReplicationConfiguration::builder()
         .role("arn:aws:iam::123456789012:role/replication")

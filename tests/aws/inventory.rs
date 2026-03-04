@@ -18,7 +18,7 @@ async fn test_put_bucket_inventory() {
                 .format(InventoryFormat::Csv)
                 .build().unwrap())
             .build())
-        .schedule(InventorySchedule::builder().frequency(InventoryFrequency::Daily).build())
+        .schedule(InventorySchedule::builder().frequency(InventoryFrequency::Daily).build().unwrap())
         .build().unwrap();
 
     client.put_bucket_inventory_configuration().bucket(&bucket).id("inventory1").inventory_configuration(config).send().await.unwrap();

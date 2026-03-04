@@ -15,7 +15,7 @@ async fn test_cors_preflight() {
             .allowed_origins("https://example.com")
             .allowed_headers("*")
             .build().unwrap())
-        .build();
+        .build().unwrap();
 
     client.put_bucket_cors().bucket(&bucket).cors_configuration(cors).send().await.unwrap();
 }

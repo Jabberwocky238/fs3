@@ -9,12 +9,12 @@ async fn test_put_object_sse_s3() {
     client.create_bucket().bucket(&bucket).send().await.unwrap();
 
     let key = "encrypted-object";
-    let data = "secret data with SSE-S3";
+    let data = b"secret data with SSE-S3";
     client
         .put_object()
         .bucket(&bucket)
         .key(key)
-        .body(data.into())
+        .body(aws_sdk_s3::primitives::ByteStream::from_static(data))
         .server_side_encryption(ServerSideEncryption::Aes256)
         .send()
         .await
@@ -35,7 +35,7 @@ async fn test_put_object_sse_s3() {
 
     let body = obj.body.collect().await.unwrap().to_vec();
     assert_eq!(
-        String::from_utf8(body).unwrap(),
+        body.as_slice(),
         data,
         "Must decrypt and return original data"
     );

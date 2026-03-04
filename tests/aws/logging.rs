@@ -8,7 +8,7 @@ async fn test_put_bucket_logging() {
     let bucket = random_bucket_name();
     let log_bucket = random_bucket_name();
     client.create_bucket().bucket(&bucket).send().await.unwrap();
-    client.create_bucket(&log_bucket).send().await.unwrap();
+    client.create_bucket().bucket(&log_bucket).send().await.unwrap();
 
     let logging = BucketLoggingStatus::builder()
         .logging_enabled(LoggingEnabled::builder()
@@ -20,6 +20,6 @@ async fn test_put_bucket_logging() {
     client.put_bucket_logging().bucket(&bucket).bucket_logging_status(logging).send().await.unwrap();
 
     let result = client.get_bucket_logging().bucket(&bucket).send().await.unwrap();
-    assert_eq!(result.logging_enabled().unwrap().target_bucket(), Some(log_bucket.as_str()), "Target bucket must match");
+    assert_eq!(result.logging_enabled().unwrap().target_bucket(), Some(&log_bucket), "Target bucket must match");
     assert_eq!(result.logging_enabled().unwrap().target_prefix(), Some("access-logs/"), "Prefix must match");
 }
