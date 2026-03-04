@@ -5,9 +5,7 @@ build:
 	cp target/debug/s3_mount_gateway_rust.exe ./fs3.exe
 
 build-minio:
-	cd minio
-	go build -o minio.exe .
-	cd ..
+	cd minio && go build -o minio.exe .
 	cp minio/minio.exe ./minio.exe
 
 clean:
