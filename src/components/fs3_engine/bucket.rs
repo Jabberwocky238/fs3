@@ -77,8 +77,67 @@ impl S3BucketEngine for FS3Engine {
         Ok(ObjectListPage::default())
     }
 
-    async fn list_objects_v2(&self, _bucket: &str, _options: ListOptions) -> Result<ObjectListPage, S3EngineError> {
-        Ok(ObjectListPage::default())
+    async fn list_objects_v2(&self, bucket: &str, options: ListOptions) -> Result<ObjectListPage, S3EngineError> {
+        let ctx = crate::types::s3::object_layer_types::Context { request_id: "".to_string() };
+
+        // Get storage path - need to access XlStorage's path
+        let storage_path = std::path::PathBuf::from(".debug/fs3"); // TODO: get from config
+        let bucket_path = storage_path.join(bucket);
+        let mut objects = Vec::new();
+
+        if let Ok(entries) = std::fs::read_dir(&bucket_path) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    let object_name = path.file_name().unwrap().to_string_lossy().to_string();
+                    if object_name.starts_with('.') {
+                        continue;
+                    }
+                    if let Some(ref prefix) = options.prefix {
+                        if !object_name.starts_with(prefix) {
+                            continue;
+                        }
+                    }
+                    if let Ok(info) = self.object_layer.get_object_info(&ctx, bucket, &object_name, Default::default()).await {
+                        objects.push(crate::types::s3::core::S3Object {
+                            bucket: bucket.to_string(),
+                            key: object_name,
+                            size: info.size as u64,
+                            etag: info.etag,
+                            last_modified: chrono::Utc::now(),
+                            content_type: Some(info.content_type),
+                            content_encoding: None,
+                            storage_class: Default::default(),
+                            user_metadata: Default::default(),
+                            user_tags: Default::default(),
+                            version: Default::default(),
+                            parts: Vec::new(),
+                            checksums: Vec::new(),
+                            replication_state: Default::default(),
+                            retention: None,
+                            legal_hold: None,
+                            restore_expiry: None,
+                            restore_ongoing: false,
+                        });
+                    }
+                }
+            }
+        }
+
+        let max_keys = options.max_keys.unwrap_or(1000) as usize;
+        let is_truncated = objects.len() > max_keys;
+        if is_truncated {
+            objects.truncate(max_keys);
+        }
+
+        Ok(ObjectListPage {
+            objects,
+            common_prefixes: Vec::new(),
+            next_continuation_token: None,
+            next_key_marker: None,
+            next_version_id_marker: None,
+            is_truncated,
+        })
     }
 
     async fn list_object_versions(&self, _bucket: &str, _options: ListOptions) -> Result<ObjectListPage, S3EngineError> {

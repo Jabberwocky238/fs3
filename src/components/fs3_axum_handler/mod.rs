@@ -132,4 +132,5 @@ where
         .merge(http_root::routes::<T, E>(state.clone()))
         .merge(http_bucket::routes::<T, E>(state.clone()))
         .merge(http_object::routes::<T, E>(state))
+        .layer(axum::extract::DefaultBodyLimit::max(5 * 1024 * 1024 * 1024))
 }

@@ -2,6 +2,10 @@
 """Test object PUT/GET/DELETE operations"""
 from client_helper import create_client, get_endpoint
 
+def make1GB():
+    """Generate 1GB of data"""
+    return b"0" * (1 * 1024 * 1024 * 1024)
+
 def test(s3):
     bucket = "test-objects"
     s3.create_bucket(Bucket=bucket)
@@ -9,6 +13,10 @@ def test(s3):
     # PUT object
     s3.put_object(Bucket=bucket, Key="test.txt", Body=b"hello world")
     print("[OK] PUT object")
+
+    # PUT 1GB object
+    s3.put_object(Bucket=bucket, Key="test.txt", Body=make1GB())
+    print("[OK] PUT 1GB object")
 
     # GET object
     obj = s3.get_object(Bucket=bucket, Key="test.txt")
