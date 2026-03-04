@@ -184,7 +184,7 @@ pub enum ObjectAttribute {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct ObjectReadOptions {
     pub version_id: Option<String>,
-    pub range: Option<String>,
+    pub range: Option<(u64, u64)>,
     pub if_match: Option<String>,
     pub if_none_match: Option<String>,
     pub want_etag: bool,
