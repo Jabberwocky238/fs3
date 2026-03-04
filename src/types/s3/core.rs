@@ -326,26 +326,6 @@ pub struct BucketPolicyStatus {
     pub is_public: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct TimedDocument {
-    pub body: String,
-    pub updated_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
-pub struct BucketMetadataBundle {
-    pub policy_json: Option<TimedDocument>,
-    pub notification_xml: Option<TimedDocument>,
-    pub lifecycle_xml: Option<TimedDocument>,
-    pub object_lock_xml: Option<TimedDocument>,
-    pub versioning_xml: Option<TimedDocument>,
-    pub encryption_xml: Option<TimedDocument>,
-    pub tagging_xml: Option<TimedDocument>,
-    pub quota_json: Option<TimedDocument>,
-    pub replication_xml: Option<TimedDocument>,
-    pub targets_json: Option<TimedDocument>,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct ReplicationMetrics {
     pub raw_json: String,
@@ -356,3 +336,47 @@ pub struct ReplicationCredsValidation {
     pub valid: bool,
     pub detail: Option<String>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct BucketMetadataBundle {
+    pub lifecycle_rules: Vec<String>,
+    pub encryption_algorithm: Option<String>,
+    pub encryption_key_id: Option<String>,
+    pub object_lock_enabled: Option<bool>,
+    pub object_lock_mode: Option<String>,
+    pub object_lock_days: Option<u32>,
+    pub object_lock_years: Option<u32>,
+    pub versioning_status: Option<String>,
+    pub versioning_mfa_delete: Option<String>,
+    pub notification_configs: Vec<String>,
+    pub replication_role: Option<String>,
+    pub replication_rules: Vec<String>,
+    pub tagging_map: Option<HashMap<String, String>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct BucketEncryption {
+    pub algorithm: String,
+    pub key_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct BucketObjectLockConfig {
+    pub enabled: bool,
+    pub mode: Option<String>,
+    pub days: Option<u32>,
+    pub years: Option<u32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct BucketVersioning {
+    pub status: String,
+    pub mfa_delete: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct BucketReplication {
+    pub role: String,
+    pub rules: Vec<String>,
+}
+

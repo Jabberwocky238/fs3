@@ -72,8 +72,8 @@ pub trait BucketS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
     async fn get_bucket_logging(&self, _req: GetBucketLoggingRequest) -> Result<GetBucketLoggingResponse, E> { Ok(Default::default()) }
     async fn get_bucket_tagging(&self, req: GetBucketTaggingRequest) -> Result<GetBucketTaggingResponse, E> {
         check_access(self.policy(), S3Action::GetBucketTagging, Some(&req.bucket.bucket), None).await?;
-        let _p = self.engine().get_bucket_tagging(&req.bucket.bucket).await?;
-        Ok(GetBucketTaggingResponse { tags: Default::default(), ..Default::default() })
+        let tags = self.engine().get_bucket_tagging(&req.bucket.bucket).await?.unwrap_or_default();
+        Ok(GetBucketTaggingResponse { tags, ..Default::default() })
     }
     async fn delete_bucket_website(&self, _req: DeleteBucketWebsiteRequest) -> Result<DeleteBucketWebsiteResponse, E> { Ok(Default::default()) }
     async fn delete_bucket_tagging(&self, req: DeleteBucketTaggingRequest) -> Result<DeleteBucketTaggingResponse, E> {
@@ -126,17 +126,20 @@ pub trait BucketS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
     }
     async fn put_bucket_lifecycle(&self, req: PutBucketLifecycleRequest) -> Result<PutBucketLifecycleResponse, E> {
         check_access(self.policy(), S3Action::PutBucketLifecycle, Some(&req.bucket.bucket), None).await?;
-        self.engine().put_bucket_lifecycle(&req.bucket.bucket, req.xml).await?;
+        let rules = parse_lifecycle_rules(&req.xml);
+        self.engine().put_bucket_lifecycle(&req.bucket.bucket, rules).await?;
         Ok(Default::default())
     }
     async fn put_bucket_replication_config(&self, req: PutBucketReplicationConfigRequest) -> Result<PutBucketReplicationConfigResponse, E> {
         check_access(self.policy(), S3Action::PutReplicationConfiguration, Some(&req.bucket.bucket), None).await?;
-        self.engine().put_bucket_replication(&req.bucket.bucket, req.xml).await?;
+        let (role, rules) = parse_replication_config(&req.xml);
+        self.engine().put_bucket_replication(&req.bucket.bucket, role, rules).await?;
         Ok(Default::default())
     }
     async fn put_bucket_encryption(&self, req: PutBucketEncryptionRequest) -> Result<PutBucketEncryptionResponse, E> {
         check_access(self.policy(), S3Action::PutBucketEncryption, Some(&req.bucket.bucket), None).await?;
-        self.engine().put_bucket_encryption(&req.bucket.bucket, req.xml).await?;
+        let (algorithm, key_id) = parse_encryption_config(&req.xml);
+        self.engine().put_bucket_encryption(&req.bucket.bucket, algorithm, key_id).await?;
         Ok(Default::default())
     }
     async fn put_bucket_policy(&self, req: PutBucketPolicyRequest) -> Result<PutBucketPolicyResponse, E> {
@@ -147,22 +150,26 @@ pub trait BucketS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
     }
     async fn put_bucket_object_lock_config(&self, req: PutBucketObjectLockConfigRequest) -> Result<PutBucketObjectLockConfigResponse, E> {
         check_access(self.policy(), S3Action::PutBucketObjectLockConfiguration, Some(&req.bucket.bucket), None).await?;
-        self.engine().put_bucket_object_lock_config(&req.bucket.bucket, req.xml).await?;
+        let (enabled, mode, days, years) = parse_object_lock_config(&req.xml);
+        self.engine().put_bucket_object_lock_config(&req.bucket.bucket, enabled, mode, days, years).await?;
         Ok(Default::default())
     }
     async fn put_bucket_tagging(&self, req: PutBucketTaggingRequest) -> Result<PutBucketTaggingResponse, E> {
         check_access(self.policy(), S3Action::PutBucketTagging, Some(&req.bucket.bucket), None).await?;
-        self.engine().put_bucket_tagging(&req.bucket.bucket, req.xml).await?;
+        let tags = parse_tags_xml(&req.xml);
+        self.engine().put_bucket_tagging(&req.bucket.bucket, tags).await?;
         Ok(Default::default())
     }
     async fn put_bucket_versioning(&self, req: PutBucketVersioningRequest) -> Result<PutBucketVersioningResponse, E> {
         check_access(self.policy(), S3Action::PutBucketVersioning, Some(&req.bucket.bucket), None).await?;
-        self.engine().put_bucket_versioning(&req.bucket.bucket, req.xml).await?;
+        let (status, mfa_delete) = parse_versioning_config(&req.xml);
+        self.engine().put_bucket_versioning(&req.bucket.bucket, status, mfa_delete).await?;
         Ok(Default::default())
     }
     async fn put_bucket_notification(&self, req: PutBucketNotificationRequest) -> Result<PutBucketNotificationResponse, E> {
         check_access(self.policy(), S3Action::PutBucketNotification, Some(&req.bucket.bucket), None).await?;
-        self.engine().put_bucket_notification(&req.bucket.bucket, req.xml).await?;
+        let configs = parse_notification_config(&req.xml);
+        self.engine().put_bucket_notification(&req.bucket.bucket, configs).await?;
         Ok(Default::default())
     }
     async fn reset_bucket_replication_start(&self, _req: ResetBucketReplicationStartRequest) -> Result<ResetBucketReplicationStartResponse, E> { unsupported("ResetBucketReplicationStart") }
@@ -250,3 +257,44 @@ pub trait BucketS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
         Ok(ListObjectsV1Response { objects: p.objects.iter().map(to_resp_object).collect(), ..Default::default() })
     }
 }
+
+fn parse_tags_xml(xml: &str) -> std::collections::HashMap<String, String> {
+    let mut tags = std::collections::HashMap::new();
+    for tag in xml.split("<Tag>").skip(1) {
+        if let Some(end) = tag.find("</Tag>") {
+            let content = &tag[..end];
+            if let (Some(k), Some(v)) = (
+                content.find("<Key>").and_then(|s| content[s+5..].find("</Key>").map(|e| &content[s+5..s+5+e])),
+                content.find("<Value>").and_then(|s| content[s+7..].find("</Value>").map(|e| &content[s+7..s+7+e]))
+            ) {
+                tags.insert(k.to_string(), v.to_string());
+            }
+        }
+    }
+    tags
+}
+
+fn parse_lifecycle_rules(_xml: &str) -> Vec<String> {
+    vec![]
+}
+
+fn parse_replication_config(_xml: &str) -> (String, Vec<String>) {
+    (String::new(), vec![])
+}
+
+fn parse_encryption_config(_xml: &str) -> (String, Option<String>) {
+    ("AES256".to_string(), None)
+}
+
+fn parse_object_lock_config(_xml: &str) -> (bool, Option<String>, Option<u32>, Option<u32>) {
+    (false, None, None, None)
+}
+
+fn parse_versioning_config(_xml: &str) -> (String, Option<String>) {
+    ("Enabled".to_string(), None)
+}
+
+fn parse_notification_config(_xml: &str) -> Vec<String> {
+    vec![]
+}
+

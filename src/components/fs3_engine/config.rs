@@ -109,18 +109,18 @@ where
         Ok(())
     }
 
-    async fn get_bucket_tagging(&self, bucket: &str) -> Result<Option<TimedDocument>, S3EngineError> {
-        self.ensure_bucket_meta(bucket).await.map(|m| m.tagging_xml)
+    async fn get_bucket_tagging(&self, bucket: &str) -> Result<Option<std::collections::HashMap<String, String>>, S3EngineError> {
+        self.ensure_bucket_meta(bucket).await.map(|m| m.tagging_map)
     }
-    async fn put_bucket_tagging(&self, bucket: &str, tagging_xml: String) -> Result<(), S3EngineError> {
+    async fn put_bucket_tagging(&self, bucket: &str, tags: std::collections::HashMap<String, String>) -> Result<(), S3EngineError> {
         let mut m = self.ensure_bucket_meta(bucket).await?;
-        m.tagging_xml = Some(Self::now_doc(tagging_xml));
+        m.tagging_map = Some(tags);
         self.metadata.store_bucket_metadata(bucket, &m).await?;
         Ok(())
     }
     async fn delete_bucket_tagging(&self, bucket: &str) -> Result<(), S3EngineError> {
         let mut m = self.ensure_bucket_meta(bucket).await?;
-        m.tagging_xml = None;
+        m.tagging_map = None;
         self.metadata.store_bucket_metadata(bucket, &m).await?;
         Ok(())
     }
