@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 
+
 use crate::types::errors::S3EngineError;
 use crate::types::s3::core::ObjectReadOptions;
 use crate::types::s3::policy::S3Action;
@@ -17,19 +18,19 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>:
     type Engine: S3ObjectEngine + S3MultipartEngine + Send + Sync;
     type Policy: S3PolicyEngine;
 
-    fn engine(&self) -> &Self::Engine;
-    fn policy(&self) -> &Self::Policy;
+    fn object_engine_provider(&self) -> &<Self as ObjectS3Handler<E>>::Engine;
+    fn object_policy_provider(&self) -> &<Self as ObjectS3Handler<E>>::Policy;
 
     async fn head_object(&self, req: HeadObjectRequest) -> Result<HeadObjectResponse, E> {
         check_access(
-            <Self as ObjectS3Handler<E>>::policy(self),
+            self.object_policy_provider(),
             S3Action::HeadObject,
             Some(&req.object.bucket),
             Some(&req.object.object),
         )
         .await?;
         let obj = self
-            .engine()
+            .object_engine_provider()
             .head_object(
                 &req.object.bucket,
                 &req.object.object,
@@ -55,7 +56,7 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>:
         req: GetObjectAttributesRequest,
     ) -> Result<GetObjectAttributesResponse, E> {
         check_access(
-            <Self as ObjectS3Handler<E>>::policy(self),
+            self.object_policy_provider(),
             S3Action::GetObject,
             Some(&req.object.bucket),
             Some(&req.object.object),
@@ -64,7 +65,7 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>:
         let bucket = req.object.bucket.clone();
         let object = req.object.object.clone();
         let opts: ObjectReadOptions = req.into();
-        let obj = <Self as ObjectS3Handler<E>>::engine(self).head_object(&bucket, &object, opts).await?;
+        let obj = self.object_engine_provider().head_object(&bucket, &object, opts).await?;
         Ok(GetObjectAttributesResponse {
             object: Some(to_resp_object(&obj)),
             ..Default::default()
@@ -76,7 +77,7 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>:
         req: CopyObjectPartRequest,
     ) -> Result<CopyObjectPartResponse, E> {
         check_access(
-            <Self as ObjectS3Handler<E>>::policy(self),
+            self.object_policy_provider(),
             S3Action::PutObject,
             Some(&req.object.bucket),
             Some(&req.object.object),
@@ -86,7 +87,7 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>:
             S3HandlerBridgeError::InvalidRequest("missing/invalid x-amz-copy-source".to_string())
         })?;
         let part = self
-            .engine()
+            .object_engine_provider()
             .copy_object_part(
                 &src_bucket,
                 &src_key,
@@ -110,14 +111,14 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>:
 
     async fn put_object_part(&self, req: PutObjectPartRequest) -> Result<PutObjectPartResponse, E> {
         check_access(
-            <Self as ObjectS3Handler<E>>::policy(self),
+            self.object_policy_provider(),
             S3Action::PutObject,
             Some(&req.object.bucket),
             Some(&req.object.object),
         )
         .await?;
         let part = self
-            .engine()
+            .object_engine_provider()
             .put_object_part(
                 &req.object.bucket,
                 &req.object.object,
@@ -143,14 +144,14 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>:
         req: ListObjectPartsRequest,
     ) -> Result<ListObjectPartsResponse, E> {
         check_access(
-            <Self as ObjectS3Handler<E>>::policy(self),
+            self.object_policy_provider(),
             S3Action::ListMultipartUploadParts,
             Some(&req.object.bucket),
             Some(&req.object.object),
         )
         .await?;
         let parts = self
-            .engine()
+            .object_engine_provider()
             .list_object_parts(&req.object.bucket, &req.object.object, &req.upload_id)
             .await?;
         Ok(ListObjectPartsResponse {
@@ -172,7 +173,7 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>:
         req: CompleteMultipartUploadRequest,
     ) -> Result<CompleteMultipartUploadResponse, E> {
         check_access(
-            <Self as ObjectS3Handler<E>>::policy(self),
+            self.object_policy_provider(),
             S3Action::PutObject,
             Some(&req.object.bucket),
             Some(&req.object.object),
@@ -180,7 +181,7 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>:
         .await?;
         let completed = parse_completed_parts(&req.xml);
         let obj = self
-            .engine()
+            .object_engine_provider()
             .complete_multipart_upload(
                 &req.object.bucket,
                 &req.object.object,
@@ -199,14 +200,14 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>:
         req: NewMultipartUploadRequest,
     ) -> Result<NewMultipartUploadResponse, E> {
         check_access(
-            <Self as ObjectS3Handler<E>>::policy(self),
+            self.object_policy_provider(),
             S3Action::PutObject,
             Some(&req.object.bucket),
             Some(&req.object.object),
         )
         .await?;
         let mp = self
-            .engine()
+            .object_engine_provider()
             .new_multipart_upload(&req.object.bucket, &req.object.object, to_write_opt(None))
             .await?;
         Ok(NewMultipartUploadResponse {
@@ -222,13 +223,13 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>:
         req: AbortMultipartUploadRequest,
     ) -> Result<AbortMultipartUploadResponse, E> {
         check_access(
-            <Self as ObjectS3Handler<E>>::policy(self),
+            self.object_policy_provider(),
             S3Action::AbortMultipartUpload,
             Some(&req.object.bucket),
             Some(&req.object.object),
         )
         .await?;
-        <Self as ObjectS3Handler<E>>::engine(self)
+        self.object_engine_provider()
             .abort_multipart_upload(&req.object.bucket, &req.object.object, &req.upload_id)
             .await?;
         Ok(Default::default())
@@ -254,14 +255,14 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>:
         req: GetObjectLambdaRequest,
     ) -> Result<GetObjectLambdaResponse, E> {
         check_access(
-            <Self as ObjectS3Handler<E>>::policy(self),
+            self.object_policy_provider(),
             S3Action::GetObject,
             Some(&req.object.bucket),
             Some(&req.object.object),
         )
         .await?;
         let (_obj, stream) = self
-            .engine()
+            .object_engine_provider()
             .get_object(
                 &req.object.bucket,
                 &req.object.object,
@@ -285,14 +286,14 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>:
 
     async fn get_object(&self, req: GetObjectRequest) -> Result<GetObjectResponse, E> {
         check_access(
-            <Self as ObjectS3Handler<E>>::policy(self),
+            self.object_policy_provider(),
             S3Action::GetObject,
             Some(&req.object.bucket),
             Some(&req.object.object),
         )
         .await?;
         let (obj, stream) = self
-            .engine()
+            .object_engine_provider()
             .get_object(
                 &req.object.bucket,
                 &req.object.object,
@@ -311,7 +312,7 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>:
 
     async fn copy_object(&self, req: CopyObjectRequest) -> Result<CopyObjectResponse, E> {
         check_access(
-            <Self as ObjectS3Handler<E>>::policy(self),
+            self.object_policy_provider(),
             S3Action::PutObject,
             Some(&req.object.bucket),
             Some(&req.object.object),
@@ -321,7 +322,7 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>:
             S3HandlerBridgeError::InvalidRequest("missing/invalid x-amz-copy-source".to_string())
         })?;
         let obj = self
-            .engine()
+            .object_engine_provider()
             .copy_object(
                 &src_bucket,
                 &src_key,
@@ -341,7 +342,7 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>:
         req: PutObjectExtractRequest,
     ) -> Result<PutObjectExtractResponse, E> {
         check_access(
-            <Self as ObjectS3Handler<E>>::policy(self),
+            self.object_policy_provider(),
             S3Action::PutObject,
             Some(&req.object.bucket),
             Some(&req.object.object),
@@ -352,7 +353,7 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>:
                 Ok(bytes::Bytes::from(req.body))
             }));
         let _ = self
-            .engine()
+            .object_engine_provider()
             .put_object(
                 &req.object.bucket,
                 &req.object.object,
@@ -375,7 +376,7 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>:
 
     async fn put_object(&self, req: PutObjectRequest) -> Result<PutObjectResponse, E> {
         check_access(
-            <Self as ObjectS3Handler<E>>::policy(self),
+            self.object_policy_provider(),
             S3Action::PutObject,
             Some(&req.object.bucket),
             Some(&req.object.object),
@@ -383,7 +384,7 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>:
         .await?;
         let opt = to_write_opt(req.content_type);
         let obj = self
-            .engine()
+            .object_engine_provider()
             .put_object(&req.object.bucket, &req.object.object, req.body, opt)
             .await?;
         Ok(PutObjectResponse {
@@ -394,14 +395,14 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>:
 
     async fn delete_object(&self, req: DeleteObjectRequest) -> Result<DeleteObjectResponse, E> {
         check_access(
-            <Self as ObjectS3Handler<E>>::policy(self),
+            self.object_policy_provider(),
             S3Action::DeleteObject,
             Some(&req.object.bucket),
             Some(&req.object.object),
         )
         .await?;
         let _ = self
-            .engine()
+            .object_engine_provider()
             .delete_object(
                 &req.object.bucket,
                 &req.object.object,

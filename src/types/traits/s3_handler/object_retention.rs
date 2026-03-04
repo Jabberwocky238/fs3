@@ -15,15 +15,15 @@ pub trait ObjectRetentionS3Handler<E: From<S3HandlerBridgeError> + From<S3Engine
     fn object_retention_policy_provider(&self) -> &Self::Policy;
 
     async fn get_object_retention(&self, req: GetObjectRetentionRequest) -> Result<GetObjectRetentionResponse, E> {
-        check_access(self.object_retention_policy_provider(), S3Action::GetObjectRetention, Some(&req.bucket.bucket), Some(&req.object.key)).await?;
-        let _r = self.object_retention_engine_provider().get_object_retention(&req.bucket.bucket, &req.object.key).await?;
+        check_access(self.object_retention_policy_provider(), S3Action::GetObjectRetention, Some(&req.bucket.bucket), Some(&req.object.object)).await?;
+        let _r = self.object_retention_engine_provider().get_object_retention(&req.bucket.bucket, &req.object.object).await?;
         Ok(GetObjectRetentionResponse { ..Default::default() })
     }
 
     async fn put_object_retention(&self, req: PutObjectRetentionRequest) -> Result<PutObjectRetentionResponse, E> {
-        check_access(self.object_retention_policy_provider(), S3Action::PutObjectRetention, Some(&req.bucket.bucket), Some(&req.object.key)).await?;
+        check_access(self.object_retention_policy_provider(), S3Action::PutObjectRetention, Some(&req.bucket.bucket), Some(&req.object.object)).await?;
         let retention = parse_retention(&req.xml);
-        self.object_retention_engine_provider().put_object_retention(&req.bucket.bucket, &req.object.key, retention).await?;
+        self.object_retention_engine_provider().put_object_retention(&req.bucket.bucket, &req.object.object, retention).await?;
         Ok(Default::default())
     }
 }

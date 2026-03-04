@@ -9,19 +9,21 @@ use super::utils::*;
 
 #[async_trait]
 pub trait BucketVersioningS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: Send + Sync {
-    fn engine(&self) -> &(impl S3BucketVersionEngine + Send + Sync);
-    fn policy(&self) -> &impl S3PolicyEngine;
+    type Engine: S3BucketVersionEngine + Send + Sync;
+    type Policy: S3PolicyEngine + Send + Sync;
+    fn bucket_versioning_engine_provider(&self) -> &Self::Engine;
+    fn bucket_versioning_policy_provider(&self) -> &Self::Policy;
 
     async fn get_bucket_versioning(&self, req: GetBucketVersioningRequest) -> Result<GetBucketVersioningResponse, E> {
-        check_access(self.policy(), S3Action::GetBucketVersioning, Some(&req.bucket.bucket), None).await?;
-        let _p = self.engine().get_bucket_versioning(&req.bucket.bucket).await?;
+        check_access(self.bucket_versioning_policy_provider(), S3Action::GetBucketVersioning, Some(&req.bucket.bucket), None).await?;
+        let _p = self.bucket_versioning_engine_provider().get_bucket_versioning(&req.bucket.bucket).await?;
         Ok(GetBucketVersioningResponse { ..Default::default() })
     }
 
     async fn put_bucket_versioning(&self, req: PutBucketVersioningRequest) -> Result<PutBucketVersioningResponse, E> {
-        check_access(self.policy(), S3Action::PutBucketVersioning, Some(&req.bucket.bucket), None).await?;
+        check_access(self.bucket_versioning_policy_provider(), S3Action::PutBucketVersioning, Some(&req.bucket.bucket), None).await?;
         let (status, mfa_delete) = parse_versioning_config(&req.xml);
-        self.engine().put_bucket_versioning(&req.bucket.bucket, status, mfa_delete).await?;
+        self.bucket_versioning_engine_provider().put_bucket_versioning(&req.bucket.bucket, status, mfa_delete).await?;
         Ok(Default::default())
     }
 }

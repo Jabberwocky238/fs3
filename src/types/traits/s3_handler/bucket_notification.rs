@@ -9,19 +9,21 @@ use super::utils::*;
 
 #[async_trait]
 pub trait BucketNotificationS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: Send + Sync {
-    fn engine(&self) -> &(impl S3BucketNotificationEngine + Send + Sync);
-    fn policy(&self) -> &impl S3PolicyEngine;
+    type Engine: S3BucketNotificationEngine + Send + Sync;
+    type Policy: S3PolicyEngine + Send + Sync;
+    fn bucket_notification_engine_provider(&self) -> &Self::Engine;
+    fn bucket_notification_policy_provider(&self) -> &Self::Policy;
 
     async fn get_bucket_notification(&self, req: GetBucketNotificationRequest) -> Result<GetBucketNotificationResponse, E> {
-        check_access(self.policy(), S3Action::GetBucketNotification, Some(&req.bucket.bucket), None).await?;
-        let _p = self.engine().get_bucket_notification(&req.bucket.bucket).await?;
+        check_access(self.bucket_notification_policy_provider(), S3Action::GetBucketNotification, Some(&req.bucket.bucket), None).await?;
+        let _p = self.bucket_notification_engine_provider().get_bucket_notification(&req.bucket.bucket).await?;
         Ok(GetBucketNotificationResponse { ..Default::default() })
     }
 
     async fn put_bucket_notification(&self, req: PutBucketNotificationRequest) -> Result<PutBucketNotificationResponse, E> {
-        check_access(self.policy(), S3Action::PutBucketNotification, Some(&req.bucket.bucket), None).await?;
+        check_access(self.bucket_notification_policy_provider(), S3Action::PutBucketNotification, Some(&req.bucket.bucket), None).await?;
         let configs = parse_notification_config(&req.xml);
-        self.engine().put_bucket_notification(&req.bucket.bucket, configs).await?;
+        self.bucket_notification_engine_provider().put_bucket_notification(&req.bucket.bucket, configs).await?;
         Ok(Default::default())
     }
 }

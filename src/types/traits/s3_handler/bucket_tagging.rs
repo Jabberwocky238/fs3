@@ -9,25 +9,27 @@ use super::utils::*;
 
 #[async_trait]
 pub trait BucketTaggingS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: Send + Sync {
-    fn engine(&self) -> &(impl S3BucketTaggingEngine + Send + Sync);
-    fn policy(&self) -> &impl S3PolicyEngine;
+    type Engine: S3BucketTaggingEngine + Send + Sync;
+    type Policy: S3PolicyEngine + Send + Sync;
+    fn bucket_tagging_engine_provider(&self) -> &Self::Engine;
+    fn bucket_tagging_policy_provider(&self) -> &Self::Policy;
 
     async fn get_bucket_tagging(&self, req: GetBucketTaggingRequest) -> Result<GetBucketTaggingResponse, E> {
-        check_access(self.policy(), S3Action::GetBucketTagging, Some(&req.bucket.bucket), None).await?;
-        let tags = self.engine().get_bucket_tagging(&req.bucket.bucket).await?.unwrap_or_default();
+        check_access(self.bucket_tagging_policy_provider(), S3Action::GetBucketTagging, Some(&req.bucket.bucket), None).await?;
+        let tags = self.bucket_tagging_engine_provider().get_bucket_tagging(&req.bucket.bucket).await?.unwrap_or_default();
         Ok(GetBucketTaggingResponse { tags, ..Default::default() })
     }
 
     async fn put_bucket_tagging(&self, req: PutBucketTaggingRequest) -> Result<PutBucketTaggingResponse, E> {
-        check_access(self.policy(), S3Action::PutBucketTagging, Some(&req.bucket.bucket), None).await?;
+        check_access(self.bucket_tagging_policy_provider(), S3Action::PutBucketTagging, Some(&req.bucket.bucket), None).await?;
         let tags = parse_tags_xml(&req.xml);
-        self.engine().put_bucket_tagging(&req.bucket.bucket, tags).await?;
+        self.bucket_tagging_engine_provider().put_bucket_tagging(&req.bucket.bucket, tags).await?;
         Ok(Default::default())
     }
 
     async fn delete_bucket_tagging(&self, req: DeleteBucketTaggingRequest) -> Result<DeleteBucketTaggingResponse, E> {
-        check_access(self.policy(), S3Action::PutBucketTagging, Some(&req.bucket.bucket), None).await?;
-        self.engine().delete_bucket_tagging(&req.bucket.bucket).await?;
+        check_access(self.bucket_tagging_policy_provider(), S3Action::PutBucketTagging, Some(&req.bucket.bucket), None).await?;
+        self.bucket_tagging_engine_provider().delete_bucket_tagging(&req.bucket.bucket).await?;
         Ok(Default::default())
     }
 }

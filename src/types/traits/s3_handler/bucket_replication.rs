@@ -9,40 +9,42 @@ use super::utils::*;
 
 #[async_trait]
 pub trait BucketReplicationS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: Send + Sync {
-    fn engine(&self) -> &(impl S3BucketReplicationEngine + Send + Sync);
-    fn policy(&self) -> &impl S3PolicyEngine;
+    type Engine: S3BucketReplicationEngine + Send + Sync;
+    type Policy: S3PolicyEngine + Send + Sync;
+    fn bucket_replication_engine_provider(&self) -> &Self::Engine;
+    fn bucket_replication_policy_provider(&self) -> &Self::Policy;
 
     async fn get_bucket_replication_config(&self, req: GetBucketReplicationConfigRequest) -> Result<GetBucketReplicationConfigResponse, E> {
-        check_access(self.policy(), S3Action::GetReplicationConfiguration, Some(&req.bucket.bucket), None).await?;
-        let _p = self.engine().get_bucket_replication(&req.bucket.bucket).await?;
+        check_access(self.bucket_replication_policy_provider(), S3Action::GetReplicationConfiguration, Some(&req.bucket.bucket), None).await?;
+        let _p = self.bucket_replication_engine_provider().get_bucket_replication(&req.bucket.bucket).await?;
         Ok(GetBucketReplicationConfigResponse { ..Default::default() })
     }
 
     async fn put_bucket_replication_config(&self, req: PutBucketReplicationConfigRequest) -> Result<PutBucketReplicationConfigResponse, E> {
-        check_access(self.policy(), S3Action::PutReplicationConfiguration, Some(&req.bucket.bucket), None).await?;
+        check_access(self.bucket_replication_policy_provider(), S3Action::PutReplicationConfiguration, Some(&req.bucket.bucket), None).await?;
         let (role, rules) = parse_replication_config(&req.xml);
-        self.engine().put_bucket_replication(&req.bucket.bucket, role, rules).await?;
+        self.bucket_replication_engine_provider().put_bucket_replication(&req.bucket.bucket, role, rules).await?;
         Ok(Default::default())
     }
 
     async fn delete_bucket_replication(&self, req: DeleteBucketReplicationRequest) -> Result<DeleteBucketReplicationResponse, E> {
-        check_access(self.policy(), S3Action::PutReplicationConfiguration, Some(&req.bucket.bucket), None).await?;
-        self.engine().delete_bucket_replication(&req.bucket.bucket).await?;
+        check_access(self.bucket_replication_policy_provider(), S3Action::PutReplicationConfiguration, Some(&req.bucket.bucket), None).await?;
+        self.bucket_replication_engine_provider().delete_bucket_replication(&req.bucket.bucket).await?;
         Ok(Default::default())
     }
 
     async fn get_bucket_replication_metrics_v2(&self, req: GetBucketReplicationMetricsV2Request) -> Result<GetBucketReplicationMetricsV2Response, E> {
-        let _r = self.engine().get_bucket_replication_metrics(&req.bucket.bucket).await?;
+        let _r = self.bucket_replication_engine_provider().get_bucket_replication_metrics(&req.bucket.bucket).await?;
         Ok(GetBucketReplicationMetricsV2Response { ..Default::default() })
     }
 
     async fn get_bucket_replication_metrics(&self, req: GetBucketReplicationMetricsRequest) -> Result<GetBucketReplicationMetricsResponse, E> {
-        let _r = self.engine().get_bucket_replication_metrics(&req.bucket.bucket).await?;
+        let _r = self.bucket_replication_engine_provider().get_bucket_replication_metrics(&req.bucket.bucket).await?;
         Ok(GetBucketReplicationMetricsResponse { ..Default::default() })
     }
 
     async fn validate_bucket_replication_creds(&self, req: ValidateBucketReplicationCredsRequest) -> Result<ValidateBucketReplicationCredsResponse, E> {
-        let v = self.engine().validate_bucket_replication_creds(&req.bucket.bucket).await?;
+        let v = self.bucket_replication_engine_provider().validate_bucket_replication_creds(&req.bucket.bucket).await?;
         Ok(ValidateBucketReplicationCredsResponse { valid: v.valid, ..Default::default() })
     }
 }

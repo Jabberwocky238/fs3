@@ -179,11 +179,13 @@ pub struct SelectObjectContentRequest {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetObjectRetentionRequest {
+    pub bucket: BucketRef,
     pub object: ObjectRef,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetObjectLegalHoldRequest {
+    pub bucket: BucketRef,
     pub object: ObjectRef,
 }
 
@@ -219,12 +221,14 @@ pub struct CopyObjectRequest {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct PutObjectRetentionRequest {
+    pub bucket: BucketRef,
     pub object: ObjectRef,
     pub xml: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct PutObjectLegalHoldRequest {
+    pub bucket: BucketRef,
     pub object: ObjectRef,
     pub xml: String,
 }

@@ -15,15 +15,15 @@ pub trait ObjectLegalHoldS3Handler<E: From<S3HandlerBridgeError> + From<S3Engine
     fn object_legal_hold_policy_provider(&self) -> &Self::Policy;
 
     async fn get_object_legal_hold(&self, req: GetObjectLegalHoldRequest) -> Result<GetObjectLegalHoldResponse, E> {
-        check_access(self.object_legal_hold_policy_provider(), S3Action::GetObjectLegalHold, Some(&req.bucket.bucket), Some(&req.object.key)).await?;
-        let _h = self.object_legal_hold_engine_provider().get_object_legal_hold(&req.bucket.bucket, &req.object.key).await?;
+        check_access(self.object_legal_hold_policy_provider(), S3Action::GetObjectLegalHold, Some(&req.bucket.bucket), Some(&req.object.object)).await?;
+        let _h = self.object_legal_hold_engine_provider().get_object_legal_hold(&req.bucket.bucket, &req.object.object).await?;
         Ok(GetObjectLegalHoldResponse { ..Default::default() })
     }
 
     async fn put_object_legal_hold(&self, req: PutObjectLegalHoldRequest) -> Result<PutObjectLegalHoldResponse, E> {
-        check_access(self.object_legal_hold_policy_provider(), S3Action::PutObjectLegalHold, Some(&req.bucket.bucket), Some(&req.object.key)).await?;
+        check_access(self.object_legal_hold_policy_provider(), S3Action::PutObjectLegalHold, Some(&req.bucket.bucket), Some(&req.object.object)).await?;
         let legal_hold = parse_legal_hold(&req.xml);
-        self.object_legal_hold_engine_provider().put_object_legal_hold(&req.bucket.bucket, &req.object.key, legal_hold).await?;
+        self.object_legal_hold_engine_provider().put_object_legal_hold(&req.bucket.bucket, &req.object.object, legal_hold).await?;
         Ok(Default::default())
     }
 }
