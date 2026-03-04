@@ -1,7 +1,7 @@
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use super::response::S3Response;
-use super::response_to_xml::s3_response_to_xml;
+use super::response_to_xml::XMLResponse;
 
 impl IntoResponse for S3Response {
     fn into_response(self) -> Response {
@@ -73,8 +73,8 @@ impl IntoResponse for S3Response {
 
             // XML responses
             _ => {
-                if let Some(xml) = s3_response_to_xml(&self) {
-                    (StatusCode::OK, [("content-type", "application/xml")], xml).into_response()
+                if let Some(xml_resp) = Option::<XMLResponse>::from(&self) {
+                    (StatusCode::OK, [("content-type", "application/xml")], xml_resp.body).into_response()
                 } else {
                     StatusCode::OK.into_response()
                 }

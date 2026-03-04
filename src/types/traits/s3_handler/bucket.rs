@@ -27,37 +27,37 @@ pub trait BucketS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
         check_access(self.policy(), S3Action::GetBucketPolicy, Some(&req.bucket.bucket), None).await?;
         let p = self.policy().get_bucket_policy(&req.bucket.bucket).await
             .map_err(|e| S3EngineError::InvalidPolicy(e.to_string()))?;
-        Ok(GetBucketPolicyResponse { config: p.unwrap_or_default(), json: None, ..Default::default() })
+        Ok(GetBucketPolicyResponse { config: p.unwrap_or_default(), ..Default::default() })
     }
     async fn get_bucket_lifecycle(&self, req: GetBucketLifecycleRequest) -> Result<GetBucketLifecycleResponse, E> {
         check_access(self.policy(), S3Action::GetBucketLifecycle, Some(&req.bucket.bucket), None).await?;
-        let p = self.engine().get_bucket_lifecycle(&req.bucket.bucket).await?;
-        Ok(GetBucketLifecycleResponse { xml: p.map(|d| d.body), ..Default::default() })
+        let _p = self.engine().get_bucket_lifecycle(&req.bucket.bucket).await?;
+        Ok(GetBucketLifecycleResponse { ..Default::default() })
     }
     async fn get_bucket_encryption(&self, req: GetBucketEncryptionRequest) -> Result<GetBucketEncryptionResponse, E> {
         check_access(self.policy(), S3Action::GetBucketEncryption, Some(&req.bucket.bucket), None).await?;
-        let p = self.engine().get_bucket_encryption(&req.bucket.bucket).await?;
-        Ok(GetBucketEncryptionResponse { xml: p.map(|d| d.body), ..Default::default() })
+        let _p = self.engine().get_bucket_encryption(&req.bucket.bucket).await?;
+        Ok(GetBucketEncryptionResponse { ..Default::default() })
     }
     async fn get_bucket_object_lock_config(&self, req: GetBucketObjectLockConfigRequest) -> Result<GetBucketObjectLockConfigResponse, E> {
         check_access(self.policy(), S3Action::GetBucketObjectLockConfiguration, Some(&req.bucket.bucket), None).await?;
-        let p = self.engine().get_bucket_object_lock_config(&req.bucket.bucket).await?;
-        Ok(GetBucketObjectLockConfigResponse { xml: p.map(|d| d.body), ..Default::default() })
+        let _p = self.engine().get_bucket_object_lock_config(&req.bucket.bucket).await?;
+        Ok(GetBucketObjectLockConfigResponse { ..Default::default() })
     }
     async fn get_bucket_replication_config(&self, req: GetBucketReplicationConfigRequest) -> Result<GetBucketReplicationConfigResponse, E> {
         check_access(self.policy(), S3Action::GetReplicationConfiguration, Some(&req.bucket.bucket), None).await?;
-        let p = self.engine().get_bucket_replication(&req.bucket.bucket).await?;
-        Ok(GetBucketReplicationConfigResponse { xml: p.map(|d| d.body), ..Default::default() })
+        let _p = self.engine().get_bucket_replication(&req.bucket.bucket).await?;
+        Ok(GetBucketReplicationConfigResponse { ..Default::default() })
     }
     async fn get_bucket_versioning(&self, req: GetBucketVersioningRequest) -> Result<GetBucketVersioningResponse, E> {
         check_access(self.policy(), S3Action::GetBucketVersioning, Some(&req.bucket.bucket), None).await?;
-        let p = self.engine().get_bucket_versioning(&req.bucket.bucket).await?;
-        Ok(GetBucketVersioningResponse { xml: p.map(|d| d.body), ..Default::default() })
+        let _p = self.engine().get_bucket_versioning(&req.bucket.bucket).await?;
+        Ok(GetBucketVersioningResponse { ..Default::default() })
     }
     async fn get_bucket_notification(&self, req: GetBucketNotificationRequest) -> Result<GetBucketNotificationResponse, E> {
         check_access(self.policy(), S3Action::GetBucketNotification, Some(&req.bucket.bucket), None).await?;
-        let p = self.engine().get_bucket_notification(&req.bucket.bucket).await?;
-        Ok(GetBucketNotificationResponse { xml: p.map(|d| d.body), ..Default::default() })
+        let _p = self.engine().get_bucket_notification(&req.bucket.bucket).await?;
+        Ok(GetBucketNotificationResponse { ..Default::default() })
     }
     async fn listen_bucket_notification(&self, _req: ListenBucketNotificationRequest) -> Result<ListenBucketNotificationResponse, E> { unsupported("ListenBucketNotification") }
     async fn reset_bucket_replication_status(&self, _req: ResetBucketReplicationStatusRequest) -> Result<ResetBucketReplicationStatusResponse, E> { unsupported("ResetBucketReplicationStatus") }
@@ -72,8 +72,8 @@ pub trait BucketS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
     async fn get_bucket_logging(&self, _req: GetBucketLoggingRequest) -> Result<GetBucketLoggingResponse, E> { Ok(Default::default()) }
     async fn get_bucket_tagging(&self, req: GetBucketTaggingRequest) -> Result<GetBucketTaggingResponse, E> {
         check_access(self.policy(), S3Action::GetBucketTagging, Some(&req.bucket.bucket), None).await?;
-        let p = self.engine().get_bucket_tagging(&req.bucket.bucket).await?;
-        Ok(GetBucketTaggingResponse { tags: Default::default(), xml: p.map(|d| d.body), ..Default::default() })
+        let _p = self.engine().get_bucket_tagging(&req.bucket.bucket).await?;
+        Ok(GetBucketTaggingResponse { tags: Default::default(), ..Default::default() })
     }
     async fn delete_bucket_website(&self, _req: DeleteBucketWebsiteRequest) -> Result<DeleteBucketWebsiteResponse, E> { Ok(Default::default()) }
     async fn delete_bucket_tagging(&self, req: DeleteBucketTaggingRequest) -> Result<DeleteBucketTaggingResponse, E> {

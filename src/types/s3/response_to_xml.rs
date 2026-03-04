@@ -1,7 +1,19 @@
 use super::response::*;
 use std::collections::HashMap;
 
-pub fn s3_response_to_xml(resp: &S3Response) -> Option<String> {
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct XMLResponse {
+    pub body: String,
+}
+
+impl XMLResponse {
+    fn new(body: String) -> Self {
+        Self { body }
+    }
+}
+
+impl From<&S3Response> for Option<XMLResponse> {
+    fn from(resp: &S3Response) -> Self {
     match resp {
         // Empty responses (no XML body)
         S3Response::PutBucket(_)
@@ -34,42 +46,41 @@ pub fn s3_response_to_xml(resp: &S3Response) -> Option<String> {
         | S3Response::DeleteObject(_)
         | S3Response::DeleteObjectTagging(_) => None,
 
-        S3Response::GetBucketLocation(r) => Some(get_bucket_location_xml(r)),
-        S3Response::ListBuckets(r) => Some(list_buckets_xml(&r.buckets)),
-        S3Response::ListBucketsDoubleSlash(r) => Some(list_buckets_xml(&r.buckets)),
-        S3Response::ListObjectsV1(r) => Some(list_objects_xml("ListBucketResult", &r.objects)),
-        S3Response::ListObjectsV2(r) => Some(list_objects_xml("ListBucketResult", &r.objects)),
-        S3Response::ListObjectsV2M(r) => Some(list_objects_xml("ListBucketResult", &r.objects)),
-        S3Response::ListObjectVersions(r) => Some(list_objects_xml("ListVersionsResult", &r.objects)),
-        S3Response::ListObjectVersionsM(r) => Some(list_objects_xml("ListVersionsResult", &r.objects)),
-        S3Response::ListMultipartUploads(r) => Some(list_multipart_uploads_xml(&r.uploads)),
-        S3Response::ListObjectParts(r) => Some(list_object_parts_xml(r)),
-        S3Response::NewMultipartUpload(r) => Some(new_multipart_upload_xml(r)),
-        S3Response::AbortMultipartUpload(_) => Some(abort_multipart_upload_xml()),
-        S3Response::CompleteMultipartUpload(r) => Some(complete_multipart_upload_xml(r)),
+        S3Response::GetBucketLocation(r) => Some(XMLResponse::new(get_bucket_location_xml(r))),
+        S3Response::ListBuckets(r) => Some(XMLResponse::new(list_buckets_xml(&r.buckets))),
+        S3Response::ListBucketsDoubleSlash(r) => Some(XMLResponse::new(list_buckets_xml(&r.buckets))),
+        S3Response::ListObjectsV1(r) => Some(XMLResponse::new(list_objects_xml("ListBucketResult", &r.objects))),
+        S3Response::ListObjectsV2(r) => Some(XMLResponse::new(list_objects_xml("ListBucketResult", &r.objects))),
+        S3Response::ListObjectsV2M(r) => Some(XMLResponse::new(list_objects_xml("ListBucketResult", &r.objects))),
+        S3Response::ListObjectVersions(r) => Some(XMLResponse::new(list_objects_xml("ListVersionsResult", &r.objects))),
+        S3Response::ListObjectVersionsM(r) => Some(XMLResponse::new(list_objects_xml("ListVersionsResult", &r.objects))),
+        S3Response::ListMultipartUploads(r) => Some(XMLResponse::new(list_multipart_uploads_xml(&r.uploads))),
+        S3Response::ListObjectParts(r) => Some(XMLResponse::new(list_object_parts_xml(r))),
+        S3Response::NewMultipartUpload(r) => Some(XMLResponse::new(new_multipart_upload_xml(r))),
+        S3Response::AbortMultipartUpload(_) => Some(XMLResponse::new(abort_multipart_upload_xml())),
+        S3Response::CompleteMultipartUpload(r) => Some(XMLResponse::new(complete_multipart_upload_xml(r))),
 
-        // Passthrough XML
-        S3Response::GetBucketLifecycle(r) => r.xml.clone(),
-        S3Response::GetBucketEncryption(r) => r.xml.clone(),
-        S3Response::GetBucketObjectLockConfig(r) => r.xml.clone(),
-        S3Response::GetBucketReplicationConfig(r) => r.xml.clone(),
-        S3Response::GetBucketVersioning(r) => r.xml.clone(),
-        S3Response::GetBucketNotification(r) => r.xml.clone(),
-        S3Response::GetBucketAcl(r) => r.xml.clone(),
-        S3Response::GetBucketCors(r) => r.xml.clone(),
-        S3Response::GetBucketWebsite(r) => r.xml.clone(),
-        S3Response::GetBucketAccelerate(r) => r.xml.clone(),
-        S3Response::GetBucketRequestPayment(r) => r.xml.clone(),
-        S3Response::GetBucketLogging(r) => r.xml.clone(),
-        S3Response::GetBucketTagging(r) => r.xml.clone(),
-        S3Response::GetObjectAcl(r) => r.xml.clone(),
-        S3Response::GetObjectTagging(r) => Some(tags_to_tagging_xml(&r.tags)),
-        S3Response::GetObjectRetention(r) => r.xml.clone(),
-        S3Response::GetObjectLegalHold(r) => r.xml.clone(),
+        // Passthrough XML - TODO: implement proper structure
+        S3Response::GetBucketLifecycle(_) => None,
+        S3Response::GetBucketEncryption(_) => None,
+        S3Response::GetBucketObjectLockConfig(_) => None,
+        S3Response::GetBucketReplicationConfig(_) => None,
+        S3Response::GetBucketVersioning(_) => None,
+        S3Response::GetBucketNotification(_) => Some(XMLResponse::new(empty_notification_xml())),
+        S3Response::GetBucketAcl(_) => None,
+        S3Response::GetBucketCors(_) => None,
+        S3Response::GetBucketWebsite(_) => None,
+        S3Response::GetBucketAccelerate(_) => None,
+        S3Response::GetBucketRequestPayment(_) => None,
+        S3Response::GetBucketLogging(_) => None,
+        S3Response::GetBucketTagging(r) => Some(XMLResponse::new(tags_to_tagging_xml(&r.tags))),
+        S3Response::GetObjectAcl(_) => None,
+        S3Response::GetObjectTagging(r) => Some(XMLResponse::new(tags_to_tagging_xml(&r.tags))),
+        S3Response::GetObjectRetention(_) => None,
+        S3Response::GetObjectLegalHold(_) => None,
 
-        S3Response::CopyObject(r) => Some(copy_object_xml(r)),
-        S3Response::PutObject(r) => Some(put_object_xml(r)),
-        S3Response::GetBucketTagging(r) => Some(tags_to_tagging_xml(&r.tags)),
+        S3Response::CopyObject(r) => Some(XMLResponse::new(copy_object_xml(r))),
+        S3Response::PutObject(r) => Some(XMLResponse::new(put_object_xml(r))),
         S3Response::HeadObject(_) => None,
         S3Response::GetObject(_) => None,
         S3Response::GetObjectLambda(_) => None,
@@ -78,6 +89,7 @@ pub fn s3_response_to_xml(resp: &S3Response) -> Option<String> {
 
         _ => None,
     }
+}
 }
 
 fn xml_escape(s: &str) -> String {
@@ -208,6 +220,10 @@ fn tags_to_tagging_xml(tags: &HashMap<String, String>) -> String {
     }
     xml.push_str("</TagSet></Tagging>");
     xml
+}
+
+fn empty_notification_xml() -> String {
+    r#"<?xml version="1.0" encoding="UTF-8"?><NotificationConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/"></NotificationConfiguration>"#.to_string()
 }
 
 #[cfg(test)]

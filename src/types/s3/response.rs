@@ -121,7 +121,6 @@ pub struct AbortMultipartUploadResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetObjectAclResponse {
     pub meta: ResponseMeta,
-    pub xml: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -133,8 +132,6 @@ pub struct PutObjectAclResponse {
 pub struct GetObjectTaggingResponse {
     pub meta: ResponseMeta,
     pub tags: HashMap<String, String>,
-    #[deprecated]
-    pub xml: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -156,13 +153,11 @@ pub struct SelectObjectContentResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetObjectRetentionResponse {
     pub meta: ResponseMeta,
-    pub xml: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetObjectLegalHoldResponse {
     pub meta: ResponseMeta,
-    pub xml: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -237,44 +232,36 @@ pub struct GetBucketLocationResponse {
 pub struct GetBucketPolicyResponse {
     pub meta: ResponseMeta,
     pub config: String,
-    #[deprecated]
-    pub json: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetBucketLifecycleResponse {
     pub meta: ResponseMeta,
-    pub xml: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetBucketEncryptionResponse {
     pub meta: ResponseMeta,
-    pub xml: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetBucketObjectLockConfigResponse {
     pub meta: ResponseMeta,
-    pub xml: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetBucketReplicationConfigResponse {
     pub meta: ResponseMeta,
-    pub xml: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetBucketVersioningResponse {
     pub meta: ResponseMeta,
-    pub xml: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetBucketNotificationResponse {
     pub meta: ResponseMeta,
-    pub xml: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -291,7 +278,6 @@ pub struct ResetBucketReplicationStatusResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetBucketAclResponse {
     pub meta: ResponseMeta,
-    pub xml: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -302,7 +288,6 @@ pub struct PutBucketAclResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetBucketCorsResponse {
     pub meta: ResponseMeta,
-    pub xml: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -318,33 +303,27 @@ pub struct DeleteBucketCorsResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetBucketWebsiteResponse {
     pub meta: ResponseMeta,
-    pub xml: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetBucketAccelerateResponse {
     pub meta: ResponseMeta,
-    pub xml: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetBucketRequestPaymentResponse {
     pub meta: ResponseMeta,
-    pub xml: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetBucketLoggingResponse {
     pub meta: ResponseMeta,
-    pub xml: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetBucketTaggingResponse {
     pub meta: ResponseMeta,
     pub tags: HashMap<String, String>,
-    #[deprecated]
-    pub xml: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -492,13 +471,11 @@ pub struct DeleteBucketResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetBucketReplicationMetricsV2Response {
     pub meta: ResponseMeta,
-    pub json: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetBucketReplicationMetricsResponse {
     pub meta: ResponseMeta,
-    pub json: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]

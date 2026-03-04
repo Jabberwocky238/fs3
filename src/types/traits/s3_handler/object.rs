@@ -217,7 +217,7 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
             .get_object_tagging(&req.object.bucket, &req.object.object)
             .await
             ?;
-        Ok(GetObjectTaggingResponse { tags, xml: None, ..Default::default() })
+        Ok(GetObjectTaggingResponse { tags, ..Default::default() })
     }
 
     async fn put_object_tagging(
