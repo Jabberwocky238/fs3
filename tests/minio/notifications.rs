@@ -1,7 +1,7 @@
 use super::helpers::*;
 use minio::s3::types::S3Api;
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn test_event_notification_webhook() {
     let (_addr, endpoint, _task) = create_minio_server().await.unwrap();
     let client = create_minio_client(&endpoint).unwrap();
