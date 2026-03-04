@@ -14,14 +14,14 @@ def test(s3):
     s3.put_object(Bucket=bucket, Key="test.txt", Body=b"hello world")
     print("[OK] PUT object")
 
-    # PUT 1GB object
-    s3.put_object(Bucket=bucket, Key="test.txt", Body=make1GB())
-    print("[OK] PUT 1GB object")
-
     # GET object
     obj = s3.get_object(Bucket=bucket, Key="test.txt")
     assert obj["Body"].read() == b"hello world"
-    print("[OK] GET object")
+    print("[OK] GET object")    
+    
+    # PUT 1GB object
+    s3.put_object(Bucket=bucket, Key="test.txt", Body=make1GB())
+    print("[OK] PUT 1GB object")
 
     # DELETE object
     s3.delete_object(Bucket=bucket, Key="test.txt")
