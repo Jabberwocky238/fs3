@@ -119,7 +119,7 @@ where
         Method::DELETE if has(&q, "encryption") => S3Response::DeleteBucketEncryption(handler.delete_bucket_encryption(DeleteBucketEncryptionRequest { bucket: mk() }).await.map_err(bucket_err)?),
         // Method::DELETE if has(&q, "website") => S3Response::DeleteBucketWebsite(handler.delete_bucket_website(DeleteBucketWebsiteRequest { bucket: mk() }).await.map_err(bucket_err)?),
         Method::DELETE if has(&q, "tagging") => S3Response::DeleteBucketTagging(handler.delete_bucket_tagging(DeleteBucketTaggingRequest { bucket: mk() }).await.map_err(bucket_err)?),
-        // Method::DELETE if has(&q, "cors") => S3Response::DeleteBucketCors(handler.delete_bucket_cors(DeleteBucketCorsRequest { bucket: mk() }).await.map_err(bucket_err)?),
+        Method::DELETE if has(&q, "cors") => S3Response::DeleteBucketCors(handler.delete_bucket_cors(DeleteBucketCorsRequest { bucket: mk() }).await.map_err(bucket_err)?),
         Method::DELETE => S3Response::DeleteBucket(handler.delete_bucket(DeleteBucketRequest { bucket: mk() }).await.map_err(bucket_err)?),
 
         Method::HEAD => S3Response::HeadBucket(handler.head_bucket(HeadBucketRequest { bucket: mk() }).await.map_err(bucket_err)?),
