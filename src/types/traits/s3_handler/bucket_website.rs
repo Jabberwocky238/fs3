@@ -1,0 +1,22 @@
+use async_trait::async_trait;
+use crate::types::s3::request::*;
+use crate::types::s3::response::*;
+use crate::types::traits::s3_engine::S3BucketWebsiteEngine;
+use crate::types::traits::s3_policyengine::S3PolicyEngine;
+use crate::types::s3::policy::S3Action;
+use crate::types::errors::S3EngineError;
+use super::utils::*;
+
+#[async_trait]
+pub trait BucketWebsiteS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: Send + Sync {
+    type Engine: S3BucketWebsiteEngine + Send + Sync;
+    type Policy: S3PolicyEngine + Send + Sync;
+    fn bucket_website_engine_provider(&self) -> &Self::Engine;
+    fn bucket_website_policy_provider(&self) -> &Self::Policy;
+
+    async fn get_bucket_website(&self, req: GetBucketWebsiteRequest) -> Result<GetBucketWebsiteResponse, E> {
+        check_access(self.bucket_website_policy_provider(), S3Action::GetBucketWebsite, Some(&req.bucket.bucket), None).await?;
+        let _config = self.bucket_website_engine_provider().get_bucket_website(&req.bucket.bucket).await?;
+        Ok(GetBucketWebsiteResponse { ..Default::default() })
+    }
+}

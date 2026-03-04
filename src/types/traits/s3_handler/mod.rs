@@ -11,6 +11,7 @@ mod bucket_versioning;
 mod bucket_notification;
 mod bucket_replication;
 mod bucket_tagging;
+mod bucket_website;
 mod object_tagging;
 mod object_retention;
 mod object_legal_hold;
@@ -35,6 +36,7 @@ pub use bucket_tagging::BucketTaggingS3Handler;
 pub use object_tagging::ObjectTaggingS3Handler;
 pub use object_retention::ObjectRetentionS3Handler;
 pub use object_legal_hold::ObjectLegalHoldS3Handler;
+pub use bucket_website::BucketWebsiteS3Handler;
 
 pub trait S3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>:
     ObjectS3Handler<E>
@@ -46,6 +48,7 @@ pub trait S3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>:
     + BucketNotificationS3Handler<E>
     + BucketReplicationS3Handler<E>
     + BucketTaggingS3Handler<E>
+    + BucketWebsiteS3Handler<E>
     + ObjectTaggingS3Handler<E>
     + ObjectRetentionS3Handler<E>
     + ObjectLegalHoldS3Handler<E>

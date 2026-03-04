@@ -17,6 +17,12 @@ impl XlStorage {
         Self { path }
     }
 
+    pub fn from_env() -> Self {
+        let path = std::env::var("FS3_MOUNT_POINT")
+            .unwrap_or_else(|_| ".debug".to_string());
+        Self { path: PathBuf::from(path) }
+    }
+
     fn xl_meta_path(&self, volume: &str, path: &str) -> PathBuf {
         self.path.join(volume).join(path).join("xl.meta")
     }

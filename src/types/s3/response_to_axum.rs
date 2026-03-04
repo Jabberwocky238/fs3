@@ -38,8 +38,22 @@ impl IntoResponse for S3Response {
                     if let Ok(v) = obj.size.to_string().parse() {
                         headers.insert("content-length", v);
                     }
-                    if let Ok(v) = format!("\"{}\"", obj.etag).parse() {
-                        headers.insert("etag", v);
+                    if let Some(etag) = &obj.etag {
+                        if let Ok(v) = format!("\"{}\"", etag).parse() {
+                            headers.insert("etag", v);
+                        }
+                    }
+                }
+                resp
+            }
+
+            S3Response::PutObjectPart(r) => {
+                let mut resp = StatusCode::OK.into_response();
+                if let Some(part) = &r.part {
+                    if let Some(etag) = &part.etag {
+                        if let Ok(v) = format!("\"{}\"", etag).parse() {
+                            resp.headers_mut().insert("etag", v);
+                        }
                     }
                 }
                 resp

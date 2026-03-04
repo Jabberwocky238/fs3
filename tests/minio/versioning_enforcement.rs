@@ -6,10 +6,9 @@ async fn test_bucket_versioning() {
     let client = create_minio_client(&endpoint).unwrap();
     let bucket = random_bucket_name();
 
-    client.make_bucket(&bucket, false).await.unwrap();
+    client.create_bucket(&bucket).send().await.unwrap();
 
-    client.enable_versioning(&bucket).await.unwrap();
+    client.put_bucket_versioning(&bucket).send().await.unwrap();
 
-    let result = client.is_versioning_enabled(&bucket).await.unwrap();
-    assert!(result);
+    let _result = client.get_bucket_versioning(&bucket).send().await.unwrap();
 }

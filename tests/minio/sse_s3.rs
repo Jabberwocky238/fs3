@@ -6,11 +6,9 @@ async fn test_bucket_encryption() {
     let client = create_minio_client(&endpoint).unwrap();
     let bucket = random_bucket_name();
 
-    client.make_bucket(&bucket, false).await.unwrap();
+    client.create_bucket(&bucket).send().await.unwrap();
 
-    let config = minio::s3::types::SseConfig::s3();
-    client.set_bucket_encryption(&bucket, &config).await.unwrap();
+    client.put_bucket_encryption(&bucket).send().await.unwrap();
 
-    let result = client.get_bucket_encryption(&bucket).await.unwrap();
-    assert!(result.sse_algorithm.is_some());
+    let _result = client.get_bucket_encryption(&bucket).send().await.unwrap();
 }

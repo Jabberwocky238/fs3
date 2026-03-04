@@ -6,11 +6,9 @@ async fn test_bucket_replication() {
     let client = create_minio_client(&endpoint).unwrap();
     let bucket = random_bucket_name();
 
-    client.make_bucket(&bucket, false).await.unwrap();
+    client.create_bucket(&bucket).send().await.unwrap();
 
-    let config = minio::s3::types::ReplicationConfig::default();
-    client.set_bucket_replication(&bucket, &config).await.unwrap();
+    client.put_bucket_replication(&bucket).send().await.unwrap();
 
-    let result = client.get_bucket_replication(&bucket).await.unwrap();
-    assert!(result.rules.is_empty() || !result.rules.is_empty());
+    let _result = client.get_bucket_replication(&bucket).send().await.unwrap();
 }

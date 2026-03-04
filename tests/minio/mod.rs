@@ -12,8 +12,6 @@ mod bucket_config;
 mod lifecycle_execution;
 // mod list_advanced;
 // mod list_objects;
-// mod metadata_k8s;
-// mod metadata_postgres;
 // mod metrics;
 mod multipart;
 mod notifications;
