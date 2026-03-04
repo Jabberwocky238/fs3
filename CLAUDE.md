@@ -41,6 +41,8 @@ fs3.exe server --address 127.0.0.1:9100 .debug/fs3
 minio.exe  server --address 127.0.0.1:9000 --console-address 127.0.0.1:9001 .debug/minio
 ```
 
+无需等待服务器启动，二者都是瞬间启动的。
+
 然后使用boto3文件夹里的测试py脚本，分别调用两个api，每一轮小测试，交叉调用两个api，然后
 
 ！！观察文件夹目录树变化，
