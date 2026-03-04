@@ -6,8 +6,19 @@ use super::FS3Engine;
 
 #[async_trait]
 impl S3MultipartEngine for FS3Engine {
-    async fn new_multipart_upload(&self, _bucket: &str, _key: &str, _options: ObjectWriteOptions) -> Result<MultipartUpload, S3EngineError> {
-        Err(S3EngineError::Storage("not implemented".to_string()))
+    async fn new_multipart_upload(&self, bucket: &str, key: &str, _options: ObjectWriteOptions) -> Result<MultipartUpload, S3EngineError> {
+        let ctx = crate::types::s3::object_layer_types::Context { request_id: "".to_string() };
+        let result = self.object_layer.new_multipart_upload(&ctx, bucket, key, Default::default()).await
+            .map_err(|e| S3EngineError::Storage(e.to_string()))?;
+        Ok(MultipartUpload {
+            bucket: bucket.to_string(),
+            key: key.to_string(),
+            upload_id: result.upload_id,
+            initiated_at: chrono::Utc::now(),
+            storage_class: Default::default(),
+            user_metadata: Default::default(),
+            user_tags: Default::default(),
+        })
     }
 
     async fn put_object_part(&self, _bucket: &str, _key: &str, _upload_id: &str, _part_number: u32, _body: BoxByteStream) -> Result<UploadedPart, S3EngineError> {
