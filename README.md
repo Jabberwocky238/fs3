@@ -126,7 +126,7 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE) for detai
 | ✅ | Range reads | `minio/cmd/object-handlers.go` | `tests/minio/object_advanced.rs` |
 | ✅ | Content-MD5 validation | `minio/cmd/object-handlers.go` | `tests/minio/content_md5.rs` |
 | ✅ | Conditional requests | `minio/cmd/object-handlers.go` | `tests/minio/conditional.rs` |
-| ⬜ | Select object content | `minio/cmd/object-handlers.go` | `tests/minio/select.rs` |
+| ✅ | Select object content | `minio/cmd/object-handlers.go` | `tests/minio/select.rs` |
 | ⬜ | Restore object | `minio/cmd/object-handlers.go` | `tests/minio/restore.rs` |
 
 ### Multipart Upload
@@ -181,7 +181,7 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE) for detai
 | ⬜ | Event notifications | `minio/cmd/bucket-notification-handlers.go` | `tests/minio/notifications.rs` |
 | ⬜ | Replication sync | `minio/cmd/bucket-replication.go` | `tests/minio/replication_sync.rs` |
 | ⬜ | Lifecycle execution | `minio/cmd/bucket-lifecycle.go` | `tests/minio/lifecycle_execution.rs` |
-| ⬜ | S3 Select | `minio/cmd/select-objectcontent-handler.go` | `tests/minio/select.rs` |
+| ✅ | S3 Select | `minio/cmd/select-objectcontent-handler.go` | `tests/minio/select.rs` |
 | ⬜ | Glacier restore | `minio/cmd/object-handlers.go` | `tests/minio/restore.rs` |
 
 ### Storage Backends
