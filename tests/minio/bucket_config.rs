@@ -6,7 +6,7 @@ use super::helpers::{create_minio_client, create_minio_server};
 async fn bucket_config_test() {
     let (_addr, endpoint, handle) = create_minio_server().await.unwrap();
     let client = create_minio_client(&endpoint).unwrap();
-    let bucket = "cfg";
+    let bucket = "config";
 
     client.create_bucket(bucket).send().await.unwrap();
 

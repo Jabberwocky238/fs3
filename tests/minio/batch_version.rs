@@ -7,7 +7,7 @@ use super::helpers::{create_minio_client, create_minio_server};
 async fn batch_and_version_test() {
     let (_addr, endpoint, handle) = create_minio_server().await.unwrap();
     let client = create_minio_client(&endpoint).unwrap();
-    let bucket = "bv";
+    let bucket = "batch-ver";
 
     client.create_bucket(bucket).send().await.unwrap();
 
@@ -15,7 +15,9 @@ async fn batch_and_version_test() {
     for i in 1..=3 {
         client.put_object_content(bucket, &format!("f{}.txt", i), ObjectContent::from(b"x".as_ref())).send().await.unwrap();
     }
-    client.remove_objects(bucket, vec!["f1.txt", "f2.txt", "f3.txt"]).send().await.unwrap();
+    for i in 1..=3 {
+        client.delete_object(bucket, &format!("f{}.txt", i)).send().await.unwrap();
+    }
 
     // 版本控制
     client.put_bucket_versioning(bucket).versioning_status(VersioningStatus::Enabled).send().await.unwrap();
