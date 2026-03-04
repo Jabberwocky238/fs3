@@ -4,16 +4,26 @@ use crate::helpers::*;
 async fn test_put_bucket_cors() {
     let client = setup_client().await;
     let bucket = random_bucket_name();
-    client.create_bucket(&bucket, None).await.unwrap();
+    client.create_bucket(&bucket).send().await.unwrap();
+
+    // CORS not implemented - expect error
     // TODO: implement CORS config
 }
 
 #[tokio::test]
 async fn test_get_bucket_cors() {
-    // TODO: implement
+    let client = setup_client().await;
+    let bucket = random_bucket_name();
+    client.create_bucket(&bucket).send().await.unwrap();
+
+    // TODO: implement get CORS
 }
 
 #[tokio::test]
 async fn test_delete_bucket_cors() {
-    // TODO: implement
+    let client = setup_client().await;
+    let bucket = random_bucket_name();
+    client.create_bucket(&bucket).send().await.unwrap();
+
+    // TODO: implement delete CORS
 }

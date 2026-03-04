@@ -1,5 +1,4 @@
 use async_trait::async_trait;
-use crate::types::s3::core::*;
 use crate::types::s3::object_layer_types::*;
 use crate::types::s3::storage_types::*;
 use crate::types::errors::*;

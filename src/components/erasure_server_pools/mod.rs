@@ -14,6 +14,10 @@ impl ErasureServerPools {
     pub fn new(storage: Arc<dyn StorageAPI>) -> Self {
         Self { storage }
     }
+
+    pub fn storage(&self) -> &Arc<dyn StorageAPI> {
+        &self.storage
+    }
 }
 
 #[async_trait]
