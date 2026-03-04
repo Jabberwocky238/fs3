@@ -21,7 +21,14 @@ pub trait BucketCorsS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError
         let cors = meta.cors.ok_or_else(|| S3EngineError::NoSuchCORSConfiguration)?;
         Ok(GetBucketCorsResponse {
             meta: Default::default(),
-            cors_rules: cors.rules.iter().map(|_| String::new()).collect()
+            cors_rules: cors.rules.iter().map(|rule| {
+                let origins = rule.allowed_origins.iter().map(|o| format!("<AllowedOrigin>{}</AllowedOrigin>", o)).collect::<String>();
+                let methods = rule.allowed_methods.iter().map(|m| format!("<AllowedMethod>{}</AllowedMethod>", m)).collect::<String>();
+                let headers = rule.allowed_headers.iter().map(|h| format!("<AllowedHeader>{}</AllowedHeader>", h)).collect::<String>();
+                let expose = rule.expose_headers.iter().map(|e| format!("<ExposeHeader>{}</ExposeHeader>", e)).collect::<String>();
+                let max_age = rule.max_age_seconds.map(|s| format!("<MaxAgeSeconds>{}</MaxAgeSeconds>", s)).unwrap_or_default();
+                format!("<CORSRule>{}{}{}{}{}</CORSRule>", origins, methods, headers, expose, max_age)
+            }).collect()
         })
     }
 

@@ -129,8 +129,16 @@ impl S3BucketConfigEngine for FS3Engine {
     async fn get_bucket_location(&self, _bucket: &str) -> Result<String, S3EngineError> {
         Ok("us-east-1".to_string())
     }
-    async fn get_bucket_metadata(&self, _bucket: &str) -> Result<BucketMetadataBundle, S3EngineError> {
-        Ok(BucketMetadataBundle::default())
+    async fn get_bucket_metadata(&self, bucket: &str) -> Result<BucketMetadataBundle, S3EngineError> {
+        let ctx = crate::types::s3::object_layer_types::Context { request_id: "".to_string() };
+        let cors_json = self.storage.read_bucket_cors(&ctx, bucket).await
+            .map_err(|e| S3EngineError::Storage(e.to_string()))?;
+        let cors = if let Some(json) = cors_json {
+            serde_json::from_str(&json).ok()
+        } else {
+            None
+        };
+        Ok(BucketMetadataBundle { cors, ..Default::default() })
     }
     async fn put_bucket_metadata(&self, _bucket: &str, _metadata: BucketMetadataBundle) -> Result<(), S3EngineError> {
         Ok(())

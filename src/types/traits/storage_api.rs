@@ -39,6 +39,10 @@ pub trait StorageBucketConfig: Send + Sync {
 
     async fn read_bucket_versioning(&self, ctx: &Context, bucket: &str) -> Result<Option<String>, StorageError>;
     async fn write_bucket_versioning(&self, ctx: &Context, bucket: &str, status: &str) -> Result<(), StorageError>;
+
+    async fn read_bucket_cors(&self, ctx: &Context, bucket: &str) -> Result<Option<String>, StorageError>;
+    async fn write_bucket_cors(&self, ctx: &Context, bucket: &str, cors: &str) -> Result<(), StorageError>;
+    async fn delete_bucket_cors(&self, ctx: &Context, bucket: &str) -> Result<(), StorageError>;
 }
 
 #[async_trait]

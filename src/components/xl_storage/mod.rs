@@ -39,6 +39,10 @@ impl XlStorage {
         self.path.join(bucket).join(".minio.sys").join("versioning.json")
     }
 
+    fn bucket_cors_path(&self, bucket: &str) -> PathBuf {
+        self.path.join(bucket).join(".minio.sys").join("cors.json")
+    }
+
     fn object_tags_path(&self, bucket: &str, key: &str) -> PathBuf {
         self.path.join(bucket).join(key).join("tags.json")
     }
@@ -250,6 +254,32 @@ impl StorageBucketConfig for XlStorage {
         }
         tokio::fs::write(&path, status).await
             .map_err(|e| StorageError::Io(e.to_string()))
+    }
+
+    async fn read_bucket_cors(&self, _ctx: &Context, bucket: &str) -> Result<Option<String>, StorageError> {
+        match tokio::fs::read_to_string(self.bucket_cors_path(bucket)).await {
+            Ok(data) => Ok(Some(data)),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(e) => Err(StorageError::Io(e.to_string())),
+        }
+    }
+
+    async fn write_bucket_cors(&self, _ctx: &Context, bucket: &str, cors: &str) -> Result<(), StorageError> {
+        let path = self.bucket_cors_path(bucket);
+        if let Some(parent) = path.parent() {
+            tokio::fs::create_dir_all(parent).await
+                .map_err(|e| StorageError::Io(e.to_string()))?;
+        }
+        tokio::fs::write(&path, cors).await
+            .map_err(|e| StorageError::Io(e.to_string()))
+    }
+
+    async fn delete_bucket_cors(&self, _ctx: &Context, bucket: &str) -> Result<(), StorageError> {
+        match tokio::fs::remove_file(self.bucket_cors_path(bucket)).await {
+            Ok(_) => Ok(()),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(e) => Err(StorageError::Io(e.to_string())),
+        }
     }
 }
 

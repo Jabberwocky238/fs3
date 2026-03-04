@@ -67,7 +67,12 @@ impl From<&S3Response> for Option<XMLResponse> {
         S3Response::GetBucketVersioning(r) => Some(r.into()),
         S3Response::GetBucketNotification(r) => Some(r.into()),
         S3Response::GetBucketAcl(_) => None,
-        S3Response::GetBucketCors(_) => None,
+        S3Response::GetBucketCors(r) => Some(XMLResponse {
+            body: format!(
+                r#"<?xml version="1.0" encoding="UTF-8"?><CORSConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">{}</CORSConfiguration>"#,
+                r.cors_rules.join("")
+            )
+        }),
         S3Response::GetBucketWebsite(r) => Some(XMLResponse {
             body: format!(
                 r#"<?xml version="1.0" encoding="UTF-8"?><WebsiteConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">{}{}</WebsiteConfiguration>"#,
