@@ -156,16 +156,28 @@ impl S3ObjectEngine for FS3Engine {
 
 #[async_trait]
 impl S3ObjectTaggingEngine for FS3Engine {
-    async fn get_object_tagging(&self, _bucket: &str, _key: &str) -> Result<TagMap, S3EngineError> {
-        Ok(TagMap::default())
+    async fn get_object_tagging(&self, bucket: &str, key: &str) -> Result<TagMap, S3EngineError> {
+        let ctx = crate::types::s3::object_layer_types::Context { request_id: "".to_string() };
+        let json = self.storage.read_object_tags(&ctx, bucket, key).await
+            .map_err(|e| S3EngineError::Storage(e.to_string()))?;
+        if let Some(j) = json {
+            serde_json::from_str(&j).map_err(|e| S3EngineError::Internal(e.to_string()))
+        } else {
+            Ok(TagMap::default())
+        }
     }
 
-    async fn put_object_tagging(&self, _bucket: &str, _key: &str, _tags: TagMap) -> Result<(), S3EngineError> {
-        Ok(())
+    async fn put_object_tagging(&self, bucket: &str, key: &str, tags: TagMap) -> Result<(), S3EngineError> {
+        let ctx = crate::types::s3::object_layer_types::Context { request_id: "".to_string() };
+        let json = serde_json::to_string(&tags).map_err(|e| S3EngineError::Internal(e.to_string()))?;
+        self.storage.write_object_tags(&ctx, bucket, key, &json).await
+            .map_err(|e| S3EngineError::Storage(e.to_string()))
     }
 
-    async fn delete_object_tagging(&self, _bucket: &str, _key: &str) -> Result<(), S3EngineError> {
-        Ok(())
+    async fn delete_object_tagging(&self, bucket: &str, key: &str) -> Result<(), S3EngineError> {
+        let ctx = crate::types::s3::object_layer_types::Context { request_id: "".to_string() };
+        self.storage.delete_object_tags(&ctx, bucket, key).await
+            .map_err(|e| S3EngineError::Storage(e.to_string()))
     }
 }
 

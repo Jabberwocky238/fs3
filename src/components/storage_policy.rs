@@ -40,6 +40,8 @@ impl S3BucketPolicyEngine for StoragePolicyEngine {
     }
 
     async fn put_bucket_policy(&self, bucket: &str, policy_json: &str) -> Result<(), PolicyEngineError> {
+        serde_json::from_str::<serde_json::Value>(policy_json)
+            .map_err(|e| PolicyEngineError::InvalidPolicy(e.to_string()))?;
         let ctx = Context { request_id: "".to_string() };
         self.storage.write_bucket_policy(&ctx, bucket, policy_json).await
             .map_err(|e| PolicyEngineError::Storage(e.to_string()))
