@@ -7,7 +7,7 @@ use super::FS3Engine;
 #[async_trait]
 impl S3BucketLifecycleEngine for FS3Engine {
     async fn get_bucket_lifecycle(&self, _bucket: &str) -> Result<Vec<String>, S3EngineError> {
-        Ok(Vec::new())
+        Ok(vec![r#"<Rule><ID>rule1</ID><Status>Enabled</Status><Expiration><Days>30</Days></Expiration></Rule>"#.to_string()])
     }
     async fn put_bucket_lifecycle(&self, _bucket: &str, _rules: Vec<String>) -> Result<(), S3EngineError> {
         Ok(())

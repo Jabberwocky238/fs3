@@ -4,6 +4,16 @@ use crate::types::s3::core::*;
 use crate::types::errors::S3EngineError;
 use super::FS3Engine;
 
+fn parse_range(range: &str, size: u64) -> Option<(u64, u64)> {
+    let range = range.strip_prefix("bytes=")?;
+    let parts: Vec<&str> = range.split('-').collect();
+    if parts.len() != 2 { return None; }
+    let start: u64 = parts[0].parse().ok()?;
+    let end: u64 = parts[1].parse().ok()?;
+    if start > end || end >= size { return None; }
+    Some((start, end))
+}
+
 #[async_trait]
 impl S3ObjectEngine for FS3Engine {
     async fn put_object(&self, bucket: &str, key: &str, body: BoxByteStream, options: ObjectWriteOptions) -> Result<S3Object, S3EngineError> {
@@ -75,12 +85,22 @@ impl S3ObjectEngine for FS3Engine {
         })
     }
 
-    async fn get_object(&self, bucket: &str, key: &str, _options: ObjectReadOptions) -> Result<(S3Object, BoxByteStream), S3EngineError> {
+    async fn get_object(&self, bucket: &str, key: &str, options: ObjectReadOptions) -> Result<(S3Object, BoxByteStream), S3EngineError> {
         let ctx = crate::types::s3::object_layer_types::Context { request_id: "".to_string() };
         let opts = crate::types::s3::object_layer_types::ObjectOptions { version_id: None, user_defined: Default::default() };
 
         let (info, stream) = self.object_layer.get_object(&ctx, bucket, key, opts).await
             .map_err(|e| S3EngineError::Storage(e.to_string()))?;
+
+        let stream = if let Some(range) = options.range {
+            if let Some((start, end)) = parse_range(&range, info.size) {
+                Box::pin(stream.skip(start).take(end - start + 1)) as BoxByteStream
+            } else {
+                stream
+            }
+        } else {
+            stream
+        };
 
         let obj = S3Object {
             bucket: bucket.to_string(),
@@ -149,8 +169,23 @@ impl S3ObjectEngine for FS3Engine {
         Ok(ObjectVersionRef { version_id: None, is_latest: true, delete_marker: false })
     }
 
-    async fn delete_objects(&self, _bucket: &str, _keys: Vec<String>, _options: DeleteObjectOptions) -> Result<DeleteResult, S3EngineError> {
-        Err(S3EngineError::Storage("not implemented".to_string()))
+    async fn delete_objects(&self, bucket: &str, keys: Vec<String>, options: DeleteObjectOptions) -> Result<DeleteResult, S3EngineError> {
+        let mut deleted = Vec::new();
+        let mut errors = Vec::new();
+
+        for key in keys {
+            match self.delete_object(bucket, &key, options.clone()).await {
+                Ok(version_ref) => deleted.push(version_ref),
+                Err(e) => errors.push(crate::types::s3::core::S3ErrorDetail {
+                    key: Some(key.clone()),
+                    code: "InternalError".to_string(),
+                    message: e.to_string(),
+                    version_id: None,
+                }),
+            }
+        }
+
+        Ok(DeleteResult { deleted, errors })
     }
 }
 

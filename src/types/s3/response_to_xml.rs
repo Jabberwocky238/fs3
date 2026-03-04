@@ -51,7 +51,7 @@ impl From<&S3Response> for Option<XMLResponse> {
 
         S3Response::GetBucketLifecycle(r) => Some(XMLResponse {
             body: format!(r#"<?xml version="1.0" encoding="UTF-8"?><LifecycleConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">{}</LifecycleConfiguration>"#,
-                r.rules.iter().map(|_| "<Rule></Rule>").collect::<String>())
+                r.rules.iter().map(|rule| rule.as_str()).collect::<String>())
         }),
         S3Response::GetBucketEncryption(r) => Some(XMLResponse {
             body: format!(r#"<?xml version="1.0" encoding="UTF-8"?><ServerSideEncryptionConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Rule><ApplyServerSideEncryptionByDefault>{}{}</ApplyServerSideEncryptionByDefault></Rule></ServerSideEncryptionConfiguration>"#,

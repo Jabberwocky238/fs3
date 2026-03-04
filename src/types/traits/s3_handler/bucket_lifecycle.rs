@@ -16,13 +16,13 @@ pub trait BucketLifecycleS3Handler<E: From<S3HandlerBridgeError> + From<S3Engine
 
     async fn get_bucket_lifecycle(&self, req: GetBucketLifecycleRequest) -> Result<GetBucketLifecycleResponse, E> {
         check_access(self.bucket_lifecycle_policy_provider(), S3Action::GetBucketLifecycle, Some(&req.bucket.bucket), None).await?;
-        let _p = self.bucket_lifecycle_engine_provider().get_bucket_lifecycle(&req.bucket.bucket).await?;
-        Ok(GetBucketLifecycleResponse { ..Default::default() })
+        let rules = self.bucket_lifecycle_engine_provider().get_bucket_lifecycle(&req.bucket.bucket).await?;
+        Ok(GetBucketLifecycleResponse { rules, ..Default::default() })
     }
 
     async fn put_bucket_lifecycle(&self, req: PutBucketLifecycleRequest) -> Result<PutBucketLifecycleResponse, E> {
         check_access(self.bucket_lifecycle_policy_provider(), S3Action::PutBucketLifecycle, Some(&req.bucket.bucket), None).await?;
-        let rules = parse_lifecycle_rules(&req.xml);
+        let rules = vec![req.xml.clone()];
         self.bucket_lifecycle_engine_provider().put_bucket_lifecycle(&req.bucket.bucket, rules).await?;
         Ok(Default::default())
     }
@@ -32,8 +32,4 @@ pub trait BucketLifecycleS3Handler<E: From<S3HandlerBridgeError> + From<S3Engine
         self.bucket_lifecycle_engine_provider().delete_bucket_lifecycle(&req.bucket.bucket).await?;
         Ok(Default::default())
     }
-}
-
-fn parse_lifecycle_rules(_xml: &str) -> Vec<String> {
-    vec![]
 }

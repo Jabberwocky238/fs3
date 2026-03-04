@@ -33,7 +33,9 @@ cargo check
 ```
 tests/boto3是个特殊文件夹，使用`cd /d/1-code/__trash__/fs3/tests/boto3 && python test_xxx.py http://127.0.0.1:9000`来进行调用。
 
-你需要使用make build和make build-minio来构建minio.exe和fs3.exe，构建完成后，在项目目录下启动。
+**你需要使用make build和make build-minio来构建minio.exe和fs3.exe，一定要使用make**，因为涉及到copy操作，cargo不会构建在根目录。
+
+构建完成后，在项目目录下启动。
 
 ```bash
 fs3.exe server --address 127.0.0.1:9100 .debug/fs3
@@ -67,7 +69,9 @@ src\types\s3文件夹承载了整个仓库所有的类型。
 
 任何XML请求在请求进入的时候，axum router读取到裸请求，需要被转化为具体字段放入request结构体，返回时，需要由response结构体进行序列化为xml。
 
-任何xml裸字符串都不应该进入engine层以及更下层。
+request和response结构体里不允许出现类似`xml`或者`json`的字段名，因为他们应该被事先解码，而不是存储裸数据。
+
+任何xml裸字符串都不应该进入engine层以及更下层，解码时可以考虑使用builder设计模式或者工厂函数。
 
 当前的代码实现有很多地方违背了这一点，你需要注意和修正。
 
