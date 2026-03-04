@@ -53,26 +53,9 @@ cargo build --release --features storage-postgres
 cargo test --test minio_tests
 ```
 
-**Coverage**: 17 tests, all passing
-- Bucket: create, delete, list, policy, tagging, versioning, encryption, lifecycle, replication, notification
-- Object: put, get, head, copy, delete, tagging, legal hold, conditional requests
-- Multipart: create, abort
-- List: recursive, streaming
-- Policy: Allow/Deny, wildcards, priority
-- Content-MD5: validation on upload
-- Conditional requests: If-Match, If-None-Match
-- Errors: invalid requests, conflicts
-
 ## Configuration
 
 FS3 uses CLI arguments via `clap`. Run with `--help` for available options.
-
-## Optional Features
-
-| Feature              | Description                    |
-|----------------------|--------------------------------|
-| `storage-postgres`   | PostgreSQL metadata backend    |
-| `storage-k8sconfigmap` | Kubernetes ConfigMap backend |
 
 ## License
 
@@ -80,6 +63,7 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE) for detai
 
 ## Roadmap
 
+**Status**: ⬜ Under Dev | ✅ READY TO USE
 **Progress**: ⬜ Not Started | 🚧 In Progress | 🧪 Testing | ✅ Done | 🐛 Bug
 
 | Status | Progress | From | Group | Feature | MinIO Source | Test File |
@@ -107,29 +91,29 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE) for detai
 | ⬜ | ⬜ | AWS S3 | Bucket | Bucket analytics | `minio/cmd/bucket-handlers.go` | `tests/minio/analytics.rs` |
 | ⬜ | ⬜ | AWS S3 | Bucket | Bucket metrics | `minio/cmd/bucket-handlers.go` | `tests/minio/metrics_config.rs` |
 | ⬜ | ⬜ | AWS S3 | Bucket | Bucket inventory | `minio/cmd/bucket-handlers.go` | `tests/minio/inventory.rs` |
-| ✅ | ✅ | AWS S3 | Object | Put object | `minio/cmd/object-handlers.go` | `tests/minio/object.rs` |
-| ✅ | ✅ | AWS S3 | Object | Get object | `minio/cmd/object-handlers.go` | `tests/minio/object.rs` |
-| ✅ | ✅ | AWS S3 | Object | Head object | `minio/cmd/object-handlers.go` | `tests/minio/object.rs` |
-| ✅ | ✅ | AWS S3 | Object | Delete object | `minio/cmd/object-handlers.go` | `tests/minio/object.rs` |
-| ✅ | ✅ | AWS S3 | Object | Delete multiple objects | `minio/cmd/object-handlers.go` | `tests/minio/batch_version.rs` |
-| ✅ | ✅ | AWS S3 | Object | Copy object | `minio/cmd/object-handlers.go` | `tests/minio/object_advanced.rs` |
-| ✅ | ✅ | AWS S3 | Object | Get object attributes | `minio/cmd/object-handlers.go` | `tests/minio/object_features.rs` |
-| ✅ | ✅ | AWS S3 | Object | Object tagging | `minio/cmd/object-handlers.go` | `tests/minio/object_features.rs` |
-| ✅ | ✅ | AWS S3 | Object | Object retention | `minio/cmd/object-handlers.go` | `tests/minio/object_lock.rs` |
-| ✅ | ✅ | AWS S3 | Object | Object legal hold | `minio/cmd/object-handlers.go` | `tests/minio/object_lock.rs` |
-| ✅ | ✅ | AWS S3 | Object | Object ACL (dummy) | `minio/cmd/object-handlers.go` | - |
-| ✅ | ✅ | AWS S3 | Object | Range reads | `minio/cmd/object-handlers.go` | `tests/minio/object_advanced.rs` |
-| ✅ | ✅ | AWS S3 | Object | Content-MD5 validation | `minio/cmd/object-handlers.go` | `tests/minio/content_md5.rs` |
-| ✅ | ✅ | AWS S3 | Object | Conditional requests | `minio/cmd/object-handlers.go` | `tests/minio/conditional.rs` |
-| ✅ | ✅ | AWS S3 | Object | Select object content | `minio/cmd/object-handlers.go` | `tests/minio/select.rs` |
+| 🚧 | 🚧 | AWS S3 | Object | Put object | `minio/cmd/object-handlers.go` | `tests/minio/object.rs` |
+| 🚧 | 🚧 | AWS S3 | Object | Get object | `minio/cmd/object-handlers.go` | `tests/minio/object.rs` |
+| 🚧 | 🚧 | AWS S3 | Object | Head object | `minio/cmd/object-handlers.go` | `tests/minio/object.rs` |
+| 🚧 | 🚧 | AWS S3 | Object | Delete object | `minio/cmd/object-handlers.go` | `tests/minio/object.rs` |
+| 🚧 | 🚧 | AWS S3 | Object | Delete multiple objects | `minio/cmd/object-handlers.go` | `tests/minio/batch_version.rs` |
+| 🚧 | 🚧 | AWS S3 | Object | Copy object | `minio/cmd/object-handlers.go` | `tests/minio/object_advanced.rs` |
+| 🚧 | 🚧 | AWS S3 | Object | Get object attributes | `minio/cmd/object-handlers.go` | `tests/minio/object_features.rs` |
+| 🚧 | 🚧 | AWS S3 | Object | Object tagging | `minio/cmd/object-handlers.go` | `tests/minio/object_features.rs` |
+| 🚧 | 🚧 | AWS S3 | Object | Object retention | `minio/cmd/object-handlers.go` | `tests/minio/object_lock.rs` |
+| 🚧 | 🚧 | AWS S3 | Object | Object legal hold | `minio/cmd/object-handlers.go` | `tests/minio/object_lock.rs` |
+| 🚧 | 🚧 | AWS S3 | Object | Object ACL (dummy) | `minio/cmd/object-handlers.go` | - |
+| 🚧 | 🚧 | AWS S3 | Object | Range reads | `minio/cmd/object-handlers.go` | `tests/minio/object_advanced.rs` |
+| 🚧 | 🚧 | AWS S3 | Object | Content-MD5 validation | `minio/cmd/object-handlers.go` | `tests/minio/content_md5.rs` |
+| 🚧 | 🚧 | AWS S3 | Object | Conditional requests | `minio/cmd/object-handlers.go` | `tests/minio/conditional.rs` |
+| 🚧 | 🚧 | AWS S3 | Object | Select object content | `minio/cmd/object-handlers.go` | `tests/minio/select.rs` |
 | ⬜ | ⬜ | AWS S3 | Object | Restore object | `minio/cmd/object-handlers.go` | `tests/minio/restore.rs` |
-| ✅ | ✅ | AWS S3 | Multipart | Initiate multipart | `minio/cmd/object-multipart-handlers.go` | `tests/minio/multipart.rs` |
-| ✅ | ✅ | AWS S3 | Multipart | Upload part | `minio/cmd/object-multipart-handlers.go` | `tests/minio/multipart.rs` |
-| ✅ | ✅ | AWS S3 | Multipart | Upload part copy | `minio/cmd/object-multipart-handlers.go` | `tests/minio/multipart.rs` |
-| ✅ | ✅ | AWS S3 | Multipart | Complete multipart | `minio/cmd/object-multipart-handlers.go` | `tests/minio/multipart.rs` |
-| ✅ | ✅ | AWS S3 | Multipart | Abort multipart | `minio/cmd/object-multipart-handlers.go` | `tests/minio/multipart.rs` |
-| ✅ | ✅ | AWS S3 | Multipart | List parts | `minio/cmd/object-multipart-handlers.go` | `tests/minio/multipart.rs` |
-| ✅ | ✅ | AWS S3 | Multipart | List multipart uploads | `minio/cmd/object-multipart-handlers.go` | `tests/minio/multipart.rs` |
+| 🚧 | 🚧 | AWS S3 | Multipart | Initiate multipart | `minio/cmd/object-multipart-handlers.go` | `tests/minio/multipart.rs` |
+| 🚧 | 🚧 | AWS S3 | Multipart | Upload part | `minio/cmd/object-multipart-handlers.go` | `tests/minio/multipart.rs` |
+| 🚧 | 🚧 | AWS S3 | Multipart | Upload part copy | `minio/cmd/object-multipart-handlers.go` | `tests/minio/multipart.rs` |
+| 🚧 | 🚧 | AWS S3 | Multipart | Complete multipart | `minio/cmd/object-multipart-handlers.go` | `tests/minio/multipart.rs` |
+| 🚧 | 🚧 | AWS S3 | Multipart | Abort multipart | `minio/cmd/object-multipart-handlers.go` | `tests/minio/multipart.rs` |
+| 🚧 | 🚧 | AWS S3 | Multipart | List parts | `minio/cmd/object-multipart-handlers.go` | `tests/minio/multipart.rs` |
+| 🚧 | 🚧 | AWS S3 | Multipart | List multipart uploads | `minio/cmd/object-multipart-handlers.go` | `tests/minio/multipart.rs` |
 | ✅ | ✅ | AWS S3 | List | List objects v1 | `minio/cmd/bucket-handlers.go` | `tests/minio/list_objects.rs` |
 | ✅ | ✅ | AWS S3 | List | List objects v2 | `minio/cmd/bucket-handlers.go` | `tests/minio/list_objects.rs` |
 | ✅ | ✅ | AWS S3 | List | List objects v2 (metadata) | `minio/cmd/bucket-handlers.go` | `tests/minio/list_advanced.rs` |

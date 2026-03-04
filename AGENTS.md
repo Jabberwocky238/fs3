@@ -73,7 +73,7 @@ Test files: `tests/minio/*.rs` - Each feature has corresponding test
 
 ### Step 5: Update Documentation
 - ONLY after tests pass, update `README.md`
-- Mark feature as ✅ in roadmap table
+- Mark feature in roadmap table
 - Update test coverage count
 
 ## Roadmap
