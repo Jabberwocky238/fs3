@@ -3,22 +3,18 @@ use crate::types::traits::s3_engine::*;
 use crate::types::s3::core::*;
 use crate::types::errors::S3EngineError;
 use super::FS3Engine;
+use futures::TryStreamExt;
 
 #[async_trait]
 impl S3ObjectEngine for FS3Engine {
     async fn put_object(&self, bucket: &str, key: &str, body: BoxByteStream, options: ObjectWriteOptions) -> Result<S3Object, S3EngineError> {
         let ctx = crate::types::s3::object_layer_types::Context { request_id: "".to_string() };
 
-        use futures::TryStreamExt;
-        let chunks: Vec<bytes::Bytes> = body.try_collect().await
-            .map_err(|e| S3EngineError::Storage(e.to_string()))?;
-        let size = chunks.iter().map(|c| c.len()).sum::<usize>();
-        let stream: BoxByteStream = Box::pin(futures::stream::iter(chunks.into_iter().map(Ok)));
-
-        let data = crate::types::s3::storage_types::PutObjReader { reader: stream, size: size as i64 };
+        let data = crate::types::s3::storage_types::PutObjReader { reader: body, size: options.size as i64 };
         let opts = crate::types::s3::object_layer_types::ObjectOptions {
             version_id: None,
             user_defined: options.user_metadata.clone(),
+            range: None,
         };
 
         let info = self.object_layer.put_object(&ctx, bucket, key, data, opts).await
@@ -46,9 +42,11 @@ impl S3ObjectEngine for FS3Engine {
         })
     }
 
-    async fn head_object(&self, bucket: &str, key: &str, _options: ObjectReadOptions) -> Result<S3Object, S3EngineError> {
+    async fn head_object(&self, bucket: &str, key: &str, options: ObjectReadOptions) -> Result<S3Object, S3EngineError> {
         let ctx = crate::types::s3::object_layer_types::Context { request_id: "".to_string() };
-        let opts = crate::types::s3::object_layer_types::ObjectOptions { version_id: None, user_defined: Default::default() };
+        let opts = crate::types::s3::object_layer_types::ObjectOptions { 
+            version_id: options.version_id, user_defined: Default::default(), range: None 
+        };
 
         let info = self.object_layer.get_object_info(&ctx, bucket, key, opts).await
             .map_err(|e| S3EngineError::Storage(e.to_string()))?;

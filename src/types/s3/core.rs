@@ -316,6 +316,7 @@ pub struct ObjectWriteOptions {
     pub retention: Option<ObjectRetention>,
     pub legal_hold: Option<ObjectLegalHold>,
     pub sse_algorithm: Option<String>,
+    pub size: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
