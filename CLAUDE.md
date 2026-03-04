@@ -31,7 +31,7 @@ cargo test --test minio_tests cors
 # Verify compilation (faster than build)
 cargo check
 ```
-tests/boto3是个特殊文件夹，使用`cd /d/1-code/__trash__/fs3/tests/boto3 && python test_xxx.py 127.0.0.1:9000`来进行调用。
+tests/boto3是个特殊文件夹，使用`cd /d/1-code/__trash__/fs3/tests/boto3 && python test_xxx.py http://127.0.0.1:9000`来进行调用。
 
 你需要使用make build和make build-minio来构建minio.exe和fs3.exe，构建完成后，在项目目录下启动。
 
@@ -41,9 +41,15 @@ fs3.exe server --address 127.0.0.1:9100 .debug/fs3
 minio.exe  server --address 127.0.0.1:9000 --console-address 127.0.0.1:9001 .debug/minio
 ```
 
-然后使用boto3文件夹里的测试py脚本，分别调用两个api，每一轮小测试，交叉调用两个api，观察文件夹变化，如果fs3有行为不一致的地方，则需要修改。
+然后使用boto3文件夹里的测试py脚本，分别调用两个api，每一轮小测试，交叉调用两个api，然后
 
-需要开始循环测试，每次测试一对，交叉测试minio和fs3，然后根据fs3的行为不一致，来修改aws和minio测试，以及fs3核心。
+！！观察文件夹目录树变化，
+！！观察文件夹目录树变化，
+！！观察文件夹目录树变化，
+
+如果fs3有行为不一致的地方，则需要修改，如果minio有变化而fs3没有，需要修改。
+
+你需要开始循环测试，每次测试一对，交叉测试minio和fs3，然后根据fs3的行为不一致，来修改aws和minio测试，以及fs3核心。
 
 每次测试出现问题，结束之后，需要关闭两个进程，重新编译fs3，但不需要编译minio，删除.debug文件夹，然后重新开启两个进程，保证测试之间不会干扰。如果测试没有出问题，就可以继续，不需要关闭进程。
 
