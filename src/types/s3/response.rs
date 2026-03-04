@@ -121,6 +121,8 @@ pub struct AbortMultipartUploadResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetObjectAclResponse {
     pub meta: ResponseMeta,
+    pub owner: Option<String>,
+    pub grants: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -153,11 +155,14 @@ pub struct SelectObjectContentResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetObjectRetentionResponse {
     pub meta: ResponseMeta,
+    pub mode: Option<String>,
+    pub retain_until: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetObjectLegalHoldResponse {
     pub meta: ResponseMeta,
+    pub status: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -237,31 +242,45 @@ pub struct GetBucketPolicyResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetBucketLifecycleResponse {
     pub meta: ResponseMeta,
+    pub rules: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetBucketEncryptionResponse {
     pub meta: ResponseMeta,
+    pub sse_algorithm: Option<String>,
+    pub kms_master_key_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetBucketObjectLockConfigResponse {
     pub meta: ResponseMeta,
+    pub enabled: Option<bool>,
+    pub mode: Option<String>,
+    pub days: Option<u32>,
+    pub years: Option<u32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetBucketReplicationConfigResponse {
     pub meta: ResponseMeta,
+    pub role: Option<String>,
+    pub rules: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetBucketVersioningResponse {
     pub meta: ResponseMeta,
+    pub status: Option<String>,
+    pub mfa_delete: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetBucketNotificationResponse {
     pub meta: ResponseMeta,
+    pub queue_configs: Vec<String>,
+    pub topic_configs: Vec<String>,
+    pub lambda_configs: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -278,6 +297,8 @@ pub struct ResetBucketReplicationStatusResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetBucketAclResponse {
     pub meta: ResponseMeta,
+    pub owner: Option<String>,
+    pub grants: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -288,6 +309,7 @@ pub struct PutBucketAclResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetBucketCorsResponse {
     pub meta: ResponseMeta,
+    pub cors_rules: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -303,21 +325,27 @@ pub struct DeleteBucketCorsResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetBucketWebsiteResponse {
     pub meta: ResponseMeta,
+    pub index_document: Option<String>,
+    pub error_document: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetBucketAccelerateResponse {
     pub meta: ResponseMeta,
+    pub status: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetBucketRequestPaymentResponse {
     pub meta: ResponseMeta,
+    pub payer: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetBucketLoggingResponse {
     pub meta: ResponseMeta,
+    pub target_bucket: Option<String>,
+    pub target_prefix: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -471,11 +499,13 @@ pub struct DeleteBucketResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetBucketReplicationMetricsV2Response {
     pub meta: ResponseMeta,
+    pub metrics: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetBucketReplicationMetricsResponse {
     pub meta: ResponseMeta,
+    pub metrics: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]

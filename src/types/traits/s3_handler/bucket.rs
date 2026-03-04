@@ -234,11 +234,11 @@ pub trait BucketS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
     }
     async fn get_bucket_replication_metrics_v2(&self, req: GetBucketReplicationMetricsV2Request) -> Result<GetBucketReplicationMetricsV2Response, E> {
         let r = self.engine().get_bucket_replication_metrics(&req.bucket.bucket).await?;
-        Ok(GetBucketReplicationMetricsV2Response { json: Some(r.raw_json), ..Default::default() })
+        Ok(GetBucketReplicationMetricsV2Response { ..Default::default() })
     }
     async fn get_bucket_replication_metrics(&self, req: GetBucketReplicationMetricsRequest) -> Result<GetBucketReplicationMetricsResponse, E> {
         let r = self.engine().get_bucket_replication_metrics(&req.bucket.bucket).await?;
-        Ok(GetBucketReplicationMetricsResponse { json: Some(r.raw_json), ..Default::default() })
+        Ok(GetBucketReplicationMetricsResponse { ..Default::default() })
     }
     async fn validate_bucket_replication_creds(&self, req: ValidateBucketReplicationCredsRequest) -> Result<ValidateBucketReplicationCredsResponse, E> {
         let v = self.engine().validate_bucket_replication_creds(&req.bucket.bucket).await?;

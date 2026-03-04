@@ -266,7 +266,6 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
             .await
             ?;
         Ok(GetObjectRetentionResponse {
-            xml: ret.map(|r| format!("{:?}:{}", r.mode, r.retain_until.to_rfc3339())),
             ..Default::default()
         })
     }
@@ -276,13 +275,12 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
         req: GetObjectLegalHoldRequest,
     ) -> Result<GetObjectLegalHoldResponse, E> {
         check_access(self.policy(), S3Action::GetObjectLegalHold, Some(&req.object.bucket), Some(&req.object.object)).await?;
-        let hold = self
+        let _hold = self
             .engine()
             .get_object_legal_hold(&req.object.bucket, &req.object.object)
             .await
             ?;
         Ok(GetObjectLegalHoldResponse {
-            xml: hold.map(|h| if h.enabled { "ON".to_string() } else { "OFF".to_string() }),
             ..Default::default()
         })
     }

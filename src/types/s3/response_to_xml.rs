@@ -1,17 +1,6 @@
 use super::response::*;
 use std::collections::HashMap;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct XMLResponse {
-    pub body: String,
-}
-
-impl XMLResponse {
-    fn new(body: String) -> Self {
-        Self { body }
-    }
-}
-
 impl From<&S3Response> for Option<XMLResponse> {
     fn from(resp: &S3Response) -> Self {
     match resp {
