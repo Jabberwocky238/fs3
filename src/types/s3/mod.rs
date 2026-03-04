@@ -6,3 +6,5 @@ pub mod response;
 pub mod response_to_xml_impl;
 pub mod response_to_xml;
 pub mod response_to_axum;
+pub mod object_layer_types;
+pub mod storage_types;
