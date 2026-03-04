@@ -1,5 +1,5 @@
 use crate::helpers::*;
-use aws_sdk_s3::types::{NotificationConfiguration, QueueConfiguration};
+use aws_sdk_s3::types::{NotificationConfiguration, QueueConfiguration, Event};
 
 #[tokio::test]
 async fn test_event_notification_webhook() {
@@ -10,12 +10,14 @@ async fn test_event_notification_webhook() {
     let config = NotificationConfiguration::builder()
         .queue_configurations(QueueConfiguration::builder()
             .queue_arn("arn:aws:sqs:us-east-1:123456789012:test-queue")
-            .events("s3:ObjectCreated:*")
+            .events(Event::S3ObjectCreatedPut)
+            .events(Event::S3ObjectCreatedPost)
             .build().unwrap())
         .build();
 
     client.put_bucket_notification_configuration().bucket(&bucket).notification_configuration(config).send().await.unwrap();
 
     let result = client.get_bucket_notification_configuration().bucket(&bucket).send().await.unwrap();
-    assert!(!result.queue_configurations().is_empty());
+    assert!(!result.queue_configurations().is_empty(), "Must have queue config");
+    assert_eq!(result.queue_configurations()[0].events().len(), 2, "Must have 2 events");
 }

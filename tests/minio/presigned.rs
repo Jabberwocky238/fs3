@@ -7,12 +7,14 @@ async fn test_presigned_get_url() {
     client.create_bucket(&bucket).send().await.unwrap();
 
     let key = "test-object";
-    client.put_object().bucket(&bucket).key(key).body("test data".into()).send().await.unwrap();
+    let data = "test data with unique content 12345";
+    client.put_object().bucket(&bucket).key(key).body(data.into()).send().await.unwrap();
 
     let presigned = client.get_object().bucket(&bucket).key(key).presigned(std::time::Duration::from_secs(3600)).await.unwrap();
 
     let resp = reqwest::get(presigned.uri()).await.unwrap();
-    assert_eq!(resp.text().await.unwrap(), "test data");
+    assert!(resp.status().is_success(), "Presigned GET must return 200");
+    assert_eq!(resp.text().await.unwrap(), data, "Presigned GET must return exact data");
 }
 
 #[tokio::test]
@@ -22,12 +24,14 @@ async fn test_presigned_put_url() {
     client.create_bucket(&bucket).send().await.unwrap();
 
     let key = "test-upload";
+    let data = "uploaded data via presigned PUT";
     let presigned = client.put_object().bucket(&bucket).key(key).presigned(std::time::Duration::from_secs(3600)).await.unwrap();
 
     let http_client = reqwest::Client::new();
-    http_client.put(presigned.uri()).body("uploaded data").send().await.unwrap();
+    let put_resp = http_client.put(presigned.uri()).body(data).send().await.unwrap();
+    assert!(put_resp.status().is_success(), "Presigned PUT must succeed");
 
     let obj = client.get_object().bucket(&bucket).key(key).send().await.unwrap();
-    let data = obj.body.collect().await.unwrap().to_vec();
-    assert_eq!(String::from_utf8(data).unwrap(), "uploaded data");
+    let retrieved = obj.body.collect().await.unwrap().to_vec();
+    assert_eq!(String::from_utf8(retrieved).unwrap(), data, "Presigned PUT must upload exact data");
 }

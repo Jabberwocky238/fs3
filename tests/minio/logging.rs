@@ -1,5 +1,5 @@
 use crate::helpers::*;
-use aws_sdk_s3::types::{BucketLoggingStatus, LoggingEnabled, TargetGrant};
+use aws_sdk_s3::types::{BucketLoggingStatus, LoggingEnabled};
 
 #[tokio::test]
 async fn test_put_bucket_logging() {
@@ -12,9 +12,13 @@ async fn test_put_bucket_logging() {
     let logging = BucketLoggingStatus::builder()
         .logging_enabled(LoggingEnabled::builder()
             .target_bucket(&log_bucket)
-            .target_prefix("logs/")
+            .target_prefix("access-logs/")
             .build().unwrap())
         .build();
 
     client.put_bucket_logging().bucket(&bucket).bucket_logging_status(logging).send().await.unwrap();
+
+    let result = client.get_bucket_logging().bucket(&bucket).send().await.unwrap();
+    assert_eq!(result.logging_enabled().unwrap().target_bucket(), Some(log_bucket.as_str()), "Target bucket must match");
+    assert_eq!(result.logging_enabled().unwrap().target_prefix(), Some("access-logs/"), "Prefix must match");
 }

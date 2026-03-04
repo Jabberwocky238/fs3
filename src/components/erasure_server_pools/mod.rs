@@ -4,6 +4,7 @@ use crate::types::traits::object_layer::ObjectLayer;
 use crate::types::traits::storage_api::StorageAPI;
 use crate::types::s3::object_layer_types::*;
 use crate::types::s3::storage_types::*;
+use crate::types::s3::core::BoxByteStream;
 use crate::types::errors::S3Error;
 
 pub struct ErasureServerPools {
@@ -60,6 +61,29 @@ impl ObjectLayer for ErasureServerPools {
             content_type: "application/octet-stream".to_string(),
             user_defined: opts.user_defined,
         })
+    }
+
+    async fn get_object(&self, ctx: &Context, bucket: &str, object: &str, opts: ObjectOptions) -> Result<(ObjectInfo, BoxByteStream), S3Error> {
+        let version_id = opts.version_id.as_deref().unwrap_or("null");
+        let fi = self.storage.read_version(ctx, bucket, object, version_id).await?;
+
+        let file_path = format!("{}/{}", object, fi.data_dir);
+        let mut buf = vec![0u8; fi.size as usize];
+        self.storage.read_file(ctx, bucket, &file_path, 0, &mut buf).await?;
+
+        use futures::stream::StreamExt;
+        let stream = futures::stream::once(async move { Ok(bytes::Bytes::from(buf)) }).boxed();
+
+        let info = ObjectInfo {
+            bucket: bucket.to_string(),
+            name: object.to_string(),
+            size: fi.size,
+            etag: fi.version_id.clone(),
+            content_type: "application/octet-stream".to_string(),
+            user_defined: opts.user_defined,
+        };
+
+        Ok((info, stream))
     }
 
     async fn put_object(&self, ctx: &Context, bucket: &str, object: &str, data: PutObjReader, opts: ObjectOptions) -> Result<ObjectInfo, S3Error> {

@@ -69,9 +69,34 @@ impl S3ObjectEngine for FS3Engine {
         })
     }
 
-    async fn get_object(&self, bucket: &str, key: &str, options: ObjectReadOptions) -> Result<(S3Object, BoxByteStream), S3EngineError> {
-        let obj = self.head_object(bucket, key, options).await?;
-        let stream = futures::stream::empty().boxed();
+    async fn get_object(&self, bucket: &str, key: &str, _options: ObjectReadOptions) -> Result<(S3Object, BoxByteStream), S3EngineError> {
+        let ctx = crate::types::s3::object_layer_types::Context { request_id: "".to_string() };
+        let opts = crate::types::s3::object_layer_types::ObjectOptions { version_id: None, user_defined: Default::default() };
+
+        let (info, stream) = self.object_layer.get_object(&ctx, bucket, key, opts).await
+            .map_err(|e| S3EngineError::Storage(e.to_string()))?;
+
+        let obj = S3Object {
+            bucket: bucket.to_string(),
+            key: key.to_string(),
+            size: info.size,
+            etag: info.etag,
+            last_modified: chrono::Utc::now(),
+            content_type: Some(info.content_type),
+            content_encoding: None,
+            storage_class: StorageClass::Standard,
+            user_metadata: info.user_defined,
+            user_tags: Default::default(),
+            version: ObjectVersionRef { version_id: None, is_latest: true, delete_marker: false },
+            parts: Vec::new(),
+            checksums: Vec::new(),
+            replication_state: ReplicationState::default(),
+            retention: None,
+            legal_hold: None,
+            restore_expiry: None,
+            restore_ongoing: false,
+        };
+
         Ok((obj, stream))
     }
 

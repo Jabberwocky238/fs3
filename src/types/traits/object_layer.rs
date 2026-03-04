@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use crate::types::s3::object_layer_types::*;
 use crate::types::s3::storage_types::*;
+use crate::types::s3::core::BoxByteStream;
 use crate::types::errors::*;
 
 #[async_trait]
@@ -13,6 +14,7 @@ pub trait ObjectLayer: Send + Sync {
 
     // Object operations
     async fn get_object_info(&self, ctx: &Context, bucket: &str, object: &str, opts: ObjectOptions) -> Result<ObjectInfo, S3Error>;
+    async fn get_object(&self, ctx: &Context, bucket: &str, object: &str, opts: ObjectOptions) -> Result<(ObjectInfo, BoxByteStream), S3Error>;
     async fn put_object(&self, ctx: &Context, bucket: &str, object: &str, data: PutObjReader, opts: ObjectOptions) -> Result<ObjectInfo, S3Error>;
     async fn copy_object(&self, ctx: &Context, src_bucket: &str, src_object: &str, dst_bucket: &str, dst_object: &str, src_info: ObjectInfo, src_opts: ObjectOptions, dst_opts: ObjectOptions) -> Result<ObjectInfo, S3Error>;
     async fn delete_object(&self, ctx: &Context, bucket: &str, object: &str, opts: ObjectOptions) -> Result<ObjectInfo, S3Error>;

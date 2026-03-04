@@ -8,7 +8,8 @@ async fn test_object_lock_worm() {
     client.create_bucket(&bucket).send().await.unwrap();
 
     let key = "locked-object";
-    client.put_object().bucket(&bucket).key(key).body("immutable".into()).send().await.unwrap();
+    let data = "immutable data";
+    client.put_object().bucket(&bucket).key(key).body(data.into()).send().await.unwrap();
 
     let retention = ObjectLockRetention::builder()
         .mode(ObjectLockRetentionMode::Compliance)
@@ -16,4 +17,10 @@ async fn test_object_lock_worm() {
         .build().unwrap();
 
     client.put_object_retention().bucket(&bucket).key(key).retention(retention).send().await.unwrap();
+
+    let result = client.get_object_retention().bucket(&bucket).key(key).send().await.unwrap();
+    assert_eq!(result.retention().unwrap().mode(), Some(&ObjectLockRetentionMode::Compliance), "Must be in Compliance mode");
+
+    let delete_result = client.delete_object().bucket(&bucket).key(key).send().await;
+    assert!(delete_result.is_err(), "Locked object must not be deletable");
 }
