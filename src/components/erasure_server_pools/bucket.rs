@@ -25,10 +25,12 @@ impl ObjectBucketLayer for ErasureServerPools {
 
     async fn list_buckets(&self, ctx: &Context, _opts: BucketOptions) -> Result<Vec<BucketInfo>, S3Error> {
         let vols = self.storage.list_vols(ctx).await?;
-        Ok(vols.into_iter().map(|v| BucketInfo {
-            name: v.name,
-            created: v.created,
-        }).collect())
+        Ok(vols.into_iter()
+            .filter(|v| !v.name.starts_with('.'))
+            .map(|v| BucketInfo {
+                name: v.name,
+                created: v.created,
+            }).collect())
     }
 
     async fn delete_bucket(&self, ctx: &Context, bucket: &str, opts: DeleteBucketOptions) -> Result<(), S3Error> {

@@ -26,6 +26,7 @@ impl XlStorage {
         fs::create_dir_all(sys.join("multipart"))?;
         fs::create_dir_all(sys.join("tmp/.trash"))?;
 
+        // Create format.json
         let format_path = sys.join("format.json");
         if !format_path.exists() {
             use uuid::Uuid;
@@ -37,6 +38,19 @@ impl XlStorage {
             );
             fs::write(format_path, format)?;
         }
+
+        // Create IAM format.json
+        let iam_format_path = sys.join("config/iam/format.json");
+        if !iam_format_path.exists() {
+            fs::write(iam_format_path, r#"{"version":1}"#)?;
+        }
+
+        // Create placeholder directories for xl.meta files
+        fs::create_dir_all(sys.join("pool.bin"))?;
+        fs::create_dir_all(sys.join("config/config.json"))?;
+        fs::create_dir_all(sys.join("buckets/.bloomcycle.bin"))?;
+        fs::create_dir_all(sys.join("buckets/.usage.json"))?;
+
         Ok(())
     }
 
