@@ -38,4 +38,10 @@ pub trait BucketWebsiteS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineEr
             error_document: error_doc,
         })
     }
+
+    async fn put_bucket_website(&self, req: PutBucketWebsiteRequest) -> Result<PutBucketWebsiteResponse, E> {
+        check_access(self.bucket_website_policy_provider(), S3Action::PutBucketWebsite, Some(&req.bucket.bucket), None).await?;
+        self.bucket_website_engine_provider().put_bucket_website(&req.bucket.bucket, req.xml).await?;
+        Ok(PutBucketWebsiteResponse { meta: Default::default() })
+    }
 }

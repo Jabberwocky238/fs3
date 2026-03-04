@@ -18,9 +18,10 @@ impl S3BucketWebsiteEngine for FS3Engine {
     async fn put_bucket_website(&self, bucket: &str, website: String) -> Result<(), S3EngineError> {
         let ctx = crate::types::s3::object_layer_types::Context { request_id: "".to_string() };
         let path = format!("{}/.minio.sys/website.xml", bucket);
-        let data = website.as_bytes();
-        let stream = futures::stream::once(async move { Ok::<bytes::Bytes, std::io::Error>(bytes::Bytes::from(data.to_vec())) });
-        self.storage.create_file(&ctx, bucket, &path, data.len() as i64, Box::pin(stream)).await
+        let data = website.into_bytes();
+        let len = data.len() as i64;
+        let stream = futures::stream::once(async move { Ok::<bytes::Bytes, std::io::Error>(bytes::Bytes::from(data)) });
+        self.storage.create_file(&ctx, bucket, &path, len, Box::pin(stream)).await
             .map_err(|e| S3EngineError::Storage(e.to_string()))
     }
 

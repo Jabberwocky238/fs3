@@ -331,6 +331,11 @@ pub struct GetBucketWebsiteResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct PutBucketWebsiteResponse {
+    pub meta: ResponseMeta,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetBucketAccelerateResponse {
     pub meta: ResponseMeta,
     pub status: Option<String>,
@@ -590,6 +595,7 @@ pub enum S3Response {
     PutBucketCors(PutBucketCorsResponse),
     DeleteBucketCors(DeleteBucketCorsResponse),
     GetBucketWebsite(GetBucketWebsiteResponse),
+    PutBucketWebsite(PutBucketWebsiteResponse),
     GetBucketAccelerate(GetBucketAccelerateResponse),
     GetBucketRequestPayment(GetBucketRequestPaymentResponse),
     GetBucketLogging(GetBucketLoggingResponse),

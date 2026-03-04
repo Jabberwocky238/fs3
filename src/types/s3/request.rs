@@ -381,6 +381,12 @@ pub struct GetBucketTaggingRequest {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct PutBucketWebsiteRequest {
+    pub bucket: BucketRef,
+    pub xml: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct DeleteBucketWebsiteRequest {
     pub bucket: BucketRef,
 }
@@ -622,6 +628,7 @@ pub enum S3Request {
     PutBucketCors(PutBucketCorsRequest),
     DeleteBucketCors(DeleteBucketCorsRequest),
     GetBucketWebsite(GetBucketWebsiteRequest),
+    PutBucketWebsite(PutBucketWebsiteRequest),
     GetBucketAccelerate(GetBucketAccelerateRequest),
     GetBucketRequestPayment(GetBucketRequestPaymentRequest),
     GetBucketLogging(GetBucketLoggingRequest),
