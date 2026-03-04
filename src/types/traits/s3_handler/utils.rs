@@ -24,6 +24,8 @@ pub enum S3HandlerBridgeError {
     NotModified,
     #[error("invalid versioning status: {0}")]
     InvalidVersioningStatus(String),
+    #[error("XML parse error: {0}")]
+    XmlParse(String),
 }
 
 pub async fn check_access<P: S3PolicyEngine + ?Sized>(

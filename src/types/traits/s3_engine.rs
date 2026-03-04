@@ -288,6 +288,7 @@ pub trait S3BucketWebsiteEngine {
     async fn get_bucket_website(&self, bucket: &str) -> Result<Option<String>, S3EngineError>;
     async fn put_bucket_website(&self, bucket: &str, website: String) -> Result<(), S3EngineError>;
     async fn delete_bucket_website(&self, bucket: &str) -> Result<(), S3EngineError>;
+    async fn set_bucket_cors(&self, bucket: &str, cors: Option<CorsConfiguration>) -> Result<(), S3EngineError>;
 }
 
 #[async_trait]

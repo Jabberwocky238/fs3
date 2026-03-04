@@ -103,6 +103,7 @@ impl From<S3HandlerBridgeError> for HandlerError {
             S3HandlerBridgeError::PreconditionFailed => Self::Object(ObjectError::PreconditionFailed("precondition failed".to_string())),
             S3HandlerBridgeError::NotModified => Self::Object(ObjectError::NotModified("not modified".to_string())),
             S3HandlerBridgeError::InvalidVersioningStatus(msg) => Self::Handler(HandlerOnlyError::BadRequest(msg)),
+            S3HandlerBridgeError::XmlParse(msg) => Self::Handler(HandlerOnlyError::BadRequest(msg)),
         }
     }
 }
@@ -115,6 +116,7 @@ impl From<S3EngineError> for HandlerError {
             S3EngineError::BucketNotEmpty(m) => Self::Bucket(BucketError::NotEmpty(m)),
             S3EngineError::ObjectNotFound { bucket, key } => Self::Object(ObjectError::NotFound(format!("{}/{}", bucket, key))),
             S3EngineError::MultipartNotFound(m) => Self::Object(ObjectError::UploadNotFound(m)),
+            S3EngineError::NoSuchCORSConfiguration => Self::Bucket(BucketError::NotFound("NoSuchCORSConfiguration".to_string())),
             _ => Self::Handler(HandlerOnlyError::Internal(e.to_string())),
         }
     }

@@ -20,6 +20,8 @@ pub enum S3EngineError {
     InvalidRange(String),
     #[error("invalid policy: {0}")]
     InvalidPolicy(String),
+    #[error("NoSuchCORSConfiguration")]
+    NoSuchCORSConfiguration,
     #[error("internal error: {0}")]
     Internal(String),
     #[error("storage error: {0}")]

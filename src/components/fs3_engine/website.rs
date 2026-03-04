@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use crate::types::traits::s3_engine::*;
 use crate::types::errors::S3EngineError;
+use crate::types::s3::core::CorsConfiguration;
 use super::FS3Engine;
 
 #[async_trait]
@@ -27,5 +28,11 @@ impl S3BucketWebsiteEngine for FS3Engine {
 
     async fn delete_bucket_website(&self, _bucket: &str) -> Result<(), S3EngineError> {
         Ok(())
+    }
+
+    async fn set_bucket_cors(&self, bucket: &str, cors: Option<CorsConfiguration>) -> Result<(), S3EngineError> {
+        let mut meta = self.get_bucket_metadata(bucket).await?;
+        meta.cors = cors;
+        self.put_bucket_metadata(bucket, meta).await
     }
 }

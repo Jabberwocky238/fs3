@@ -352,6 +352,27 @@ pub struct BucketMetadataBundle {
     pub replication_role: Option<String>,
     pub replication_rules: Vec<String>,
     pub tagging_map: Option<HashMap<String, String>>,
+    pub cors: Option<CorsConfiguration>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct CorsConfiguration {
+    #[serde(rename = "CORSRule", default)]
+    pub rules: Vec<CorsRule>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct CorsRule {
+    #[serde(rename = "AllowedOrigin", default)]
+    pub allowed_origins: Vec<String>,
+    #[serde(rename = "AllowedMethod", default)]
+    pub allowed_methods: Vec<String>,
+    #[serde(rename = "AllowedHeader", default)]
+    pub allowed_headers: Vec<String>,
+    #[serde(rename = "ExposeHeader", default)]
+    pub expose_headers: Vec<String>,
+    #[serde(rename = "MaxAgeSeconds", default)]
+    pub max_age_seconds: Option<i32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
