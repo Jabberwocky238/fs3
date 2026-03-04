@@ -5,7 +5,8 @@
       "Bash(cargo clean:*)",
       "Bash(cargo test:*)",
       "Bash(grep:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(cargo doc:*)"
     ]
   }
 }
