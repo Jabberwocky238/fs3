@@ -2,6 +2,11 @@
 // mod batch_version;
 mod bucket;
 mod bucket_config;
+mod bucket_tagging;
+mod bucket_encryption;
+mod bucket_lifecycle;
+mod bucket_replication;
+mod bucket_notification;
 // mod conditional;
 // mod content_md5;
 // mod distributed;
