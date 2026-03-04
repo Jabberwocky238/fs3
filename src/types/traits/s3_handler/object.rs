@@ -182,6 +182,8 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
             ?;
         Ok(NewMultipartUploadResponse {
             upload_id: Some(mp.upload_id),
+            bucket: Some(req.object.bucket),
+            key: Some(req.object.object),
             ..Default::default()
         })
     }

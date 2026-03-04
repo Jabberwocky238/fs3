@@ -1,4 +1,10 @@
 mod bucket;
 mod object;
 mod policy;
+mod multipart;
+mod object_advanced;
+mod list_objects;
+mod versioning;
+mod error_scenarios;
+mod policy_advanced;
 pub mod helpers;

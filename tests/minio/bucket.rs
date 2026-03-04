@@ -7,7 +7,7 @@ use super::helpers::{create_minio_client, create_minio_server};
 
 #[tokio::test(flavor = "multi_thread")]
 async fn bucket_test() {
-    let (_addr, endpoint, _task) = create_minio_server().await.unwrap();
+    let (_addr, endpoint, handle) = create_minio_server().await.unwrap();
     let client = create_minio_client(&endpoint).unwrap();
     let bucket = "test-bucket";
 
@@ -64,4 +64,6 @@ async fn bucket_test() {
     // verify deleted
     let exists = client.bucket_exists(bucket).send().await.unwrap();
     assert!(!exists.exists);
+
+    handle.abort();
 }

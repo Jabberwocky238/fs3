@@ -109,6 +109,8 @@ pub struct NewMultipartUploadResponse {
     pub meta: ResponseMeta,
     #[serde(rename = "uploadId")]
     pub upload_id: Option<String>,
+    pub bucket: Option<String>,
+    pub key: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
