@@ -12,6 +12,8 @@ impl ObjectObjectLayer for ErasureServerPools {
         let version_id = opts.version_id.as_deref().unwrap_or("null");
         let fi = self.storage.read_version(ctx, bucket, object, version_id).await?;
 
+        eprintln!("DEBUG get_object_info: size={}", fi.size);
+
         Ok(ObjectInfo {
             bucket: bucket.to_string(),
             name: object.to_string(),

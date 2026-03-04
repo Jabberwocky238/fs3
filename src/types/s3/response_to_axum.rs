@@ -31,6 +31,20 @@ impl IntoResponse for S3Response {
                 (sc, "").into_response()
             }
 
+            S3Response::HeadObject(r) => {
+                let mut resp = StatusCode::OK.into_response();
+                if let Some(obj) = &r.object {
+                    let headers = resp.headers_mut();
+                    if let Ok(v) = obj.size.to_string().parse() {
+                        headers.insert("content-length", v);
+                    }
+                    if let Ok(v) = format!("\"{}\"", obj.etag).parse() {
+                        headers.insert("etag", v);
+                    }
+                }
+                resp
+            }
+
             // Empty 204
             S3Response::DeleteBucket(_)
             | S3Response::DeleteBucketPolicy(_)

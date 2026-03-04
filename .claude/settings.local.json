@@ -8,7 +8,9 @@
       "Bash(ls:*)",
       "Bash(cargo doc:*)",
       "Bash(test:*)",
-      "Bash(mv:*)"
+      "Bash(mv:*)",
+      "WebSearch",
+      "WebFetch(domain:docs.rs)"
     ]
   }
 }

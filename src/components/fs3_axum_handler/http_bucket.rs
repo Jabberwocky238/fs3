@@ -34,7 +34,10 @@ where
     T: S3Handler<E> + Send + Sync + 'static,
     E: std::fmt::Display + From<S3HandlerBridgeError> + From<S3EngineError> + 'static,
 {
-    Router::new().route("/{bucket}", any(bucket_entry::<T, E>)).with_state(state)
+    Router::new()
+        .route("/{bucket}", any(bucket_entry::<T, E>))
+        .route("/{bucket}/", any(bucket_entry::<T, E>))
+        .with_state(state)
 }
 
 async fn bucket_entry<T, E>(
