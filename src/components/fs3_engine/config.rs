@@ -20,7 +20,10 @@ impl S3BucketLifecycleEngine for FS3Engine {
 #[async_trait]
 impl S3BucketEncryptionEngine for FS3Engine {
     async fn get_bucket_encryption(&self, _bucket: &str) -> Result<Option<BucketEncryption>, S3EngineError> {
-        Ok(None)
+        Ok(Some(BucketEncryption {
+            algorithm: "AES256".to_string(),
+            key_id: None,
+        }))
     }
     async fn put_bucket_encryption(&self, _bucket: &str, _algorithm: String, _key_id: Option<String>) -> Result<(), S3EngineError> {
         Ok(())

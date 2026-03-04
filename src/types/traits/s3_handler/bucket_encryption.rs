@@ -16,8 +16,12 @@ pub trait BucketEncryptionS3Handler<E: From<S3HandlerBridgeError> + From<S3Engin
 
     async fn get_bucket_encryption(&self, req: GetBucketEncryptionRequest) -> Result<GetBucketEncryptionResponse, E> {
         check_access(self.bucket_encryption_policy_provider(), S3Action::GetBucketEncryption, Some(&req.bucket.bucket), None).await?;
-        let _p = self.bucket_encryption_engine_provider().get_bucket_encryption(&req.bucket.bucket).await?;
-        Ok(GetBucketEncryptionResponse { ..Default::default() })
+        let enc = self.bucket_encryption_engine_provider().get_bucket_encryption(&req.bucket.bucket).await?;
+        Ok(GetBucketEncryptionResponse {
+            sse_algorithm: enc.as_ref().map(|e| e.algorithm.clone()),
+            kms_master_key_id: enc.as_ref().and_then(|e| e.key_id.clone()),
+            ..Default::default()
+        })
     }
 
     async fn put_bucket_encryption(&self, req: PutBucketEncryptionRequest) -> Result<PutBucketEncryptionResponse, E> {

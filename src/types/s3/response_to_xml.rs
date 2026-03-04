@@ -49,10 +49,21 @@ impl From<&S3Response> for Option<XMLResponse> {
         S3Response::AbortMultipartUpload(r) => Some(r.into()),
         S3Response::CompleteMultipartUpload(r) => Some(r.into()),
 
-        S3Response::GetBucketLifecycle(_) => None,
-        S3Response::GetBucketEncryption(_) => None,
+        S3Response::GetBucketLifecycle(r) => Some(XMLResponse {
+            body: format!(r#"<?xml version="1.0" encoding="UTF-8"?><LifecycleConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">{}</LifecycleConfiguration>"#,
+                r.rules.iter().map(|_| "<Rule></Rule>").collect::<String>())
+        }),
+        S3Response::GetBucketEncryption(r) => Some(XMLResponse {
+            body: format!(r#"<?xml version="1.0" encoding="UTF-8"?><ServerSideEncryptionConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Rule><ApplyServerSideEncryptionByDefault>{}{}</ApplyServerSideEncryptionByDefault></Rule></ServerSideEncryptionConfiguration>"#,
+                r.sse_algorithm.as_ref().map(|a| format!("<SSEAlgorithm>{}</SSEAlgorithm>", a)).unwrap_or_default(),
+                r.kms_master_key_id.as_ref().map(|k| format!("<KMSMasterKeyID>{}</KMSMasterKeyID>", k)).unwrap_or_default())
+        }),
         S3Response::GetBucketObjectLockConfig(_) => None,
-        S3Response::GetBucketReplicationConfig(_) => None,
+        S3Response::GetBucketReplicationConfig(r) => Some(XMLResponse {
+            body: format!(r#"<?xml version="1.0" encoding="UTF-8"?><ReplicationConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">{}{}</ReplicationConfiguration>"#,
+                r.role.as_ref().map(|ro| format!("<Role>{}</Role>", ro)).unwrap_or_default(),
+                r.rules.iter().map(|_| "<Rule></Rule>").collect::<String>())
+        }),
         S3Response::GetBucketVersioning(r) => Some(r.into()),
         S3Response::GetBucketNotification(r) => Some(r.into()),
         S3Response::GetBucketAcl(_) => None,
