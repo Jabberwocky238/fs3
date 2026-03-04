@@ -78,11 +78,11 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE) for detai
 | ✅ | ✅ | AWS S3 | Bucket | Versioning | `minio/cmd/bucket-versioning-handler.go` | `tests/minio/versioning.rs` |
 | ✅ | ✅ | AWS S3 | Bucket | Object lock | `minio/cmd/bucket-handlers.go` | `tests/minio/object_lock.rs` |
 | ⬜ | ⬜ | AWS S3 | Bucket | ACL (get/put) | `minio/cmd/acl-handlers.go` | `tests/minio/acl.rs` |
-| ⬜ | ⬜ | AWS S3 | Bucket | CORS (get/put/delete) | `minio/cmd/dummy-handlers.go` | `tests/minio/cors.rs` |
-| ⬜ | ⬜ | AWS S3 | Bucket | Website (get/delete) | `minio/cmd/dummy-handlers.go` | `tests/minio/website.rs` |
-| ⬜ | ⬜ | AWS S3 | Bucket | Logging (get) | `minio/cmd/dummy-handlers.go` | `tests/minio/logging.rs` |
-| ⬜ | ⬜ | AWS S3 | Bucket | Accelerate (get) | `minio/cmd/dummy-handlers.go` | `tests/minio/accelerate.rs` |
-| ⬜ | ⬜ | AWS S3 | Bucket | Request payment (get) | `minio/cmd/dummy-handlers.go` | `tests/minio/payment.rs` |
+| ✅ | 🧪 | AWS S3 | Bucket | CORS (get/put/delete) | `minio/cmd/dummy-handlers.go` | `tests/minio/cors.rs` |
+| ✅ | ✅ | AWS S3 | Bucket | Website (get/delete) | `minio/cmd/dummy-handlers.go` | `tests/minio/website.rs` |
+| ✅ | 🧪 | AWS S3 | Bucket | Logging (get) | `minio/cmd/dummy-handlers.go` | `tests/minio/logging.rs` |
+| ✅ | 🧪 | AWS S3 | Bucket | Accelerate (get) | `minio/cmd/dummy-handlers.go` | `tests/minio/accelerate.rs` |
+| ✅ | 🧪 | AWS S3 | Bucket | Request payment (get) | `minio/cmd/dummy-handlers.go` | `tests/minio/payment.rs` |
 | 🚧 | 🚧 | AWS S3 | Object | Basic ops (put/get/head/delete) | `minio/cmd/object-handlers.go` | `tests/minio/object.rs` |
 | 🚧 | 🚧 | AWS S3 | Object | Copy object | `minio/cmd/object-handlers.go` | `tests/minio/object_advanced.rs` |
 | 🚧 | 🚧 | AWS S3 | Object | Delete multiple | `minio/cmd/bucket-handlers.go` | `tests/minio/batch_version.rs` |

@@ -25,7 +25,7 @@ impl S3BucketWebsiteEngine for FS3Engine {
             .map_err(|e| S3EngineError::Storage(e.to_string()))
     }
 
-    async fn delete_bucket_website(&self, bucket: &str) -> Result<(), S3EngineError> {
+    async fn delete_bucket_website(&self, _bucket: &str) -> Result<(), S3EngineError> {
         Ok(())
     }
 }
