@@ -13,4 +13,5 @@ mod object_features;
 mod batch_version;
 mod object_lock;
 mod content_md5;
+mod conditional;
 pub mod helpers;

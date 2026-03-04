@@ -18,6 +18,10 @@ pub enum S3HandlerBridgeError {
     InvalidRequest(String),
     #[error("access denied: {0}")]
     AccessDenied(String),
+    #[error("precondition failed")]
+    PreconditionFailed,
+    #[error("not modified")]
+    NotModified,
 }
 
 pub async fn check_access<P: S3PolicyEngine + ?Sized>(

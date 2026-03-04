@@ -35,6 +35,16 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
                 ObjectReadOptions::from(&req),
             )
             .await?;
+        if let Some(ref if_match) = req.if_match {
+            if &obj.etag != if_match {
+                return Err(S3HandlerBridgeError::PreconditionFailed.into());
+            }
+        }
+        if let Some(ref if_none_match) = req.if_none_match {
+            if &obj.etag == if_none_match {
+                return Err(S3HandlerBridgeError::NotModified.into());
+            }
+        }
         let mut headers = std::collections::HashMap::new();
         headers.insert("content-length".to_string(), obj.size.to_string());
         if let Some(ct) = &obj.content_type {
@@ -301,6 +311,16 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
                 ObjectReadOptions::from(&req),
             )
             .await?;
+        if let Some(ref if_match) = req.if_match {
+            if &obj.etag != if_match {
+                return Err(S3HandlerBridgeError::PreconditionFailed.into());
+            }
+        }
+        if let Some(ref if_none_match) = req.if_none_match {
+            if &obj.etag == if_none_match {
+                return Err(S3HandlerBridgeError::NotModified.into());
+            }
+        }
         Ok(GetObjectResponse {
             meta: ResponseMeta {
                 etag: Some(obj.etag.clone()),

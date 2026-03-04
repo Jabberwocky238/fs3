@@ -239,6 +239,8 @@ impl<'a> From<ObjectEntryRef<'a>> for GetObjectRequest {
             object: object_ref(v),
             range: header(v, "range"),
             version_id: q(v, "versionId"),
+            if_match: header(v, "if-match"),
+            if_none_match: header(v, "if-none-match"),
         }
     }
 }

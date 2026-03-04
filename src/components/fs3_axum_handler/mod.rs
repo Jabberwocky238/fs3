@@ -35,6 +35,8 @@ pub enum ObjectError {
     NotFound(String),
     UploadNotFound(String),
     Internal(String),
+    PreconditionFailed(String),
+    NotModified(String),
 }
 
 #[derive(Debug)]
@@ -77,6 +79,8 @@ impl IntoResponse for HandlerError {
             Self::Object(ObjectError::NotFound(m)) => (StatusCode::NOT_FOUND, "NoSuchKey", m),
             Self::Object(ObjectError::UploadNotFound(m)) => (StatusCode::NOT_FOUND, "NoSuchUpload", m),
             Self::Object(ObjectError::Internal(m)) => (StatusCode::INTERNAL_SERVER_ERROR, "InternalError", m),
+            Self::Object(ObjectError::PreconditionFailed(m)) => (StatusCode::PRECONDITION_FAILED, "PreconditionFailed", m),
+            Self::Object(ObjectError::NotModified(m)) => (StatusCode::NOT_MODIFIED, "NotModified", m),
             Self::Handler(HandlerOnlyError::BadRequest(m)) => (StatusCode::BAD_REQUEST, "BadRequest", m),
             Self::Handler(HandlerOnlyError::MethodNotAllowed(m)) => (StatusCode::METHOD_NOT_ALLOWED, "MethodNotAllowed", m),
             Self::Handler(HandlerOnlyError::Internal(m)) => (StatusCode::INTERNAL_SERVER_ERROR, "InternalError", m),
@@ -87,6 +91,31 @@ impl IntoResponse for HandlerError {
             msg.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;")
         );
         (status, [("content-type", "application/xml")], body).into_response()
+    }
+}
+
+impl From<S3HandlerBridgeError> for HandlerError {
+    fn from(e: S3HandlerBridgeError) -> Self {
+        match e {
+            S3HandlerBridgeError::Unsupported(msg) => Self::Handler(HandlerOnlyError::BadRequest(msg.to_string())),
+            S3HandlerBridgeError::InvalidRequest(msg) => Self::Handler(HandlerOnlyError::BadRequest(msg)),
+            S3HandlerBridgeError::AccessDenied(msg) => Self::Handler(HandlerOnlyError::BadRequest(msg)),
+            S3HandlerBridgeError::PreconditionFailed => Self::Object(ObjectError::PreconditionFailed("precondition failed".to_string())),
+            S3HandlerBridgeError::NotModified => Self::Object(ObjectError::NotModified("not modified".to_string())),
+        }
+    }
+}
+
+impl From<S3EngineError> for HandlerError {
+    fn from(e: S3EngineError) -> Self {
+        match e {
+            S3EngineError::BucketNotFound(m) => Self::Bucket(BucketError::NotFound(m)),
+            S3EngineError::BucketAlreadyExists(m) => Self::Bucket(BucketError::AlreadyExists(m)),
+            S3EngineError::BucketNotEmpty(m) => Self::Bucket(BucketError::NotEmpty(m)),
+            S3EngineError::ObjectNotFound { bucket, key } => Self::Object(ObjectError::NotFound(format!("{}/{}", bucket, key))),
+            S3EngineError::MultipartNotFound(m) => Self::Object(ObjectError::UploadNotFound(m)),
+            _ => Self::Handler(HandlerOnlyError::Internal(e.to_string())),
+        }
     }
 }
 

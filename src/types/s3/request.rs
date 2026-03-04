@@ -209,6 +209,10 @@ pub struct GetObjectRequest {
     pub range: Option<String>,
     #[serde(rename = "versionId")]
     pub version_id: Option<String>,
+    #[serde(rename = "If-Match")]
+    pub if_match: Option<String>,
+    #[serde(rename = "If-None-Match")]
+    pub if_none_match: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]

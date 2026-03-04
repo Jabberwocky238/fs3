@@ -22,6 +22,10 @@ fn object_err(e: impl std::fmt::Display) -> HandlerError {
         ObjectError::NotFound(msg)
     } else if msg.contains("multipart") && msg.contains("not found") {
         ObjectError::UploadNotFound(msg)
+    } else if msg.contains("precondition failed") {
+        ObjectError::PreconditionFailed(msg)
+    } else if msg.contains("not modified") {
+        ObjectError::NotModified(msg)
     } else {
         ObjectError::Internal(msg)
     })
@@ -132,6 +136,8 @@ where
                 object: mk(),
                 range: header(&headers, "range"),
                 version_id: get(&q, "versionId"),
+                if_match: header(&headers, "if-match"),
+                if_none_match: header(&headers, "if-none-match"),
             }).await.map_err(object_err)?,
         ),
 
