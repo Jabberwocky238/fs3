@@ -18,7 +18,10 @@ pub const AWS_ACCESS_KEY: &str = "minioadmin";
 pub const AWS_SECRET_KEY: &str = "minioadmin";
 
 pub async fn create_test_server() -> std::io::Result<(SocketAddr, String, JoinHandle<()>)> {
-    let storage = Arc::new(XlStorage::new(PathBuf::from("/tmp/fs3-test-aws")));
+    let base_path = PathBuf::from("/tmp/fs3-test-aws");
+    tokio::fs::create_dir_all(&base_path).await?;
+
+    let storage = Arc::new(XlStorage::new(base_path));
     let object_layer = Arc::new(ErasureServerPools::new(storage.clone()));
     let engine = FS3Engine::new(object_layer, storage.clone());
     let policy = StoragePolicyEngine::new(storage);
@@ -26,7 +29,11 @@ pub async fn create_test_server() -> std::io::Result<(SocketAddr, String, JoinHa
     let listener = TcpListener::bind(("127.0.0.1", 0)).await?;
     let addr = listener.local_addr()?;
     let endpoint = format!("http://{addr}");
-    let app = axum_router::<_, S3EngineError>(handler);
+    let app = axum_router::<_, S3EngineError>(handler)
+        .layer(axum::middleware::from_fn(|req: axum::http::Request<axum::body::Body>, next: axum::middleware::Next| async move {
+            println!("Request: {} {}", req.method(), req.uri());
+            next.run(req).await
+        }));
 
     let task = tokio::spawn(async move {
         let _ = axum::serve(listener, app).await;
@@ -42,6 +49,7 @@ pub fn create_aws_client(endpoint: &str) -> AwsClient {
         .region(Region::new("us-east-1"))
         .credentials_provider(creds)
         .force_path_style(true)
+        .behavior_version_latest()
         .build();
     AwsClient::from_conf(config)
 }

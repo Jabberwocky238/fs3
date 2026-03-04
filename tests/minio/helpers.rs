@@ -2,8 +2,6 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::path::PathBuf;
 
-use aws_sdk_s3::Client as AwsClient;
-use aws_sdk_s3::config::{Credentials, Region};
 use minio::s3::Client as MinioClient;
 use minio::s3::creds::StaticProvider;
 use minio::s3::http::BaseUrl;
