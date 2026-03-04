@@ -133,9 +133,8 @@ impl From<&GetBucketTaggingResponse> for XMLResponse {
 impl From<&GetBucketVersioningResponse> for XMLResponse {
     fn from(r: &GetBucketVersioningResponse) -> Self {
         let mut xml = String::from(r#"<?xml version="1.0" encoding="UTF-8"?><VersioningConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">"#);
-        if let Some(status) = &r.status {
-            xml.push_str(&format!("<Status>{}</Status>", xml_escape(status)));
-        }
+        let status = r.status.as_deref().unwrap_or("Enabled");
+        xml.push_str(&format!("<Status>{}</Status>", xml_escape(status)));
         if let Some(mfa) = &r.mfa_delete {
             xml.push_str(&format!("<MfaDelete>{}</MfaDelete>", xml_escape(mfa)));
         }
