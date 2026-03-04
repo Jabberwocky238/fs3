@@ -34,7 +34,7 @@ mod object;
 // mod policy;
 // mod policy_advanced;
 // mod post_policy;
-// mod presigned;
+mod presigned;
 // mod rate_limit;
 // mod replication_sync;
 // mod request_payment;

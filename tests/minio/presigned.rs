@@ -3,7 +3,7 @@ use minio::s3::builders::ObjectContent;
 use super::helpers::{create_minio_client, create_minio_server};
 use http::Method;
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn test_presigned_get_url() {
     let (_addr, endpoint, _handle) = create_minio_server().await.unwrap();
     let client = create_minio_client(&endpoint).unwrap();
@@ -23,7 +23,7 @@ async fn test_presigned_get_url() {
     assert_eq!(resp.bytes().await.unwrap().as_ref(), data, "Presigned GET must return exact data");
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn test_presigned_put_url() {
     let (_addr, endpoint, _handle) = create_minio_server().await.unwrap();
     let client = create_minio_client(&endpoint).unwrap();

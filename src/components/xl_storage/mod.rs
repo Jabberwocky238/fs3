@@ -76,9 +76,14 @@ impl StorageMetadata for XlStorage {
             .map_err(|_| StorageError::FileNotFound(path.to_string()))?;
         let xl_meta: XlMetaV2 = serde_json::from_slice(&data)
             .map_err(|e| StorageError::Io(e.to_string()))?;
-        let version = xl_meta.versions.iter()
-            .find(|v| v.version_id == version_id)
-            .ok_or_else(|| StorageError::FileNotFound(version_id.to_string()))?;
+        let version = if version_id == "null" {
+            xl_meta.versions.first()
+                .ok_or_else(|| StorageError::FileNotFound("no versions".to_string()))?
+        } else {
+            xl_meta.versions.iter()
+                .find(|v| v.version_id == version_id)
+                .ok_or_else(|| StorageError::FileNotFound(version_id.to_string()))?
+        };
         Ok(FileInfo {
             volume: volume.to_string(),
             name: path.to_string(),

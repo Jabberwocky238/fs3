@@ -106,8 +106,37 @@ impl S3ObjectEngine for FS3Engine {
         Ok((obj, stream))
     }
 
-    async fn copy_object(&self, _src_bucket: &str, _src_key: &str, _dst_bucket: &str, _dst_key: &str, _options: ObjectWriteOptions) -> Result<S3Object, S3EngineError> {
-        Err(S3EngineError::Storage("not implemented".to_string()))
+    async fn copy_object(&self, src_bucket: &str, src_key: &str, dst_bucket: &str, dst_key: &str, options: ObjectWriteOptions) -> Result<S3Object, S3EngineError> {
+        let ctx = crate::types::s3::object_layer_types::Context { request_id: "".to_string() };
+        let src_opts = crate::types::s3::object_layer_types::ObjectOptions { version_id: None, user_defined: Default::default() };
+        let dst_opts = crate::types::s3::object_layer_types::ObjectOptions { version_id: None, user_defined: options.user_metadata.clone() };
+
+        let src_info = self.object_layer.get_object_info(&ctx, src_bucket, src_key, src_opts.clone()).await
+            .map_err(|e| S3EngineError::Storage(e.to_string()))?;
+
+        let info = self.object_layer.copy_object(&ctx, src_bucket, src_key, dst_bucket, dst_key, src_info.clone(), src_opts, dst_opts).await
+            .map_err(|e| S3EngineError::Storage(e.to_string()))?;
+
+        Ok(S3Object {
+            bucket: dst_bucket.to_string(),
+            key: dst_key.to_string(),
+            size: info.size,
+            etag: info.etag,
+            last_modified: chrono::Utc::now(),
+            content_type: Some(info.content_type),
+            content_encoding: None,
+            storage_class: StorageClass::Standard,
+            user_metadata: info.user_defined,
+            user_tags: Default::default(),
+            version: ObjectVersionRef { version_id: None, is_latest: true, delete_marker: false },
+            parts: Vec::new(),
+            checksums: Vec::new(),
+            replication_state: ReplicationState::default(),
+            retention: None,
+            legal_hold: None,
+            restore_expiry: None,
+            restore_ongoing: false,
+        })
     }
 
     async fn delete_object(&self, bucket: &str, key: &str, _options: DeleteObjectOptions) -> Result<ObjectVersionRef, S3EngineError> {
