@@ -5,6 +5,9 @@ use crate::types::s3::storage_types::*;
 use crate::types::s3::object_layer_types::Context;
 use crate::types::errors::StorageError;
 
+mod xl_meta;
+use xl_meta::*;
+
 pub struct XlStorage {
     path: PathBuf,
 }
@@ -12,6 +15,10 @@ pub struct XlStorage {
 impl XlStorage {
     pub fn new(path: PathBuf) -> Self {
         Self { path }
+    }
+
+    fn xl_meta_path(&self, volume: &str, path: &str) -> PathBuf {
+        self.path.join(volume).join(path).join("xl.meta")
     }
 }
 
@@ -57,31 +64,102 @@ impl StorageAPI for XlStorage {
             .map_err(|e| StorageError::Io(e.to_string()))
     }
 
-    async fn read_version(&self, _ctx: &Context, _volume: &str, _path: &str, _version_id: &str) -> Result<FileInfo, StorageError> {
-        todo!()
+    async fn read_version(&self, _ctx: &Context, volume: &str, path: &str, version_id: &str) -> Result<FileInfo, StorageError> {
+        let meta_path = self.xl_meta_path(volume, path);
+        let data = tokio::fs::read(&meta_path).await
+            .map_err(|_| StorageError::FileNotFound(path.to_string()))?;
+        let xl_meta: XlMetaV2 = serde_json::from_slice(&data)
+            .map_err(|e| StorageError::Io(e.to_string()))?;
+
+        let version = xl_meta.versions.iter()
+            .find(|v| v.version_id == version_id)
+            .ok_or_else(|| StorageError::FileNotFound(version_id.to_string()))?;
+
+        Ok(FileInfo {
+            volume: volume.to_string(),
+            name: path.to_string(),
+            version_id: version.version_id.clone(),
+            size: version.size,
+            data_dir: version.data_dir.clone(),
+        })
     }
 
-    async fn write_metadata(&self, _ctx: &Context, _volume: &str, _path: &str, _fi: FileInfo) -> Result<(), StorageError> {
-        todo!()
+    async fn write_metadata(&self, _ctx: &Context, volume: &str, path: &str, fi: FileInfo) -> Result<(), StorageError> {
+        let meta_path = self.xl_meta_path(volume, path);
+        if let Some(parent) = meta_path.parent() {
+            tokio::fs::create_dir_all(parent).await
+                .map_err(|e| StorageError::Io(e.to_string()))?;
+        }
+
+        let xl_meta = XlMetaV2 {
+            versions: vec![XlMetaVersion {
+                version_id: fi.version_id,
+                data_dir: fi.data_dir,
+                size: fi.size,
+                mod_time: 0,
+            }],
+        };
+
+        let data = serde_json::to_vec(&xl_meta)
+            .map_err(|e| StorageError::Io(e.to_string()))?;
+        tokio::fs::write(&meta_path, &data).await
+            .map_err(|e| StorageError::Io(e.to_string()))
     }
 
-    async fn delete_version(&self, _ctx: &Context, _volume: &str, _path: &str, _fi: FileInfo) -> Result<(), StorageError> {
-        todo!()
+    async fn delete_version(&self, _ctx: &Context, volume: &str, path: &str, _fi: FileInfo) -> Result<(), StorageError> {
+        let meta_path = self.xl_meta_path(volume, path);
+        tokio::fs::remove_file(&meta_path).await
+            .map_err(|e| StorageError::Io(e.to_string()))
     }
 
-    async fn read_file(&self, _ctx: &Context, _volume: &str, _path: &str, _offset: i64, _buf: &mut [u8]) -> Result<i64, StorageError> {
-        todo!()
+    async fn read_file(&self, _ctx: &Context, volume: &str, path: &str, offset: i64, buf: &mut [u8]) -> Result<i64, StorageError> {
+        let file_path = self.path.join(volume).join(path);
+        let mut file = tokio::fs::File::open(&file_path).await
+            .map_err(|_| StorageError::FileNotFound(path.to_string()))?;
+
+        use tokio::io::{AsyncReadExt, AsyncSeekExt};
+        file.seek(std::io::SeekFrom::Start(offset as u64)).await
+            .map_err(|e| StorageError::Io(e.to_string()))?;
+        let n = file.read(buf).await
+            .map_err(|e| StorageError::Io(e.to_string()))?;
+        Ok(n as i64)
     }
 
-    async fn create_file(&self, _ctx: &Context, _volume: &str, _path: &str, _size: i64, _reader: crate::types::s3::core::BoxByteStream) -> Result<(), StorageError> {
-        todo!()
+    async fn create_file(&self, _ctx: &Context, volume: &str, path: &str, _size: i64, mut reader: crate::types::s3::core::BoxByteStream) -> Result<(), StorageError> {
+        let file_path = self.path.join(volume).join(path);
+        if let Some(parent) = file_path.parent() {
+            tokio::fs::create_dir_all(parent).await
+                .map_err(|e| StorageError::Io(e.to_string()))?;
+        }
+
+        let mut file = tokio::fs::File::create(&file_path).await
+            .map_err(|e| StorageError::Io(e.to_string()))?;
+
+        use tokio::io::AsyncWriteExt;
+        use futures::StreamExt;
+        while let Some(chunk) = reader.next().await {
+            let bytes = chunk.map_err(|e| StorageError::Io(e.to_string()))?;
+            file.write_all(&bytes).await
+                .map_err(|e| StorageError::Io(e.to_string()))?;
+        }
+        Ok(())
     }
 
-    async fn append_file(&self, _ctx: &Context, _volume: &str, _path: &str, _buf: &[u8]) -> Result<(), StorageError> {
-        todo!()
+    async fn append_file(&self, _ctx: &Context, volume: &str, path: &str, buf: &[u8]) -> Result<(), StorageError> {
+        let file_path = self.path.join(volume).join(path);
+        use tokio::io::AsyncWriteExt;
+        let mut file = tokio::fs::OpenOptions::new()
+            .append(true)
+            .open(&file_path).await
+            .map_err(|e| StorageError::Io(e.to_string()))?;
+        file.write_all(buf).await
+            .map_err(|e| StorageError::Io(e.to_string()))
     }
 
-    async fn rename_file(&self, _ctx: &Context, _src_vol: &str, _src_path: &str, _dst_vol: &str, _dst_path: &str) -> Result<(), StorageError> {
-        todo!()
+    async fn rename_file(&self, _ctx: &Context, src_vol: &str, src_path: &str, dst_vol: &str, dst_path: &str) -> Result<(), StorageError> {
+        let src = self.path.join(src_vol).join(src_path);
+        let dst = self.path.join(dst_vol).join(dst_path);
+        tokio::fs::rename(&src, &dst).await
+            .map_err(|e| StorageError::Io(e.to_string()))
     }
 }
