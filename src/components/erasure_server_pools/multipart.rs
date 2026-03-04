@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use crate::types::traits::object_layer::ObjectMultipartLayer;
+use crate::types::traits::object_layer::{ObjectMultipartLayer, ObjectObjectLayer};
 use crate::types::s3::object_layer_types::*;
 use crate::types::s3::storage_types::*;
 use crate::types::errors::S3Error;
@@ -24,11 +24,9 @@ impl ObjectMultipartLayer for ErasureServerPools {
         })
     }
 
-    async fn complete_multipart_upload(&self, ctx: &Context, bucket: &str, object: &str, upload_id: &str, parts: Vec<CompletePart>, opts: ObjectOptions) -> Result<ObjectInfo, S3Error> {
-        use futures::stream::{self, StreamExt};
-        use bytes::Bytes;
+    async fn complete_multipart_upload(&self, ctx: &Context, bucket: &str, object: &str, upload_id: &str, parts: Vec<CompletePart>, _opts: ObjectOptions) -> Result<ObjectInfo, S3Error> {
+        use futures::stream::{self};
 
-        let mut total_size = 0u64;
         let mut all_data = Vec::new();
 
         for part in parts.iter() {
@@ -40,24 +38,14 @@ impl ObjectMultipartLayer for ErasureServerPools {
                 if n == 0 { break; }
                 all_data.extend_from_slice(&buf[..n as usize]);
                 offset += n;
-                total_size += n as u64;
             }
         }
 
         let size = all_data.len() as i64;
-        let stream = stream::once(async move { Ok::<Bytes, std::io::Error>(Bytes::from(all_data)) });
-        let reader = Box::pin(stream);
+        let stream = stream::once(async move { Ok::<bytes::Bytes, std::io::Error>(bytes::Bytes::from(all_data)) });
+        let reader = PutObjReader { reader: Box::pin(stream), size };
 
-        self.storage.create_file(ctx, bucket, object, size, reader).await?;
-
-        Ok(ObjectInfo {
-            bucket: bucket.to_string(),
-            name: object.to_string(),
-            etag: uuid::Uuid::new_v4().to_string(),
-            size: total_size,
-            content_type: String::new(),
-            user_defined: Default::default(),
-        })
+        self.put_object(ctx, bucket, object, reader, Default::default()).await
     }
 
     async fn abort_multipart_upload(&self, _ctx: &Context, _bucket: &str, _object: &str, _upload_id: &str, _opts: ObjectOptions) -> Result<(), S3Error> {

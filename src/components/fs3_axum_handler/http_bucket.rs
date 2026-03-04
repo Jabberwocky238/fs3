@@ -136,7 +136,6 @@ fn rejected_api(q: &HashMap<String, String>, method: &Method) -> Option<&'static
     if has(q, "ownershipControls") && matches!(m, Method::GET | Method::PUT | Method::DELETE) { return Some("ownershipControls"); }
     if has(q, "intelligent-tiering") && matches!(m, Method::GET | Method::PUT | Method::DELETE) { return Some("intelligent-tiering"); }
     if has(q, "analytics") && matches!(m, Method::GET | Method::PUT | Method::DELETE) { return Some("analytics"); }
-    if has(q, "website") && m == Method::PUT { return Some("website"); }
     if has(q, "logging") && matches!(m, Method::PUT | Method::DELETE) { return Some("logging"); }
     if has(q, "accelerate") && matches!(m, Method::PUT | Method::DELETE) { return Some("accelerate"); }
     if has(q, "requestPayment") && matches!(m, Method::PUT | Method::DELETE) { return Some("requestPayment"); }
