@@ -14,7 +14,30 @@ pub struct XlStorage {
 
 impl XlStorage {
     pub fn new(path: PathBuf) -> Self {
+        let _ = Self::initialize(&path);
         Self { path }
+    }
+
+    fn initialize(path: &PathBuf) -> std::io::Result<()> {
+        use std::fs;
+        let sys = path.join(".minio.sys");
+        fs::create_dir_all(sys.join("buckets"))?;
+        fs::create_dir_all(sys.join("config/iam"))?;
+        fs::create_dir_all(sys.join("multipart"))?;
+        fs::create_dir_all(sys.join("tmp/.trash"))?;
+
+        let format_path = sys.join("format.json");
+        if !format_path.exists() {
+            use uuid::Uuid;
+            let pool_id = Uuid::new_v4();
+            let disk_id = Uuid::new_v4();
+            let format = format!(
+                r#"{{"version":"1","format":"xl-single","id":"{}","xl":{{"version":"3","this":"{}","sets":[["{}"]],"distributionAlgo":"SIPMOD+PARITY"}}}}"#,
+                pool_id, disk_id, disk_id
+            );
+            fs::write(format_path, format)?;
+        }
+        Ok(())
     }
 
     pub fn from_env() -> Self {
