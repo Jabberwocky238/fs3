@@ -41,6 +41,13 @@ pub trait StorageBucketConfig: Send + Sync {
     async fn write_bucket_versioning(&self, ctx: &Context, bucket: &str, status: &str) -> Result<(), StorageError>;
 }
 
-pub trait StorageAPI: StorageVolume + StorageMetadata + StorageFile + StorageBucketConfig {}
+#[async_trait]
+pub trait StorageObjectConfig: Send + Sync {
+    async fn read_object_tags(&self, ctx: &Context, bucket: &str, key: &str) -> Result<Option<String>, StorageError>;
+    async fn write_object_tags(&self, ctx: &Context, bucket: &str, key: &str, tags: &str) -> Result<(), StorageError>;
+    async fn delete_object_tags(&self, ctx: &Context, bucket: &str, key: &str) -> Result<(), StorageError>;
+}
 
-impl<T> StorageAPI for T where T: StorageVolume + StorageMetadata + StorageFile + StorageBucketConfig {}
+pub trait StorageAPI: StorageVolume + StorageMetadata + StorageFile + StorageBucketConfig + StorageObjectConfig {}
+
+impl<T> StorageAPI for T where T: StorageVolume + StorageMetadata + StorageFile + StorageBucketConfig + StorageObjectConfig {}

@@ -38,6 +38,10 @@ impl XlStorage {
     fn bucket_versioning_path(&self, bucket: &str) -> PathBuf {
         self.path.join(bucket).join(".minio.sys").join("versioning.json")
     }
+
+    fn object_tags_path(&self, bucket: &str, key: &str) -> PathBuf {
+        self.path.join(bucket).join(key).join("tags.json")
+    }
 }
 
 #[async_trait]
@@ -246,5 +250,34 @@ impl StorageBucketConfig for XlStorage {
         }
         tokio::fs::write(&path, status).await
             .map_err(|e| StorageError::Io(e.to_string()))
+    }
+}
+
+#[async_trait]
+impl StorageObjectConfig for XlStorage {
+    async fn read_object_tags(&self, _ctx: &Context, bucket: &str, key: &str) -> Result<Option<String>, StorageError> {
+        match tokio::fs::read_to_string(self.object_tags_path(bucket, key)).await {
+            Ok(data) => Ok(Some(data)),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(e) => Err(StorageError::Io(e.to_string())),
+        }
+    }
+
+    async fn write_object_tags(&self, _ctx: &Context, bucket: &str, key: &str, tags: &str) -> Result<(), StorageError> {
+        let path = self.object_tags_path(bucket, key);
+        if let Some(parent) = path.parent() {
+            tokio::fs::create_dir_all(parent).await
+                .map_err(|e| StorageError::Io(e.to_string()))?;
+        }
+        tokio::fs::write(&path, tags).await
+            .map_err(|e| StorageError::Io(e.to_string()))
+    }
+
+    async fn delete_object_tags(&self, _ctx: &Context, bucket: &str, key: &str) -> Result<(), StorageError> {
+        match tokio::fs::remove_file(self.object_tags_path(bucket, key)).await {
+            Ok(_) => Ok(()),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(e) => Err(StorageError::Io(e.to_string())),
+        }
     }
 }

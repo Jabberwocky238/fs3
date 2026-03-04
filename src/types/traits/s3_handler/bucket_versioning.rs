@@ -26,12 +26,25 @@ pub trait BucketVersioningS3Handler<E: From<S3HandlerBridgeError> + From<S3Engin
 
     async fn put_bucket_versioning(&self, req: PutBucketVersioningRequest) -> Result<PutBucketVersioningResponse, E> {
         check_access(self.bucket_versioning_policy_provider(), S3Action::PutBucketVersioning, Some(&req.bucket.bucket), None).await?;
-        let (status, mfa_delete) = parse_versioning_config(&req.xml);
+        let (status, mfa_delete) = parse_versioning_config(&req.xml)?;
         self.bucket_versioning_engine_provider().put_bucket_versioning(&req.bucket.bucket, status, mfa_delete).await?;
         Ok(Default::default())
     }
 }
 
-fn parse_versioning_config(_xml: &str) -> (String, Option<String>) {
-    ("Enabled".to_string(), None)
+fn parse_versioning_config(xml: &str) -> Result<(String, Option<String>), S3HandlerBridgeError> {
+    use serde::Deserialize;
+
+    #[derive(Deserialize)]
+    struct VersioningConfiguration {
+        #[serde(rename = "Status")]
+        status: Option<String>,
+    }
+
+    let config: VersioningConfiguration = serde_xml_rs::from_str(xml)
+        .map_err(|e| S3HandlerBridgeError::InvalidVersioningStatus(format!("XML parse error: {}", e)))?;
+
+    config.status
+        .ok_or_else(|| S3HandlerBridgeError::InvalidVersioningStatus("Missing VersioningStatus".to_string()))
+        .map(|s| (s, None))
 }

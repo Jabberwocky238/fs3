@@ -22,6 +22,8 @@ pub enum S3HandlerBridgeError {
     PreconditionFailed,
     #[error("not modified")]
     NotModified,
+    #[error("invalid versioning status: {0}")]
+    InvalidVersioningStatus(String),
 }
 
 pub async fn check_access<P: S3PolicyEngine + ?Sized>(
