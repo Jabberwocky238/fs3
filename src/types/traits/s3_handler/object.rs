@@ -383,15 +383,31 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
             Some(&req.object.object),
         )
         .await?;
-        let opt = to_write_opt(req.content_type);
-        let obj = self
-            .engine()
-            .put_object(&req.object.bucket, &req.object.object, req.body, opt)
-            .await?;
-        Ok(PutObjectResponse {
-            object: Some(to_resp_object(&obj)),
-            ..Default::default()
-        })
+
+        // Validate Content-MD5 if provided
+        if let Some(expected_md5) = &req.content_md5 {
+            use futures::TryStreamExt;
+            let chunks: Vec<bytes::Bytes> = req.body.try_collect().await
+                .map_err(|e| S3HandlerBridgeError::InvalidRequest(format!("stream error: {e}")))?;
+            let mut buf = Vec::new();
+            for c in &chunks { buf.extend_from_slice(c); }
+
+            use base64::{Engine as _, engine::general_purpose};
+            let actual_md5 = general_purpose::STANDARD.encode(md5::compute(&buf).0);
+            if &actual_md5 != expected_md5 {
+                return Err(S3HandlerBridgeError::InvalidRequest("Content-MD5 mismatch".to_string()).into());
+            }
+
+            let stream: crate::types::s3::core::BoxByteStream =
+                Box::pin(futures::stream::once(async { Ok(bytes::Bytes::from(buf)) }));
+            let opt = to_write_opt(req.content_type);
+            let obj = self.engine().put_object(&req.object.bucket, &req.object.object, stream, opt).await?;
+            Ok(PutObjectResponse { object: Some(to_resp_object(&obj)), ..Default::default() })
+        } else {
+            let opt = to_write_opt(req.content_type);
+            let obj = self.engine().put_object(&req.object.bucket, &req.object.object, req.body, opt).await?;
+            Ok(PutObjectResponse { object: Some(to_resp_object(&obj)), ..Default::default() })
+        }
     }
 
     async fn delete_object(&self, req: DeleteObjectRequest) -> Result<DeleteObjectResponse, E> {

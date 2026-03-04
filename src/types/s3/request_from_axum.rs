@@ -299,6 +299,7 @@ impl<'a> From<ObjectEntryRef<'a>> for PutObjectRequest {
             object: object_ref(v),
             body: Box::pin(futures::stream::once(async { Ok(data) })),
             content_type: header(v, "content-type"),
+            content_md5: header(v, "content-md5"),
         }
     }
 }

@@ -180,7 +180,12 @@ where
             }).await.map_err(object_err)?,
         ),
         Method::PUT => S3Response::PutObject(
-            handler.put_object(PutObjectRequest { object: mk(), body: Box::pin(futures::stream::once(async { Ok(body) })), content_type: header(&headers, "content-type") }).await.map_err(object_err)?,
+            handler.put_object(PutObjectRequest {
+                object: mk(),
+                body: Box::pin(futures::stream::once(async { Ok(body) })),
+                content_type: header(&headers, "content-type"),
+                content_md5: header(&headers, "content-md5"),
+            }).await.map_err(object_err)?,
         ),
 
         Method::POST if has(&q, "uploadId") => S3Response::CompleteMultipartUpload(

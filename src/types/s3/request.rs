@@ -251,6 +251,7 @@ pub struct PutObjectRequest {
     pub object: ObjectRef,
     pub body: crate::types::s3::core::BoxByteStream,
     pub content_type: Option<String>,
+    pub content_md5: Option<String>,
 }
 
 impl std::fmt::Debug for PutObjectRequest {

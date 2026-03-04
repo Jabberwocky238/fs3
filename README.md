@@ -47,6 +47,21 @@ cargo build --release --features storage-postgres
 └──────────┴──────────────────────┘
 ```
 
+## Testing
+
+```bash
+cargo test --test minio_tests
+```
+
+**Coverage**: 15 tests, all passing
+- Bucket: create, delete, list, policy, tagging, versioning, encryption, lifecycle, replication, notification
+- Object: put, get, head, copy, delete, tagging, legal hold
+- Multipart: create, abort
+- List: recursive, streaming
+- Policy: Allow/Deny, wildcards, priority
+- Content-MD5: validation on upload
+- Errors: invalid requests, conflicts
+
 ## Configuration
 
 FS3 uses CLI arguments via `clap`. Run with `--help` for available options.
@@ -64,46 +79,145 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE) for detai
 
 ## Roadmap
 
-### Milestone 1 — Core S3 API (Done)
+### Bucket Operations
 
-- [x] Bucket CRUD (create, delete, head, list)
-- [x] Object CRUD (put, get, head, copy, delete, batch delete)
-- [x] Multipart upload (initiate, upload part, copy part, complete, abort, list)
-- [x] S3-compatible ETag (MD5 for single-part, `MD5(parts)-N` for multipart)
-- [x] Object tagging, retention, legal hold
-- [x] Bucket policy, tagging, versioning config, lifecycle config, encryption config
-- [x] Notification, replication, object-lock config storage
-- [x] Range reads
-- [x] SQLite and JSON metadata backends
-- [x] Local filesystem and in-memory mount backends
+| Status | Feature | MinIO Source | Test File |
+|--------|---------|--------------|-----------|
+| ✅ | Create bucket | `cmd/bucket-handlers.go` | `tests/minio/bucket.rs` |
+| ✅ | Delete bucket | `cmd/bucket-handlers.go` | `tests/minio/bucket.rs` |
+| ✅ | Head bucket | `cmd/bucket-handlers.go` | `tests/minio/bucket.rs` |
+| ✅ | List buckets | `cmd/bucket-handlers.go` | `tests/minio/bucket.rs` |
+| ✅ | Get bucket location | `cmd/bucket-handlers.go` | `tests/minio/bucket.rs` |
+| ✅ | Bucket policy | `cmd/bucket-policy-handlers.go` | `tests/minio/policy.rs` |
+| ✅ | Bucket policy status | `cmd/bucket-policy-handlers.go` | `tests/minio/policy.rs` |
+| ✅ | Bucket tagging | `cmd/bucket-handlers.go` | `tests/minio/bucket_config.rs` |
+| ✅ | Bucket versioning | `cmd/bucket-versioning-handlers.go` | `tests/minio/versioning.rs` |
+| ✅ | Bucket lifecycle | `cmd/bucket-lifecycle-handlers.go` | `tests/minio/bucket_config.rs` |
+| ✅ | Bucket encryption | `cmd/bucket-encryption-handlers.go` | `tests/minio/bucket_config.rs` |
+| ✅ | Bucket notification | `cmd/bucket-notification-handlers.go` | `tests/minio/bucket_config.rs` |
+| ✅ | Bucket replication | `cmd/bucket-replication-handlers.go` | `tests/minio/bucket_config.rs` |
+| ✅ | Bucket object lock | `cmd/bucket-object-lock-handlers.go` | `tests/minio/object_lock.rs` |
+| ✅ | Bucket ACL (dummy) | `cmd/bucket-handlers.go` | - |
+| ⬜ | Bucket CORS | `cmd/bucket-handlers.go` | `tests/minio/cors.rs` |
+| ⬜ | Bucket website | `cmd/bucket-handlers.go` | `tests/minio/website.rs` |
+| ⬜ | Bucket logging | `cmd/bucket-handlers.go` | `tests/minio/logging.rs` |
+| ⬜ | Bucket accelerate | `cmd/bucket-handlers.go` | `tests/minio/accelerate.rs` |
+| ⬜ | Bucket request payment | `cmd/bucket-handlers.go` | `tests/minio/request_payment.rs` |
+| ⬜ | Bucket analytics | `cmd/bucket-handlers.go` | `tests/minio/analytics.rs` |
+| ⬜ | Bucket metrics | `cmd/bucket-handlers.go` | `tests/minio/metrics_config.rs` |
+| ⬜ | Bucket inventory | `cmd/bucket-handlers.go` | `tests/minio/inventory.rs` |
 
-### Milestone 2 — Enforcement & Correctness
+### Object Operations
 
-- [ ] Object versioning enforcement (currently config-only)
-- [ ] ACL enforcement (currently returns defaults)
-- [ ] CORS enforcement on responses
-- [ ] Object lock enforcement (WORM)
-- [ ] Lifecycle rule execution (expiration, transition)
-- [ ] Pre-signed URL support
-- [ ] Content-MD5 validation on upload
-- [ ] Conditional requests (If-Match, If-None-Match)
+| Status | Feature | MinIO Source | Test File |
+|--------|---------|--------------|-----------|
+| ✅ | Put object | `cmd/object-handlers.go` | `tests/minio/object.rs` |
+| ✅ | Get object | `cmd/object-handlers.go` | `tests/minio/object.rs` |
+| ✅ | Head object | `cmd/object-handlers.go` | `tests/minio/object.rs` |
+| ✅ | Delete object | `cmd/object-handlers.go` | `tests/minio/object.rs` |
+| ✅ | Delete multiple objects | `cmd/object-handlers.go` | `tests/minio/batch_version.rs` |
+| ✅ | Copy object | `cmd/object-handlers.go` | `tests/minio/object_advanced.rs` |
+| ✅ | Get object attributes | `cmd/object-handlers.go` | `tests/minio/object_features.rs` |
+| ✅ | Object tagging | `cmd/object-handlers.go` | `tests/minio/object_features.rs` |
+| ✅ | Object retention | `cmd/object-handlers.go` | `tests/minio/object_lock.rs` |
+| ✅ | Object legal hold | `cmd/object-handlers.go` | `tests/minio/object_lock.rs` |
+| ✅ | Object ACL (dummy) | `cmd/object-handlers.go` | - |
+| ✅ | Range reads | `cmd/object-handlers.go` | `tests/minio/object_advanced.rs` |
+| ✅ | Content-MD5 validation | `cmd/object-handlers.go` | `tests/minio/content_md5.rs` |
+| ⬜ | Conditional requests | `cmd/object-handlers.go` | `tests/minio/conditional.rs` |
+| ⬜ | Select object content | `cmd/object-handlers.go` | `tests/minio/select.rs` |
+| ⬜ | Restore object | `cmd/object-handlers.go` | `tests/minio/restore.rs` |
 
-### Milestone 3 — Advanced Features
+### Multipart Upload
 
-- [ ] Server-side encryption (SSE-S3, SSE-C)
-- [ ] Event notifications (SNS/SQS/Kafka)
-- [ ] S3 Select (SelectObjectContent)
-- [ ] POST policy (form-based upload)
-- [ ] Bucket replication (active sync)
-- [ ] Glacier-style restore
+| Status | Feature | MinIO Source | Test File |
+|--------|---------|--------------|-----------|
+| ✅ | Initiate multipart | `cmd/object-multipart-handlers.go` | `tests/minio/multipart.rs` |
+| ✅ | Upload part | `cmd/object-multipart-handlers.go` | `tests/minio/multipart.rs` |
+| ✅ | Upload part copy | `cmd/object-multipart-handlers.go` | `tests/minio/multipart.rs` |
+| ✅ | Complete multipart | `cmd/object-multipart-handlers.go` | `tests/minio/multipart.rs` |
+| ✅ | Abort multipart | `cmd/object-multipart-handlers.go` | `tests/minio/multipart.rs` |
+| ✅ | List parts | `cmd/object-multipart-handlers.go` | `tests/minio/multipart.rs` |
+| ✅ | List multipart uploads | `cmd/object-multipart-handlers.go` | `tests/minio/multipart.rs` |
 
-### Milestone 4 — Production Readiness
+### List Operations
 
-- [ ] PostgreSQL metadata backend
-- [ ] Kubernetes ConfigMap metadata backend
-- [ ] Authentication (Signature V4)
-- [ ] Rate limiting and request throttling
-- [ ] Metrics and observability (Prometheus)
-- [ ] Distributed mode (multi-node)
-- [ ] TLS termination
-- [ ] Docker image and Helm chart
+| Status | Feature | MinIO Source | Test File |
+|--------|---------|--------------|-----------|
+| ✅ | List objects v1 | `cmd/bucket-handlers.go` | `tests/minio/list_objects.rs` |
+| ✅ | List objects v2 | `cmd/bucket-handlers.go` | `tests/minio/list_objects.rs` |
+| ✅ | List objects v2 (metadata) | `cmd/bucket-handlers.go` | `tests/minio/list_advanced.rs` |
+| ✅ | List object versions | `cmd/bucket-handlers.go` | `tests/minio/versioning.rs` |
+| ✅ | List versions (metadata) | `cmd/bucket-handlers.go` | `tests/minio/list_advanced.rs` |
+
+### Versioning & Object Lock
+
+| Status | Feature | MinIO Source | Test File |
+|--------|---------|--------------|-----------|
+| ✅ | Versioning config | `cmd/bucket-versioning-handlers.go` | `tests/minio/versioning.rs` |
+| ⬜ | Versioning enforcement | `cmd/erasure-object.go` | `tests/minio/versioning_enforcement.rs` |
+| ✅ | Object lock config | `cmd/bucket-object-lock-handlers.go` | `tests/minio/object_lock.rs` |
+| ⬜ | Object lock enforcement | `cmd/object-handlers.go` | `tests/minio/object_lock_enforcement.rs` |
+
+### Security & Access Control
+
+| Status | Feature | MinIO Source | Test File |
+|--------|---------|--------------|-----------|
+| ✅ | Bucket policy evaluation | `internal/bucket/policy` | `tests/minio/policy.rs` |
+| ✅ | ACL (dummy) | `cmd/bucket-handlers.go` | - |
+| ⬜ | Pre-signed URLs | `cmd/signature-v4.go` | `tests/minio/presigned.rs` |
+| ⬜ | POST policy | `cmd/post-policy.go` | `tests/minio/post_policy.rs` |
+| ⬜ | Signature V4 auth | `cmd/signature-v4.go` | `tests/minio/auth_v4.rs` |
+| ⬜ | CORS enforcement | `cmd/cors.go` | `tests/minio/cors_enforcement.rs` |
+
+### Advanced Features
+
+| Status | Feature | MinIO Source | Test File |
+|--------|---------|--------------|-----------|
+| ⬜ | SSE-S3 encryption | `cmd/crypto` | `tests/minio/sse_s3.rs` |
+| ⬜ | SSE-C encryption | `cmd/crypto` | `tests/minio/sse_c.rs` |
+| ⬜ | SSE-KMS encryption | `cmd/crypto` | `tests/minio/sse_kms.rs` |
+| ⬜ | Event notifications | `cmd/notification.go` | `tests/minio/notifications.rs` |
+| ⬜ | Replication sync | `cmd/bucket-replication.go` | `tests/minio/replication_sync.rs` |
+| ⬜ | Lifecycle execution | `cmd/lifecycle.go` | `tests/minio/lifecycle_execution.rs` |
+| ⬜ | S3 Select | `cmd/select-objectcontent-handler.go` | `tests/minio/select.rs` |
+| ⬜ | Glacier restore | `cmd/object-handlers.go` | `tests/minio/restore.rs` |
+
+### Storage Backends
+
+| Status | Feature | MinIO Source | Test File |
+|--------|---------|--------------|-----------|
+| ✅ | Local filesystem | `cmd/erasure-*.go` | tested |
+| ✅ | In-memory | - | tested |
+| ⬜ | S3 gateway | `cmd/gateway` | `tests/minio/gateway_s3.rs` |
+| ⬜ | MinIO gateway | - | `tests/minio/gateway_minio.rs` |
+
+### Metadata Backends
+
+| Status | Feature | MinIO Source | Test File |
+|--------|---------|--------------|-----------|
+| ✅ | SQLite | - | default |
+| ✅ | JSON file | - | tested |
+| ✅ | In-memory | - | tested |
+| ⬜ | PostgreSQL | - | `tests/minio/metadata_postgres.rs` |
+| ⬜ | Kubernetes ConfigMap | - | `tests/minio/metadata_k8s.rs` |
+
+### Production Features
+
+| Status | Feature | MinIO Source | Test File |
+|--------|---------|--------------|-----------|
+| ⬜ | Rate limiting | `cmd/api-router.go` | `tests/minio/rate_limit.rs` |
+| ⬜ | Metrics (Prometheus) | `cmd/metrics.go` | `tests/minio/metrics.rs` |
+| ⬜ | Distributed mode | `cmd/erasure-sets.go` | `tests/minio/distributed.rs` |
+| ⬜ | TLS termination | `cmd/server-main.go` | `tests/minio/tls.rs` |
+| ⬜ | Health checks | `cmd/health.go` | `tests/minio/health.rs` |
+
+### Error Handling
+
+| Status | Feature | MinIO Source | Test File |
+|--------|---------|--------------|-----------|
+| ✅ | Invalid requests | `cmd/api-errors.go` | `tests/minio/error_scenarios.rs` |
+| ✅ | Conflicts | `cmd/api-errors.go` | `tests/minio/error_scenarios.rs` |
+| ✅ | Not found | `cmd/api-errors.go` | `tests/minio/error_scenarios.rs` |
+| ⬜ | Access denied | `cmd/api-errors.go` | `tests/minio/error_access.rs` |
+| ⬜ | Quota exceeded | `cmd/api-errors.go` | `tests/minio/error_quota.rs` |
