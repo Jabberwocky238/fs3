@@ -3,7 +3,7 @@ use futures::TryStreamExt;
 
 use crate::types::s3::core::*;
 use crate::types::errors::S3EngineError;
-use crate::types::traits::s3_engine::S3ObjectEngine;
+use crate::types::traits::s3_engine::*;
 use crate::types::traits::s3_metadata_storage::*;
 use crate::types::traits::s3_mount::*;
 
@@ -12,12 +12,8 @@ use super::FS3Engine;
 #[async_trait]
 impl<S, M> S3ObjectEngine for FS3Engine<S, M>
 where
-    S: S3MetadataStorageBucket
-        + S3MetadataStorageObject
-        + Send + Sync,
-    M: S3MountRead
-        + S3MountWrite
-        + Send + Sync,
+    S: S3MetadataStorageBucket + S3MetadataStorageObject + Send + Sync,
+    M: S3MountRead + S3MountWrite + Send + Sync,
 {
     async fn head_object(&self, bucket: &str, key: &str, _options: ObjectReadOptions) -> Result<S3Object, S3EngineError> {
         self.metadata.load_object_meta(bucket, key).await?
@@ -114,7 +110,14 @@ where
         self.metadata.store_object_meta(&obj).await?;
         Ok(obj)
     }
+}
 
+#[async_trait]
+impl<S, M> S3ObjectTaggingEngine for FS3Engine<S, M>
+where
+    S: S3MetadataStorageBucket + S3MetadataStorageObject + Send + Sync,
+    M: S3MountRead + S3MountWrite + Send + Sync,
+{
     async fn get_object_tagging(&self, bucket: &str, key: &str) -> Result<TagMap, S3EngineError> {
         Ok(self.head_object(bucket, key, ObjectReadOptions::default()).await?.user_tags)
     }
@@ -129,7 +132,14 @@ where
     async fn delete_object_tagging(&self, bucket: &str, key: &str) -> Result<(), S3EngineError> {
         self.put_object_tagging(bucket, key, TagMap::new()).await
     }
+}
 
+#[async_trait]
+impl<S, M> S3ObjectRetentionEngine for FS3Engine<S, M>
+where
+    S: S3MetadataStorageBucket + S3MetadataStorageObject + Send + Sync,
+    M: S3MountRead + S3MountWrite + Send + Sync,
+{
     async fn get_object_retention(&self, bucket: &str, key: &str) -> Result<Option<ObjectRetention>, S3EngineError> {
         Ok(self.head_object(bucket, key, ObjectReadOptions::default()).await?.retention)
     }
@@ -140,7 +150,14 @@ where
         self.metadata.store_object_meta(&obj).await?;
         Ok(())
     }
+}
 
+#[async_trait]
+impl<S, M> S3ObjectLegalHoldEngine for FS3Engine<S, M>
+where
+    S: S3MetadataStorageBucket + S3MetadataStorageObject + Send + Sync,
+    M: S3MountRead + S3MountWrite + Send + Sync,
+{
     async fn get_object_legal_hold(&self, bucket: &str, key: &str) -> Result<Option<ObjectLegalHold>, S3EngineError> {
         Ok(self.head_object(bucket, key, ObjectReadOptions::default()).await?.legal_hold)
     }

@@ -1,17 +1,19 @@
 use async_trait::async_trait;
 
+use crate::types::errors::S3EngineError;
 use crate::types::s3::core::ObjectReadOptions;
+use crate::types::s3::policy::S3Action;
 use crate::types::s3::request::*;
 use crate::types::s3::response::*;
 use crate::types::traits::s3_engine::{S3MultipartEngine, S3ObjectEngine};
 use crate::types::traits::s3_policyengine::S3PolicyEngine;
-use crate::types::s3::policy::S3Action;
-use crate::types::errors::S3EngineError;
 
 use super::utils::*;
 
 #[async_trait]
-pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: Send + Sync {
+pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>:
+    super::ObjectTaggingS3Handler<E> + super::ObjectRetentionS3Handler<E> + super::ObjectLegalHoldS3Handler<E> + Send + Sync
+{
     type Engine: S3ObjectEngine + S3MultipartEngine + Send + Sync;
     type Policy: S3PolicyEngine;
 
@@ -19,7 +21,13 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
     fn policy(&self) -> &Self::Policy;
 
     async fn head_object(&self, req: HeadObjectRequest) -> Result<HeadObjectResponse, E> {
-        check_access(self.policy(), S3Action::HeadObject, Some(&req.object.bucket), Some(&req.object.object)).await?;
+        check_access(
+            <Self as ObjectS3Handler<E>>::policy(self),
+            S3Action::HeadObject,
+            Some(&req.object.bucket),
+            Some(&req.object.object),
+        )
+        .await?;
         let obj = self
             .engine()
             .head_object(
@@ -27,8 +35,7 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
                 &req.object.object,
                 ObjectReadOptions::from(&req),
             )
-            .await
-            ?;
+            .await?;
         let mut headers = std::collections::HashMap::new();
         headers.insert("content-length".to_string(), obj.size.to_string());
         if let Some(ct) = &obj.content_type {
@@ -47,15 +54,17 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
         &self,
         req: GetObjectAttributesRequest,
     ) -> Result<GetObjectAttributesResponse, E> {
-        check_access(self.policy(), S3Action::GetObject, Some(&req.object.bucket), Some(&req.object.object)).await?;
+        check_access(
+            <Self as ObjectS3Handler<E>>::policy(self),
+            S3Action::GetObject,
+            Some(&req.object.bucket),
+            Some(&req.object.object),
+        )
+        .await?;
         let bucket = req.object.bucket.clone();
         let object = req.object.object.clone();
         let opts: ObjectReadOptions = req.into();
-        let obj = self
-            .engine()
-            .head_object(&bucket, &object, opts)
-            .await
-            ?;
+        let obj = <Self as ObjectS3Handler<E>>::engine(self).head_object(&bucket, &object, opts).await?;
         Ok(GetObjectAttributesResponse {
             object: Some(to_resp_object(&obj)),
             ..Default::default()
@@ -66,10 +75,16 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
         &self,
         req: CopyObjectPartRequest,
     ) -> Result<CopyObjectPartResponse, E> {
-        check_access(self.policy(), S3Action::PutObject, Some(&req.object.bucket), Some(&req.object.object)).await?;
-        let (src_bucket, src_key) = split_copy_source(&req.copy_source)
-            .ok_or_else(|| S3HandlerBridgeError::InvalidRequest("missing/invalid x-amz-copy-source".to_string()))
-            ?;
+        check_access(
+            <Self as ObjectS3Handler<E>>::policy(self),
+            S3Action::PutObject,
+            Some(&req.object.bucket),
+            Some(&req.object.object),
+        )
+        .await?;
+        let (src_bucket, src_key) = split_copy_source(&req.copy_source).ok_or_else(|| {
+            S3HandlerBridgeError::InvalidRequest("missing/invalid x-amz-copy-source".to_string())
+        })?;
         let part = self
             .engine()
             .copy_object_part(
@@ -78,10 +93,11 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
                 &req.object.bucket,
                 &req.object.object,
                 &req.multipart.upload_id,
-                req.multipart.part_number.ok_or_else(|| S3HandlerBridgeError::InvalidRequest("missing partNumber".to_string()))?,
+                req.multipart.part_number.ok_or_else(|| {
+                    S3HandlerBridgeError::InvalidRequest("missing partNumber".to_string())
+                })?,
             )
-            .await
-            ?;
+            .await?;
         Ok(CopyObjectPartResponse {
             part: Some(MultipartPartInfo {
                 part_number: part.part_number,
@@ -92,11 +108,14 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
         })
     }
 
-    async fn put_object_part(
-        &self,
-        req: PutObjectPartRequest,
-    ) -> Result<PutObjectPartResponse, E> {
-        check_access(self.policy(), S3Action::PutObject, Some(&req.object.bucket), Some(&req.object.object)).await?;
+    async fn put_object_part(&self, req: PutObjectPartRequest) -> Result<PutObjectPartResponse, E> {
+        check_access(
+            <Self as ObjectS3Handler<E>>::policy(self),
+            S3Action::PutObject,
+            Some(&req.object.bucket),
+            Some(&req.object.object),
+        )
+        .await?;
         let part = self
             .engine()
             .put_object_part(
@@ -108,8 +127,7 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
                 })?,
                 req.body,
             )
-            .await
-            ?;
+            .await?;
         Ok(PutObjectPartResponse {
             part: Some(MultipartPartInfo {
                 part_number: part.part_number,
@@ -124,12 +142,17 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
         &self,
         req: ListObjectPartsRequest,
     ) -> Result<ListObjectPartsResponse, E> {
-        check_access(self.policy(), S3Action::ListMultipartUploadParts, Some(&req.object.bucket), Some(&req.object.object)).await?;
+        check_access(
+            <Self as ObjectS3Handler<E>>::policy(self),
+            S3Action::ListMultipartUploadParts,
+            Some(&req.object.bucket),
+            Some(&req.object.object),
+        )
+        .await?;
         let parts = self
             .engine()
             .list_object_parts(&req.object.bucket, &req.object.object, &req.upload_id)
-            .await
-            ?;
+            .await?;
         Ok(ListObjectPartsResponse {
             upload_id: Some(req.upload_id),
             parts: parts
@@ -148,7 +171,13 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
         &self,
         req: CompleteMultipartUploadRequest,
     ) -> Result<CompleteMultipartUploadResponse, E> {
-        check_access(self.policy(), S3Action::PutObject, Some(&req.object.bucket), Some(&req.object.object)).await?;
+        check_access(
+            <Self as ObjectS3Handler<E>>::policy(self),
+            S3Action::PutObject,
+            Some(&req.object.bucket),
+            Some(&req.object.object),
+        )
+        .await?;
         let completed = parse_completed_parts(&req.xml);
         let obj = self
             .engine()
@@ -158,8 +187,7 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
                 &req.upload_id,
                 completed,
             )
-            .await
-            ?;
+            .await?;
         Ok(CompleteMultipartUploadResponse {
             object: Some(to_resp_object(&obj)),
             ..Default::default()
@@ -170,16 +198,17 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
         &self,
         req: NewMultipartUploadRequest,
     ) -> Result<NewMultipartUploadResponse, E> {
-        check_access(self.policy(), S3Action::PutObject, Some(&req.object.bucket), Some(&req.object.object)).await?;
+        check_access(
+            <Self as ObjectS3Handler<E>>::policy(self),
+            S3Action::PutObject,
+            Some(&req.object.bucket),
+            Some(&req.object.object),
+        )
+        .await?;
         let mp = self
             .engine()
-            .new_multipart_upload(
-                &req.object.bucket,
-                &req.object.object,
-                to_write_opt(None),
-            )
-            .await
-            ?;
+            .new_multipart_upload(&req.object.bucket, &req.object.object, to_write_opt(None))
+            .await?;
         Ok(NewMultipartUploadResponse {
             upload_id: Some(mp.upload_id),
             bucket: Some(req.object.bucket),
@@ -192,59 +221,24 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
         &self,
         req: AbortMultipartUploadRequest,
     ) -> Result<AbortMultipartUploadResponse, E> {
-        check_access(self.policy(), S3Action::AbortMultipartUpload, Some(&req.object.bucket), Some(&req.object.object)).await?;
-        self.engine()
+        check_access(
+            <Self as ObjectS3Handler<E>>::policy(self),
+            S3Action::AbortMultipartUpload,
+            Some(&req.object.bucket),
+            Some(&req.object.object),
+        )
+        .await?;
+        <Self as ObjectS3Handler<E>>::engine(self)
             .abort_multipart_upload(&req.object.bucket, &req.object.object, &req.upload_id)
-            .await
-            ?;
+            .await?;
         Ok(Default::default())
     }
 
     async fn get_object_acl(&self, _req: GetObjectAclRequest) -> Result<GetObjectAclResponse, E> {
         Ok(Default::default())
     }
+
     async fn put_object_acl(&self, _req: PutObjectAclRequest) -> Result<PutObjectAclResponse, E> {
-        Ok(Default::default())
-    }
-
-    async fn get_object_tagging(
-        &self,
-        req: GetObjectTaggingRequest,
-    ) -> Result<GetObjectTaggingResponse, E> {
-        check_access(self.policy(), S3Action::GetObjectTagging, Some(&req.object.bucket), Some(&req.object.object)).await?;
-        let tags = self
-            .engine()
-            .get_object_tagging(&req.object.bucket, &req.object.object)
-            .await
-            ?;
-        Ok(GetObjectTaggingResponse { tags, ..Default::default() })
-    }
-
-    async fn put_object_tagging(
-        &self,
-        req: PutObjectTaggingRequest,
-    ) -> Result<PutObjectTaggingResponse, E> {
-        check_access(self.policy(), S3Action::PutObjectTagging, Some(&req.object.bucket), Some(&req.object.object)).await?;
-        let mut tags = std::collections::HashMap::new();
-        if !req.xml.is_empty() {
-            tags.insert("raw".to_string(), req.xml);
-        }
-        self.engine()
-            .put_object_tagging(&req.object.bucket, &req.object.object, tags)
-            .await
-            ?;
-        Ok(Default::default())
-    }
-
-    async fn delete_object_tagging(
-        &self,
-        req: DeleteObjectTaggingRequest,
-    ) -> Result<DeleteObjectTaggingResponse, E> {
-        check_access(self.policy(), S3Action::DeleteObjectTagging, Some(&req.object.bucket), Some(&req.object.object)).await?;
-        self.engine()
-            .delete_object_tagging(&req.object.bucket, &req.object.object)
-            .await
-            ?;
         Ok(Default::default())
     }
 
@@ -255,38 +249,17 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
         unsupported("SelectObjectContent")
     }
 
-    async fn get_object_retention(
+    async fn get_object_lambda(
         &self,
-        req: GetObjectRetentionRequest,
-    ) -> Result<GetObjectRetentionResponse, E> {
-        check_access(self.policy(), S3Action::GetObjectRetention, Some(&req.object.bucket), Some(&req.object.object)).await?;
-        let ret = self
-            .engine()
-            .get_object_retention(&req.object.bucket, &req.object.object)
-            .await
-            ?;
-        Ok(GetObjectRetentionResponse {
-            ..Default::default()
-        })
-    }
-
-    async fn get_object_legal_hold(
-        &self,
-        req: GetObjectLegalHoldRequest,
-    ) -> Result<GetObjectLegalHoldResponse, E> {
-        check_access(self.policy(), S3Action::GetObjectLegalHold, Some(&req.object.bucket), Some(&req.object.object)).await?;
-        let _hold = self
-            .engine()
-            .get_object_legal_hold(&req.object.bucket, &req.object.object)
-            .await
-            ?;
-        Ok(GetObjectLegalHoldResponse {
-            ..Default::default()
-        })
-    }
-
-    async fn get_object_lambda(&self, req: GetObjectLambdaRequest) -> Result<GetObjectLambdaResponse, E> {
-        check_access(self.policy(), S3Action::GetObject, Some(&req.object.bucket), Some(&req.object.object)).await?;
+        req: GetObjectLambdaRequest,
+    ) -> Result<GetObjectLambdaResponse, E> {
+        check_access(
+            <Self as ObjectS3Handler<E>>::policy(self),
+            S3Action::GetObject,
+            Some(&req.object.bucket),
+            Some(&req.object.object),
+        )
+        .await?;
         let (_obj, stream) = self
             .engine()
             .get_object(
@@ -296,15 +269,28 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
             )
             .await?;
         use futures::TryStreamExt;
-        let chunks: Vec<bytes::Bytes> = stream.try_collect().await
+        let chunks: Vec<bytes::Bytes> = stream
+            .try_collect()
+            .await
             .map_err(|e| S3HandlerBridgeError::InvalidRequest(format!("stream error: {e}")))?;
         let mut buf = Vec::new();
-        for c in chunks { buf.extend_from_slice(&c); }
-        Ok(GetObjectLambdaResponse { body: buf, ..Default::default() })
+        for c in chunks {
+            buf.extend_from_slice(&c);
+        }
+        Ok(GetObjectLambdaResponse {
+            body: buf,
+            ..Default::default()
+        })
     }
 
     async fn get_object(&self, req: GetObjectRequest) -> Result<GetObjectResponse, E> {
-        check_access(self.policy(), S3Action::GetObject, Some(&req.object.bucket), Some(&req.object.object)).await?;
+        check_access(
+            <Self as ObjectS3Handler<E>>::policy(self),
+            S3Action::GetObject,
+            Some(&req.object.bucket),
+            Some(&req.object.object),
+        )
+        .await?;
         let (obj, stream) = self
             .engine()
             .get_object(
@@ -314,17 +300,26 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
             )
             .await?;
         Ok(GetObjectResponse {
-            meta: ResponseMeta { etag: Some(obj.etag.clone()), ..Default::default() },
+            meta: ResponseMeta {
+                etag: Some(obj.etag.clone()),
+                ..Default::default()
+            },
             size: Some(obj.size),
             body: stream,
         })
     }
 
     async fn copy_object(&self, req: CopyObjectRequest) -> Result<CopyObjectResponse, E> {
-        check_access(self.policy(), S3Action::PutObject, Some(&req.object.bucket), Some(&req.object.object)).await?;
-        let (src_bucket, src_key) = split_copy_source(&req.copy_source)
-            .ok_or_else(|| S3HandlerBridgeError::InvalidRequest("missing/invalid x-amz-copy-source".to_string()))
-            ?;
+        check_access(
+            <Self as ObjectS3Handler<E>>::policy(self),
+            S3Action::PutObject,
+            Some(&req.object.bucket),
+            Some(&req.object.object),
+        )
+        .await?;
+        let (src_bucket, src_key) = split_copy_source(&req.copy_source).ok_or_else(|| {
+            S3HandlerBridgeError::InvalidRequest("missing/invalid x-amz-copy-source".to_string())
+        })?;
         let obj = self
             .engine()
             .copy_object(
@@ -334,45 +329,41 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
                 &req.object.object,
                 to_write_opt(None),
             )
-            .await
-            ?;
+            .await?;
         Ok(CopyObjectResponse {
             object: Some(to_resp_object(&obj)),
             ..Default::default()
         })
     }
 
-    async fn put_object_retention(
-        &self,
-        req: PutObjectRetentionRequest,
-    ) -> Result<PutObjectRetentionResponse, E> {
-        if req.xml.is_empty() {
-            return unsupported("PutObjectRetention");
-        }
-        unsupported("PutObjectRetention(xml parsing not implemented)")
-    }
-
-    async fn put_object_legal_hold(
-        &self,
-        req: PutObjectLegalHoldRequest,
-    ) -> Result<PutObjectLegalHoldResponse, E> {
-        if req.xml.is_empty() {
-            return unsupported("PutObjectLegalHold");
-        }
-        unsupported("PutObjectLegalHold(xml parsing not implemented)")
-    }
-
     async fn put_object_extract(
         &self,
         req: PutObjectExtractRequest,
     ) -> Result<PutObjectExtractResponse, E> {
-        check_access(self.policy(), S3Action::PutObject, Some(&req.object.bucket), Some(&req.object.object)).await?;
-        let stream: crate::types::s3::core::BoxByteStream = Box::pin(futures::stream::once(async { Ok(bytes::Bytes::from(req.body)) }));
+        check_access(
+            <Self as ObjectS3Handler<E>>::policy(self),
+            S3Action::PutObject,
+            Some(&req.object.bucket),
+            Some(&req.object.object),
+        )
+        .await?;
+        let stream: crate::types::s3::core::BoxByteStream =
+            Box::pin(futures::stream::once(async {
+                Ok(bytes::Bytes::from(req.body))
+            }));
         let _ = self
             .engine()
-            .put_object(&req.object.bucket, &req.object.object, stream, to_write_opt(None))
+            .put_object(
+                &req.object.bucket,
+                &req.object.object,
+                stream,
+                to_write_opt(None),
+            )
             .await?;
-        Ok(PutObjectExtractResponse { extracted_count: 1, ..Default::default() })
+        Ok(PutObjectExtractResponse {
+            extracted_count: 1,
+            ..Default::default()
+        })
     }
 
     async fn append_object_rejected(
@@ -383,13 +374,18 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
     }
 
     async fn put_object(&self, req: PutObjectRequest) -> Result<PutObjectResponse, E> {
-        check_access(self.policy(), S3Action::PutObject, Some(&req.object.bucket), Some(&req.object.object)).await?;
+        check_access(
+            <Self as ObjectS3Handler<E>>::policy(self),
+            S3Action::PutObject,
+            Some(&req.object.bucket),
+            Some(&req.object.object),
+        )
+        .await?;
         let opt = to_write_opt(req.content_type);
         let obj = self
             .engine()
             .put_object(&req.object.bucket, &req.object.object, req.body, opt)
-            .await
-            ?;
+            .await?;
         Ok(PutObjectResponse {
             object: Some(to_resp_object(&obj)),
             ..Default::default()
@@ -397,7 +393,13 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
     }
 
     async fn delete_object(&self, req: DeleteObjectRequest) -> Result<DeleteObjectResponse, E> {
-        check_access(self.policy(), S3Action::DeleteObject, Some(&req.object.bucket), Some(&req.object.object)).await?;
+        check_access(
+            <Self as ObjectS3Handler<E>>::policy(self),
+            S3Action::DeleteObject,
+            Some(&req.object.bucket),
+            Some(&req.object.object),
+        )
+        .await?;
         let _ = self
             .engine()
             .delete_object(
@@ -405,8 +407,7 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
                 &req.object.object,
                 to_delete_opt(req.version_id),
             )
-            .await
-            ?;
+            .await?;
         Ok(Default::default())
     }
 
@@ -416,15 +417,4 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
     ) -> Result<PostRestoreObjectResponse, E> {
         unsupported("PostRestoreObject")
     }
-}
-
-fn tags_to_tagging_xml(tags: &std::collections::HashMap<String, String>) -> String {
-    let mut xml = String::from(r#"<?xml version="1.0" encoding="UTF-8"?><Tagging xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><TagSet>"#);
-    for (k, v) in tags {
-        xml.push_str(&format!("<Tag><Key>{}</Key><Value>{}</Value></Tag>",
-            k.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;"),
-            v.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;")));
-    }
-    xml.push_str("</TagSet></Tagging>");
-    xml
 }
