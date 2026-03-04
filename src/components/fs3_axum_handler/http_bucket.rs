@@ -79,7 +79,7 @@ where
         // Method::GET if has(&q, "events") => S3Response::ListenBucketNotification(handler.listen_bucket_notification(ListenBucketNotificationRequest { bucket: mk(), filter: event_filter(&q) }).await.map_err(bucket_err)?),
         // Method::GET if has(&q, "replication-reset-status") => S3Response::ResetBucketReplicationStatus(handler.reset_bucket_replication_status(ResetBucketReplicationStatusRequest { bucket: mk() }).await.map_err(bucket_err)?),
         // Method::GET if has(&q, "acl") => S3Response::GetBucketAcl(handler.get_bucket_acl(GetBucketAclRequest { bucket: mk() }).await.map_err(bucket_err)?),
-        // Method::GET if has(&q, "cors") => S3Response::GetBucketCors(handler.get_bucket_cors(GetBucketCorsRequest { bucket: mk() }).await.map_err(bucket_err)?),
+        Method::GET if has(&q, "cors") => S3Response::GetBucketCors(handler.get_bucket_cors(GetBucketCorsRequest { bucket: mk() }).await.map_err(bucket_err)?),
         Method::GET if has(&q, "website") => S3Response::GetBucketWebsite(handler.get_bucket_website(GetBucketWebsiteRequest { bucket: mk() }).await.map_err(bucket_err)?),
         // Method::GET if has(&q, "accelerate") => S3Response::GetBucketAccelerate(handler.get_bucket_accelerate(GetBucketAccelerateRequest { bucket: mk() }).await.map_err(bucket_err)?),
         // Method::GET if has(&q, "requestPayment") => S3Response::GetBucketRequestPayment(handler.get_bucket_request_payment(GetBucketRequestPaymentRequest { bucket: mk() }).await.map_err(bucket_err)?),
@@ -107,7 +107,7 @@ where
         Method::PUT if has(&q, "website") => S3Response::PutBucketWebsite(handler.put_bucket_website(PutBucketWebsiteRequest { bucket: mk(), xml: text.clone() }).await.map_err(bucket_err)?),
         // Method::PUT if has(&q, "replication-reset") => S3Response::ResetBucketReplicationStart(handler.reset_bucket_replication_start(ResetBucketReplicationStartRequest { bucket: mk() }).await.map_err(bucket_err)?),
         // Method::PUT if has(&q, "acl") => S3Response::PutBucketAcl(handler.put_bucket_acl(PutBucketAclRequest { bucket: mk(), xml: body_string(&body) }).await.map_err(bucket_err)?),
-        // Method::PUT if has(&q, "cors") => S3Response::PutBucketCors(handler.put_bucket_cors(PutBucketCorsRequest { bucket: mk(), xml: body_string(&body) }).await.map_err(bucket_err)?),
+        Method::PUT if has(&q, "cors") => S3Response::PutBucketCors(handler.put_bucket_cors(PutBucketCorsRequest { bucket: mk(), xml: text.clone() }).await.map_err(bucket_err)?),
         Method::PUT => S3Response::PutBucket(handler.put_bucket(PutBucketRequest { bucket: mk(), region: header(&headers, "x-amz-bucket-region") }).await.map_err(bucket_err)?),
 
         Method::POST if has(&q, "delete") => S3Response::DeleteMultipleObjects(handler.delete_multiple_objects(DeleteMultipleObjectsRequest { bucket: mk(), payload: DeleteObjectsInput { xml: text.clone() } }).await.map_err(bucket_err)?),
