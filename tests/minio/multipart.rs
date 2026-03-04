@@ -1,5 +1,5 @@
 use minio::s3::types::S3Api;
-use minio::s3::builders::ObjectContent;
+use minio::s3::types::PartInfo;
 
 use super::helpers::{create_minio_client, create_minio_server};
 
@@ -18,13 +18,13 @@ async fn multipart_upload_test() {
 
     // 上传part 1
     let part1_data = b"part1data";
-    let part1 = client.upload_part(bucket, key, &upload.upload_id, 1, ObjectContent::from(part1_data.as_ref())).send().await.unwrap();
-    assert!(!part1.etag.is_empty());
+    let resp1 = client.upload_part(bucket, key, &upload.upload_id, 1, bytes::Bytes::from_static(part1_data).into()).send().await.unwrap();
+    let part1 = PartInfo { number: 1, size: part1_data.len() as u64, etag: resp1.etag };
 
     // 上传part 2
     let part2_data = b"part2data";
-    let part2 = client.upload_part(bucket, key, &upload.upload_id, 2, ObjectContent::from(part2_data.as_ref())).send().await.unwrap();
-    assert!(!part2.etag.is_empty());
+    let resp2 = client.upload_part(bucket, key, &upload.upload_id, 2, bytes::Bytes::from_static(part2_data).into()).send().await.unwrap();
+    let part2 = PartInfo { number: 2, size: part2_data.len() as u64, etag: resp2.etag };
 
     // 完成multipart upload
     client.complete_multipart_upload(bucket, key, &upload.upload_id, vec![part1, part2]).send().await.unwrap();

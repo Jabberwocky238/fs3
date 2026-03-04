@@ -21,8 +21,17 @@ impl S3MultipartEngine for FS3Engine {
         })
     }
 
-    async fn put_object_part(&self, _bucket: &str, _key: &str, _upload_id: &str, _part_number: u32, _body: BoxByteStream) -> Result<UploadedPart, S3EngineError> {
-        Err(S3EngineError::Storage("not implemented".to_string()))
+    async fn put_object_part(&self, bucket: &str, key: &str, upload_id: &str, part_number: u32, body: BoxByteStream) -> Result<UploadedPart, S3EngineError> {
+        let ctx = crate::types::s3::object_layer_types::Context { request_id: "".to_string() };
+        let size = body.size_hint().0 as i64;
+        let data = crate::types::s3::storage_types::PutObjReader { reader: body, size };
+        let result = self.object_layer.put_object_part(&ctx, bucket, key, upload_id, part_number, data, Default::default()).await
+            .map_err(|e| S3EngineError::Storage(e.to_string()))?;
+        Ok(UploadedPart {
+            part_number,
+            etag: result.etag,
+            size: result.size,
+        })
     }
 
     async fn copy_object_part(&self, _src_bucket: &str, _src_key: &str, _dst_bucket: &str, _dst_key: &str, _upload_id: &str, _part_number: u32) -> Result<UploadedPart, S3EngineError> {
@@ -33,8 +42,34 @@ impl S3MultipartEngine for FS3Engine {
         Ok(Vec::new())
     }
 
-    async fn complete_multipart_upload(&self, _bucket: &str, _key: &str, _upload_id: &str, _completed: CompleteMultipartInput) -> Result<S3Object, S3EngineError> {
-        Err(S3EngineError::Storage("not implemented".to_string()))
+    async fn complete_multipart_upload(&self, bucket: &str, key: &str, upload_id: &str, completed: CompleteMultipartInput) -> Result<S3Object, S3EngineError> {
+        let ctx = crate::types::s3::object_layer_types::Context { request_id: "".to_string() };
+        let parts = completed.parts.into_iter().map(|p| crate::types::s3::storage_types::CompletePart {
+            part_number: p.part_number,
+            etag: p.etag,
+        }).collect();
+        let result = self.object_layer.complete_multipart_upload(&ctx, bucket, key, upload_id, parts, Default::default()).await
+            .map_err(|e| S3EngineError::Storage(e.to_string()))?;
+        Ok(S3Object {
+            bucket: bucket.to_string(),
+            key: key.to_string(),
+            size: result.size,
+            etag: result.etag,
+            last_modified: chrono::Utc::now(),
+            content_type: Some(result.content_type),
+            content_encoding: None,
+            storage_class: Default::default(),
+            user_metadata: Default::default(),
+            user_tags: Default::default(),
+            version: Default::default(),
+            parts: Default::default(),
+            checksums: Default::default(),
+            replication_state: Default::default(),
+            retention: None,
+            legal_hold: None,
+            restore_expiry: None,
+            restore_ongoing: false,
+        })
     }
 
     async fn abort_multipart_upload(&self, _bucket: &str, _key: &str, _upload_id: &str) -> Result<(), S3EngineError> {
