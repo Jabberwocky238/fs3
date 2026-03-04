@@ -84,7 +84,7 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE) for detai
 | ✅ | ✅ | AWS S3 | Bucket | Bucket object lock | `minio/cmd/bucket-object-lock.go` | `tests/minio/object_lock.rs` |
 | ✅ | ✅ | AWS S3 | Bucket | Bucket ACL (dummy) | `minio/cmd/bucket-handlers.go` | - |
 | ⬜ | ⬜ | AWS S3 | Bucket | Bucket CORS | `minio/cmd/bucket-handlers.go` | `tests/minio/cors.rs` |
-| ⬜ | ⬜ | AWS S3 | Bucket | Bucket website | `minio/cmd/bucket-handlers.go` | `tests/minio/website.rs` |
+| ✅ | ✅ | AWS S3 | Bucket | Bucket website | `minio/cmd/bucket-handlers.go` | `tests/aws/website.rs` |
 | ⬜ | ⬜ | AWS S3 | Bucket | Bucket logging | `minio/cmd/bucket-handlers.go` | `tests/minio/logging.rs` |
 | ⬜ | ⬜ | AWS S3 | Bucket | Bucket accelerate | `minio/cmd/bucket-handlers.go` | `tests/minio/accelerate.rs` |
 | ⬜ | ⬜ | AWS S3 | Bucket | Bucket request payment | `minio/cmd/bucket-handlers.go` | `tests/minio/request_payment.rs` |
@@ -107,11 +107,11 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE) for detai
 | 🚧 | 🚧 | AWS S3 | Object | Conditional requests | `minio/cmd/object-handlers.go` | `tests/minio/conditional.rs` |
 | 🚧 | 🚧 | AWS S3 | Object | Select object content | `minio/cmd/object-handlers.go` | `tests/minio/select.rs` |
 | ⬜ | ⬜ | AWS S3 | Object | Restore object | `minio/cmd/object-handlers.go` | `tests/minio/restore.rs` |
-| 🚧 | 🚧 | AWS S3 | Multipart | Initiate multipart | `minio/cmd/object-multipart-handlers.go` | `tests/minio/multipart.rs` |
-| 🚧 | 🚧 | AWS S3 | Multipart | Upload part | `minio/cmd/object-multipart-handlers.go` | `tests/minio/multipart.rs` |
+| ✅ | ✅ | AWS S3 | Multipart | Initiate multipart | `minio/cmd/object-multipart-handlers.go` | `tests/aws/multipart.rs` |
+| ✅ | ✅ | AWS S3 | Multipart | Upload part | `minio/cmd/object-multipart-handlers.go` | `tests/aws/multipart.rs` |
 | 🚧 | 🚧 | AWS S3 | Multipart | Upload part copy | `minio/cmd/object-multipart-handlers.go` | `tests/minio/multipart.rs` |
-| 🚧 | 🚧 | AWS S3 | Multipart | Complete multipart | `minio/cmd/object-multipart-handlers.go` | `tests/minio/multipart.rs` |
-| 🚧 | 🚧 | AWS S3 | Multipart | Abort multipart | `minio/cmd/object-multipart-handlers.go` | `tests/minio/multipart.rs` |
+| ✅ | ✅ | AWS S3 | Multipart | Complete multipart | `minio/cmd/object-multipart-handlers.go` | `tests/aws/multipart.rs` |
+| ✅ | ✅ | AWS S3 | Multipart | Abort multipart | `minio/cmd/object-multipart-handlers.go` | `tests/aws/multipart.rs` |
 | 🚧 | 🚧 | AWS S3 | Multipart | List parts | `minio/cmd/object-multipart-handlers.go` | `tests/minio/multipart.rs` |
 | 🚧 | 🚧 | AWS S3 | Multipart | List multipart uploads | `minio/cmd/object-multipart-handlers.go` | `tests/minio/multipart.rs` |
 | ✅ | ✅ | AWS S3 | List | List objects v1 | `minio/cmd/bucket-handlers.go` | `tests/minio/list_objects.rs` |

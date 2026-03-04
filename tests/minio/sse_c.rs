@@ -1,4 +1,5 @@
 use super::helpers::*;
+use minio::s3::types::S3Api;
 
 #[tokio::test]
 async fn test_put_object_sse_c() {
