@@ -67,6 +67,7 @@ where
         + BucketNotificationS3Handler<E>
         + BucketReplicationS3Handler<E>
         + BucketTaggingS3Handler<E>
+        + BucketWebsiteS3Handler<E>
         + ObjectTaggingS3Handler<E>
         + ObjectRetentionS3Handler<E>
         + ObjectLegalHoldS3Handler<E>

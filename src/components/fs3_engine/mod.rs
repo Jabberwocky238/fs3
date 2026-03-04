@@ -6,6 +6,7 @@ mod bucket;
 mod object;
 mod multipart;
 mod config;
+mod website;
 
 pub struct FS3Engine {
     pub object_layer: Arc<dyn ObjectLayer>,

@@ -16,7 +16,26 @@ pub trait BucketWebsiteS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineEr
 
     async fn get_bucket_website(&self, req: GetBucketWebsiteRequest) -> Result<GetBucketWebsiteResponse, E> {
         check_access(self.bucket_website_policy_provider(), S3Action::GetBucketWebsite, Some(&req.bucket.bucket), None).await?;
-        let _config = self.bucket_website_engine_provider().get_bucket_website(&req.bucket.bucket).await?;
-        Ok(GetBucketWebsiteResponse { ..Default::default() })
+        let config = self.bucket_website_engine_provider().get_bucket_website(&req.bucket.bucket).await?;
+
+        let (index_doc, error_doc) = if let Some(xml) = config {
+            let index = xml.find("<Suffix>").and_then(|start| {
+                let end = xml[start..].find("</Suffix>")?;
+                Some(xml[start+8..start+end].to_string())
+            });
+            let error = xml.find("<Key>").and_then(|start| {
+                let end = xml[start..].find("</Key>")?;
+                Some(xml[start+5..start+end].to_string())
+            });
+            (index, error)
+        } else {
+            (None, None)
+        };
+
+        Ok(GetBucketWebsiteResponse {
+            meta: Default::default(),
+            index_document: index_doc,
+            error_document: error_doc,
+        })
     }
 }

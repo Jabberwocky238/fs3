@@ -18,10 +18,7 @@ pub const AWS_ACCESS_KEY: &str = "minioadmin";
 pub const AWS_SECRET_KEY: &str = "minioadmin";
 
 pub async fn create_test_server() -> std::io::Result<(SocketAddr, String, JoinHandle<()>)> {
-    let base_path = PathBuf::from("/tmp/fs3-test-aws");
-    tokio::fs::create_dir_all(&base_path).await?;
-
-    let storage = Arc::new(XlStorage::new(base_path));
+    let storage = Arc::new(XlStorage::from_env());
     let object_layer = Arc::new(ErasureServerPools::new(storage.clone()));
     let engine = FS3Engine::new(object_layer, storage.clone());
     let policy = StoragePolicyEngine::new(storage);

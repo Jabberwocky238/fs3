@@ -13,8 +13,8 @@ impl ObjectMultipartLayer for ErasureServerPools {
         })
     }
 
-    async fn put_object_part(&self, ctx: &Context, bucket: &str, object: &str, upload_id: &str, part_id: u32, data: PutObjReader, _opts: ObjectOptions) -> Result<PartInfo, S3Error> {
-        let part_path = format!("_multipart/{}/part.{}", upload_id, part_id);
+    async fn put_object_part(&self, ctx: &Context, bucket: &str, _object: &str, upload_id: &str, part_id: u32, data: PutObjReader, _opts: ObjectOptions) -> Result<PartInfo, S3Error> {
+        let part_path = format!("tmp/multipart/{}/part.{}", upload_id, part_id);
         self.storage.create_file(ctx, bucket, &part_path, data.size, data.reader).await?;
 
         Ok(PartInfo {
@@ -32,7 +32,7 @@ impl ObjectMultipartLayer for ErasureServerPools {
         let mut all_data = Vec::new();
 
         for part in parts.iter() {
-            let part_path = format!("_multipart/{}/part.{}", upload_id, part.part_number);
+            let part_path = format!("tmp/multipart/{}/part.{}", upload_id, part.part_number);
             let mut buf = vec![0u8; 8192];
             let mut offset = 0i64;
             loop {

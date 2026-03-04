@@ -7,7 +7,7 @@ use crate::types::traits::s3_handler::{
     BucketS3Handler, ObjectS3Handler, RejectedS3Handler, RootS3Handler, S3HandlerBridgeError,
     BucketLifecycleS3Handler, BucketEncryptionS3Handler, BucketObjectLockS3Handler,
     BucketVersioningS3Handler, BucketNotificationS3Handler, BucketReplicationS3Handler,
-    BucketTaggingS3Handler, ObjectTaggingS3Handler, ObjectRetentionS3Handler, ObjectLegalHoldS3Handler,
+    BucketTaggingS3Handler, BucketWebsiteS3Handler, ObjectTaggingS3Handler, ObjectRetentionS3Handler, ObjectLegalHoldS3Handler,
 };
 
 pub struct S3AxumHandler<Engine: S3Engine, Policy: S3PolicyEngine> {
@@ -197,4 +197,17 @@ where
     type Policy = Policy;
     fn object_legal_hold_engine_provider(&self) -> &Engine { &self.engine }
     fn object_legal_hold_policy_provider(&self) -> &Policy { &self.policy }
+}
+
+#[async_trait]
+impl<Engine, Policy, E> BucketWebsiteS3Handler<E> for S3AxumHandler<Engine, Policy>
+where
+    Engine: S3Engine + Send + Sync,
+    Policy: S3PolicyEngine + Send + Sync,
+    E: From<S3HandlerBridgeError> + From<S3EngineError> + Send + 'static,
+{
+    type Engine = Engine;
+    type Policy = Policy;
+    fn bucket_website_engine_provider(&self) -> &Engine { &self.engine }
+    fn bucket_website_policy_provider(&self) -> &Policy { &self.policy }
 }

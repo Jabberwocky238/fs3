@@ -80,7 +80,7 @@ where
         // Method::GET if has(&q, "replication-reset-status") => S3Response::ResetBucketReplicationStatus(handler.reset_bucket_replication_status(ResetBucketReplicationStatusRequest { bucket: mk() }).await.map_err(bucket_err)?),
         // Method::GET if has(&q, "acl") => S3Response::GetBucketAcl(handler.get_bucket_acl(GetBucketAclRequest { bucket: mk() }).await.map_err(bucket_err)?),
         // Method::GET if has(&q, "cors") => S3Response::GetBucketCors(handler.get_bucket_cors(GetBucketCorsRequest { bucket: mk() }).await.map_err(bucket_err)?),
-        // Method::GET if has(&q, "website") => S3Response::GetBucketWebsite(handler.get_bucket_website(GetBucketWebsiteRequest { bucket: mk() }).await.map_err(bucket_err)?),
+        Method::GET if has(&q, "website") => S3Response::GetBucketWebsite(handler.get_bucket_website(GetBucketWebsiteRequest { bucket: mk() }).await.map_err(bucket_err)?),
         // Method::GET if has(&q, "accelerate") => S3Response::GetBucketAccelerate(handler.get_bucket_accelerate(GetBucketAccelerateRequest { bucket: mk() }).await.map_err(bucket_err)?),
         // Method::GET if has(&q, "requestPayment") => S3Response::GetBucketRequestPayment(handler.get_bucket_request_payment(GetBucketRequestPaymentRequest { bucket: mk() }).await.map_err(bucket_err)?),
         // Method::GET if has(&q, "logging") => S3Response::GetBucketLogging(handler.get_bucket_logging(GetBucketLoggingRequest { bucket: mk() }).await.map_err(bucket_err)?),

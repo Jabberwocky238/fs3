@@ -380,3 +380,9 @@ pub struct BucketReplication {
     pub rules: Vec<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct BucketWebsite {
+    pub index_document: String,
+    pub error_document: Option<String>,
+}
+

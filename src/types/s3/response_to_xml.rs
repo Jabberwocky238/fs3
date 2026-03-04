@@ -57,7 +57,13 @@ impl From<&S3Response> for Option<XMLResponse> {
         S3Response::GetBucketNotification(r) => Some(r.into()),
         S3Response::GetBucketAcl(_) => None,
         S3Response::GetBucketCors(_) => None,
-        S3Response::GetBucketWebsite(_) => None,
+        S3Response::GetBucketWebsite(r) => Some(XMLResponse {
+            body: format!(
+                r#"<?xml version="1.0" encoding="UTF-8"?><WebsiteConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">{}{}</WebsiteConfiguration>"#,
+                r.index_document.as_ref().map(|s| format!("<IndexDocument><Suffix>{}</Suffix></IndexDocument>", s)).unwrap_or_default(),
+                r.error_document.as_ref().map(|s| format!("<ErrorDocument><Key>{}</Key></ErrorDocument>", s)).unwrap_or_default()
+            )
+        }),
         S3Response::GetBucketAccelerate(_) => None,
         S3Response::GetBucketRequestPayment(_) => None,
         S3Response::GetBucketLogging(_) => None,

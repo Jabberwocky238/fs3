@@ -20,7 +20,7 @@ pub const MINIO_ACCESS_KEY: &str = "minioadmin";
 pub const MINIO_SECRET_KEY: &str = "minioadmin";
 
 pub async fn create_minio_server() -> std::io::Result<(SocketAddr, String, JoinHandle<()>)> {
-    let storage = Arc::new(XlStorage::new(PathBuf::from("/tmp/fs3-test")));
+    let storage = Arc::new(XlStorage::from_env());
     let object_layer = Arc::new(ErasureServerPools::new(storage.clone()));
     let engine = FS3Engine::new(object_layer, storage.clone());
     let policy = StoragePolicyEngine::new(storage);

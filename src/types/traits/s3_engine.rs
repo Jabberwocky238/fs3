@@ -12,6 +12,7 @@ pub trait S3BucketEngine:
     + S3BucketNotificationEngine
     + S3BucketReplicationEngine
     + S3BucketTaggingEngine
+    + S3BucketWebsiteEngine
     + S3BucketConfigEngine
 {
     async fn make_bucket(
@@ -280,6 +281,13 @@ pub trait S3BucketTaggingEngine {
         tags: std::collections::HashMap<String, String>,
     ) -> Result<(), S3EngineError>;
     async fn delete_bucket_tagging(&self, bucket: &str) -> Result<(), S3EngineError>;
+}
+
+#[async_trait]
+pub trait S3BucketWebsiteEngine {
+    async fn get_bucket_website(&self, bucket: &str) -> Result<Option<String>, S3EngineError>;
+    async fn put_bucket_website(&self, bucket: &str, website: String) -> Result<(), S3EngineError>;
+    async fn delete_bucket_website(&self, bucket: &str) -> Result<(), S3EngineError>;
 }
 
 #[async_trait]
