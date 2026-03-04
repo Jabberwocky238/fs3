@@ -7,7 +7,7 @@ async fn test_put_bucket_logging() {
     let client = create_aws_client(&endpoint);
     let bucket = random_bucket_name();
     let log_bucket = random_bucket_name();
-    client.create_bucket(&bucket).send().await.unwrap();
+    client.create_bucket().bucket(&bucket).send().await.unwrap();
     client.create_bucket(&log_bucket).send().await.unwrap();
 
     let logging = BucketLoggingStatus::builder()

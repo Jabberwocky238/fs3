@@ -6,7 +6,7 @@ async fn test_put_bucket_cors() {
     let (_addr, endpoint, _handle) = create_test_server().await.unwrap();
     let client = create_aws_client(&endpoint);
     let bucket = random_bucket_name();
-    client.create_bucket(&bucket).send().await.unwrap();
+    client.create_bucket().bucket(&bucket).send().await.unwrap();
 
     let cors = CorsConfiguration::builder()
         .cors_rules(CorsRule::builder()
@@ -27,7 +27,7 @@ async fn test_get_bucket_cors() {
     let (_addr, endpoint, _handle) = create_test_server().await.unwrap();
     let client = create_aws_client(&endpoint);
     let bucket = random_bucket_name();
-    client.create_bucket(&bucket).send().await.unwrap();
+    client.create_bucket().bucket(&bucket).send().await.unwrap();
 
     let cors = CorsConfiguration::builder()
         .cors_rules(CorsRule::builder()
@@ -47,7 +47,7 @@ async fn test_delete_bucket_cors() {
     let (_addr, endpoint, _handle) = create_test_server().await.unwrap();
     let client = create_aws_client(&endpoint);
     let bucket = random_bucket_name();
-    client.create_bucket(&bucket).send().await.unwrap();
+    client.create_bucket().bucket(&bucket).send().await.unwrap();
 
     let cors = CorsConfiguration::builder()
         .cors_rules(CorsRule::builder()

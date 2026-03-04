@@ -6,7 +6,7 @@ async fn test_cors_preflight() {
     let (_addr, endpoint, _handle) = create_test_server().await.unwrap();
     let client = create_aws_client(&endpoint);
     let bucket = random_bucket_name();
-    client.create_bucket(&bucket).send().await.unwrap();
+    client.create_bucket().bucket(&bucket).send().await.unwrap();
 
     let cors = CorsConfiguration::builder()
         .cors_rules(CorsRule::builder()

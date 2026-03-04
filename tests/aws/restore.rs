@@ -6,7 +6,7 @@ async fn test_restore_object() {
     let (_addr, endpoint, _handle) = create_test_server().await.unwrap();
     let client = create_aws_client(&endpoint);
     let bucket = random_bucket_name();
-    client.create_bucket(&bucket).send().await.unwrap();
+    client.create_bucket().bucket(&bucket).send().await.unwrap();
 
     let key = "archived-object";
     client.put_object().bucket(&bucket).key(key).body("data".into()).send().await.unwrap();

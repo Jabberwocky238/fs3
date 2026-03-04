@@ -6,7 +6,7 @@ async fn test_event_notification_webhook() {
     let (_addr, endpoint, _handle) = create_test_server().await.unwrap();
     let client = create_aws_client(&endpoint);
     let bucket = random_bucket_name();
-    client.create_bucket(&bucket).send().await.unwrap();
+    client.create_bucket().bucket(&bucket).send().await.unwrap();
 
     let config = NotificationConfiguration::builder()
         .queue_configurations(QueueConfiguration::builder()
