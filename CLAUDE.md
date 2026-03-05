@@ -16,6 +16,39 @@ Build a lightweight S3-compatible object storage gateway in Rust, compatible wit
 
 **IMPORTANT: Run tests ONE AT A TIME, not all together**
 
+### Two-Phase Testing Strategy
+
+**大多数boto3测试需要拆分为两个阶段：**
+
+1. **Phase 1 (写入阶段)**: 创建资源、写入数据
+2. **Phase 2 (修改/删除阶段)**: 修改或删除资源
+
+**测试流程：**
+```bash
+# 1. 启动服务器
+minio.exe server --address 127.0.0.1:9000 --console-address 127.0.0.1:9001 .debug/minio
+fs3.exe server --address 127.0.0.1:9100 .debug/fs3
+
+# 2. 执行Phase 1 - MinIO和fs3都写入数据
+python test_xxx.py http://127.0.0.1:9000 1
+python test_xxx.py http://127.0.0.1:9100 1
+
+# 3. 停止服务器
+# 调用claude code stop
+
+# 4. 交换存储挂载点重启服务器（挂载点已交换）
+minio.exe server --address 127.0.0.1:9000 --console-address 127.0.0.1:9001 .debug/fs3
+fs3.exe server --address 127.0.0.1:9100 .debug/minio
+
+# 5. 执行Phase 2 - 观察跨实现的存储兼容性
+python test_xxx.py http://127.0.0.1:9000 2  # MinIO读取fs3的存储
+python test_xxx.py http://127.0.0.1:9100 2  # fs3读取MinIO的存储
+```
+
+**目的：验证存储格式兼容性，确保fs3和MinIO可以互相读取对方的存储数据。**
+
+出现任何测试问题，第一步，检查minio源码如何实现，第二步，修改fs3源码适配，第三步，重新测试。
+
 当前有三个测试文件夹，aws，minio和boto3，aws和minio是rust的集成测试，使用cargo test启动。
 
 ```bash
@@ -35,49 +68,7 @@ tests/boto3是个特殊文件夹，使用`cd /d/1-code/__trash__/fs3/tests/boto3
 
 **你需要使用make build和make build-minio来构建minio.exe和fs3.exe，一定要使用make**，因为涉及到copy操作，cargo不会构建在根目录。
 
-构建完成后，在项目目录下启动。你需要把它们放到后台任务，便于管理。
-
-```bash
-fs3.exe server --address 127.0.0.1:9100 .debug/fs3
-
-minio.exe  server --address 127.0.0.1:9000 --console-address 127.0.0.1:9001 .debug/minio
-```
-
-你需要把它们放到后台任务，便于管理。无需等待服务器启动，二者都是瞬间启动的。
-
-然后使用boto3文件夹里的测试py脚本，分别调用两个api，每一轮小测试，交叉调用两个api
-
-tests/boto3是个特殊文件夹，使用`cd /d/1-code/__trash__/fs3/tests/boto3 && python test_xxx.py http://127.0.0.1:9000`来进行调用。
-
-！！观察文件夹目录树变化，
-！！观察文件夹目录树变化，
-！！观察文件夹目录树变化，
-
-如果fs3有行为不一致的地方，则需要修改，如果minio有变化而fs3没有，需要修改。
-
-测试结果OK也不是测试OK，你一定要**观察目录树变化**。
-
-你需要开始循环测试，每次测试一对，交叉测试minio和fs3，然后根据fs3的行为不一致，来修改aws和minio测试，以及fs3核心。
-
-tests/boto3是个特殊文件夹，使用`cd /d/1-code/__trash__/fs3/tests/boto3 && python test_xxx.py http://127.0.0.1:9000`来进行调用。
-
-！！观察文件夹目录树变化，
-！！观察文件夹目录树变化，
-！！观察文件夹目录树变化，
-
-当你遇到棘手的问题时，找不到解决方案，或者没有好的解决方案，此时观察submodule minio，minio的源码就在项目目录下，你需要学习它的代码，然后实现。
-
-每次测试出现问题，结束之后，需要关闭两个进程，重新编译fs3，但不需要编译minio，删除.debug文件夹，然后重新开启两个进程，保证测试之间不会干扰。
-
-！！观察文件夹目录树变化，
-！！观察文件夹目录树变化，
-！！观察文件夹目录树变化，
-
-如果测试没有出问题，就可以继续，不需要关闭进程。
-
-！！观察文件夹目录树变化，
-！！观察文件夹目录树变化，
-！！观察文件夹目录树变化，
+构建完成后，在项目目录下启动。你需要把它们放到CLAUDE CODE后台任务，便于管理。
 
 ## 设计准则
 

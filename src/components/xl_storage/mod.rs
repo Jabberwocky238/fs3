@@ -125,23 +125,27 @@ impl StorageMetadata for XlStorage {
         let meta_path = self.xl_meta_path(volume, path);
         let data = tokio::fs::read(&meta_path).await
             .map_err(|_| StorageError::FileNotFound(path.to_string()))?;
-        let xl_meta: XlMetaV2 = serde_json::from_slice(&data)
+        let xl_meta = XlMetaV2::decode(&data)
             .map_err(|e| StorageError::Io(e.to_string()))?;
-        let version = if version_id == "null" {
-            xl_meta.versions.first()
-                .ok_or_else(|| StorageError::FileNotFound("no versions".to_string()))?
-        } else {
-            xl_meta.versions.iter()
-                .find(|v| v.version_id == version_id)
-                .ok_or_else(|| StorageError::FileNotFound(version_id.to_string()))?
-        };
+
+        if xl_meta.versions.is_empty() {
+            return Err(StorageError::FileNotFound("no versions".to_string()));
+        }
+
+        let version = &xl_meta.versions[0];
+        let obj = version.object_v2.as_ref()
+            .ok_or_else(|| StorageError::FileNotFound("no object data".to_string()))?;
+
+        let vid = uuid::Uuid::from_bytes(obj.version_id).to_string();
+        let ddir = uuid::Uuid::from_bytes(obj.data_dir).to_string();
+
         Ok(FileInfo {
             volume: volume.to_string(),
             name: path.to_string(),
-            version_id: version.version_id.clone(),
-            size: version.size,
-            data_dir: version.data_dir.clone(),
-            user_metadata: version.user_metadata.clone(),
+            version_id: vid,
+            size: obj.size as u64,
+            data_dir: ddir,
+            user_metadata: obj.meta_user.clone(),
         })
     }
 
@@ -151,16 +155,52 @@ impl StorageMetadata for XlStorage {
             tokio::fs::create_dir_all(parent).await
                 .map_err(|e| StorageError::Io(e.to_string()))?;
         }
-        let xl_meta = XlMetaV2 {
-            versions: vec![XlMetaVersion {
-                version_id: fi.version_id,
-                data_dir: fi.data_dir,
-                size: fi.size,
-                mod_time: 0,
-                user_metadata: fi.user_metadata,
-            }],
+
+        let vid = uuid::Uuid::parse_str(&fi.version_id)
+            .map_err(|e| StorageError::Io(e.to_string()))?;
+        let ddir = uuid::Uuid::parse_str(&fi.data_dir)
+            .map_err(|e| StorageError::Io(e.to_string()))?;
+
+        let mut meta_sys = std::collections::HashMap::new();
+        let inline_data = if fi.size < 128 * 1024 {
+            let data_path = self.path.join(volume).join(path).join(&fi.data_dir);
+            let data = tokio::fs::read(&data_path).await.unwrap_or_default();
+            meta_sys.insert("x-minio-internal-inline-data".to_string(), b"true".to_vec());
+            let _ = tokio::fs::remove_file(&data_path).await;
+            data
+        } else {
+            Vec::new()
         };
-        let data = serde_json::to_vec(&xl_meta)
+
+        let obj = XlMetaV2Object {
+            version_id: *vid.as_bytes(),
+            data_dir: *ddir.as_bytes(),
+            ec_algo: 1,
+            ec_m: 1,
+            ec_n: 1,
+            ec_bsize: 1048576,
+            ec_index: 1,
+            ec_dist: vec![1],
+            csum_algo: 1,
+            part_nums: vec![],
+            part_etags: None,
+            part_sizes: vec![],
+            part_asizes: vec![],
+            size: fi.size as i64,
+            mod_time: chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0),
+            meta_sys,
+            meta_user: fi.user_metadata,
+        };
+
+        let xl_meta = XlMetaV2 {
+            versions: vec![XlMetaV2Version {
+                version_type: 1,
+                object_v2: Some(obj),
+            }],
+            inline_data,
+        };
+
+        let data = xl_meta.encode()
             .map_err(|e| StorageError::Io(e.to_string()))?;
         tokio::fs::write(&meta_path, &data).await
             .map_err(|e| StorageError::Io(e.to_string()))
@@ -175,6 +215,28 @@ impl StorageMetadata for XlStorage {
 #[async_trait]
 impl StorageFile for XlStorage {
     async fn read_file(&self, _ctx: &Context, volume: &str, path: &str, offset: i64, buf: &mut [u8]) -> Result<i64, StorageError> {
+        // Check if data is inline in xl.meta
+        let parts: Vec<&str> = path.rsplitn(2, '/').collect();
+        if parts.len() == 2 {
+            let obj_path = parts[1];
+            let meta_path = self.xl_meta_path(volume, obj_path);
+            if let Ok(meta_data) = tokio::fs::read(&meta_path).await {
+                if let Ok(xl_meta) = XlMetaV2::decode(&meta_data) {
+                    if !xl_meta.inline_data.is_empty() {
+                        let start = offset as usize;
+                        let end = std::cmp::min(start + buf.len(), xl_meta.inline_data.len());
+                        if start < xl_meta.inline_data.len() {
+                            let n = end - start;
+                            buf[..n].copy_from_slice(&xl_meta.inline_data[start..end]);
+                            return Ok(n as i64);
+                        }
+                        return Ok(0);
+                    }
+                }
+            }
+        }
+
+        // Fallback to regular file read
         let file_path = self.path.join(volume).join(path);
         let mut file = tokio::fs::File::open(&file_path).await
             .map_err(|_| StorageError::FileNotFound(path.to_string()))?;
