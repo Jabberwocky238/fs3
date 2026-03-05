@@ -38,4 +38,5 @@ mod sse_s3;
 mod versioning;
 mod versioning_enforcement;
 mod website;
+mod xl_meta;
 pub mod helpers;

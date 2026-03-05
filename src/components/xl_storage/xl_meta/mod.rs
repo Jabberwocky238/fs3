@@ -19,6 +19,7 @@ pub use version::XlMetaV2Version;
 pub use xl_meta::XlMetaV2;
 pub use shallow_version::XlMetaV2ShallowVersion;
 pub use v1_object::*;
+pub use golang_map::GoMapDecoder;
 use std::error::Error;
 
 pub trait XLMetaSerializer {

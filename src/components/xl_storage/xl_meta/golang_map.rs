@@ -11,7 +11,7 @@ impl<'a> GoMapDecoder<'a> {
         Self { data, pos: 0 }
     }
 
-    fn read_byte(&mut self) -> Result<u8, String> {
+    pub fn read_byte(&mut self) -> Result<u8, String> {
         if self.pos >= self.data.len() {
             return Err("EOF".into());
         }

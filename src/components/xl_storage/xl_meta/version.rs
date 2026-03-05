@@ -3,6 +3,7 @@
 use super::types::VersionType;
 use super::object::XlMetaV2Object;
 use super::delete_marker::XlMetaV2DeleteMarker;
+use super::golang_map::GoMapDecoder;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -16,6 +17,41 @@ pub struct XlMetaV2Version {
 }
 
 impl XlMetaV2Version {
+    pub fn decode_from_gomap(data: &[u8]) -> Result<Self, String> {
+        let mut decoder = GoMapDecoder::new(data);
+        let len = decoder.read_map_len()?;
+
+        let mut version_type = VersionType::Invalid;
+        let mut object_v2 = None;
+        let mut delete_marker = None;
+
+        for _ in 0..len {
+            let key = decoder.read_str()?;
+            match key.as_str() {
+                "Type" => {
+                    version_type = VersionType::from_u8(decoder.read_int()? as u8);
+                }
+                "V2Obj" => {
+                    // TODO: 解码XlMetaV2Object
+                    decoder.skip_value()?;
+                }
+                "DelObj" => {
+                    // TODO: 解码XlMetaV2DeleteMarker
+                    decoder.skip_value()?;
+                }
+                _ => {
+                    decoder.skip_value()?;
+                }
+            }
+        }
+
+        Ok(Self {
+            version_type,
+            object_v2,
+            delete_marker,
+        })
+    }
+
     pub fn valid(&self) -> bool {
         match self.version_type {
             VersionType::Object => {

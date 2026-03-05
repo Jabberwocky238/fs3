@@ -16,6 +16,17 @@ pub enum VersionType {
     Legacy = 3,
 }
 
+impl VersionType {
+    pub fn from_u8(v: u8) -> Self {
+        match v {
+            1 => Self::Object,
+            2 => Self::Delete,
+            3 => Self::Legacy,
+            _ => Self::Invalid,
+        }
+    }
+}
+
 impl serde::Serialize for VersionType {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where

@@ -64,25 +64,21 @@ impl XlMetaV2 {
     }
 
     fn decode_payload(payload: &[u8], _minor: u16) -> Result<Vec<XlMetaV2Version>, Box<dyn std::error::Error>> {
-        use std::io::Cursor;
-        let mut c = Cursor::new(payload);
-        let _hdr_ver = rmp::decode::read_pfix(&mut c)?;
-        let _meta_ver = rmp::decode::read_pfix(&mut c)?;
+        use super::golang_map::GoMapDecoder;
 
-        let count = rmp::decode::read_array_len(&mut c)? as usize;
+        let mut decoder = GoMapDecoder::new(payload);
+
+        // 跳过前两个字节（版本号，都是正整数）
+        let _ = decoder.read_byte()?; // header version
+        let _ = decoder.read_byte()?; // meta version
+
+        let count = decoder.read_array_len()? as usize;
+
         let mut versions = Vec::with_capacity(count);
-
         for _ in 0..count {
-            let hlen = rmp::decode::read_bin_len(&mut c)?;
-            c.set_position(c.position() + hlen as u64);
-
-            let mlen = rmp::decode::read_bin_len(&mut c)?;
-            let pos = c.position() as usize;
-            let ver_data = &payload[pos..pos + mlen as usize];
-
-            // Use from_read_ref to decode from slice with named format
-            versions.push(rmp_serde::from_read_ref(ver_data)?);
-            c.set_position((pos + mlen as usize) as u64);
+            let _hdr = decoder.read_bytes()?;
+            let meta = decoder.read_bytes()?;
+            versions.push(XlMetaV2Version::decode_from_gomap(&meta)?);
         }
         Ok(versions)
     }
