@@ -32,6 +32,8 @@ pub struct XlMetaV2Object {
     pub part_sizes: Vec<i64>,
     #[serde(rename = "PartASizes", skip_serializing_if = "Vec::is_empty", default)]
     pub part_actual_sizes: Vec<i64>,
+    #[serde(rename = "PartIdx", skip_serializing_if = "Vec::is_empty", default)]
+    pub part_indices: Vec<Vec<u8>>,
     #[serde(rename = "Size")]
     pub size: i64,
     #[serde(rename = "MTime")]
@@ -40,4 +42,14 @@ pub struct XlMetaV2Object {
     pub meta_sys: HashMap<String, Vec<u8>>,
     #[serde(rename = "MetaUsr", skip_serializing_if = "HashMap::is_empty", default)]
     pub meta_user: HashMap<String, String>,
+}
+
+impl XlMetaV2Object {
+    pub fn signature(&self) -> [u8; 4] {
+        use crate::components::xl_storage::xl_meta::hash_deterministic_string;
+        let crc = hash_deterministic_string(&self.meta_user);
+        let mut sig = [0u8; 4];
+        sig.copy_from_slice(&(crc as u32).to_le_bytes());
+        sig
+    }
 }

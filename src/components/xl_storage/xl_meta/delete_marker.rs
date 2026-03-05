@@ -12,3 +12,9 @@ pub struct XlMetaV2DeleteMarker {
     #[serde(rename = "MetaSys", skip_serializing_if = "HashMap::is_empty", default)]
     pub meta_sys: HashMap<String, Vec<u8>>,
 }
+
+impl XlMetaV2DeleteMarker {
+    pub fn signature(&self) -> [u8; 4] {
+        [0u8; 4]
+    }
+}

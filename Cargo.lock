@@ -2539,6 +2539,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "uuid",
+ "xxhash-rust",
 ]
 
 [[package]]
@@ -3861,6 +3862,12 @@ checksum = "b619f8c85654798007fb10afa5125590b43b088c225a25fc2fec100a9fad0fc6"
 dependencies = [
  "xml-rs",
 ]
+
+[[package]]
+name = "xxhash-rust"
+version = "0.8.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fdd20c5420375476fbd4394763288da7eb0cc0b8c11deed431a91562af7335d3"
 
 [[package]]
 name = "yoke"

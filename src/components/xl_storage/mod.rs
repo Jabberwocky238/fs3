@@ -186,6 +186,7 @@ impl StorageMetadata for XlStorage {
             part_etags: vec![],
             part_sizes: vec![],
             part_actual_sizes: vec![],
+            part_indices: vec![],
             size: fi.size as i64,
             mod_time: chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0),
             meta_sys,
@@ -197,6 +198,7 @@ impl StorageMetadata for XlStorage {
                 version_type: VersionType::Object,
                 object_v2: Some(obj),
                 delete_marker: None,
+                written_by_version: None,
             }],
             inline_data,
         };

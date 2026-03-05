@@ -6,6 +6,8 @@ mod object;
 mod delete_marker;
 mod version;
 mod xl_meta;
+mod shallow_version;
+mod v1_object;
 
 // 导出
 pub use types::*;
@@ -14,6 +16,8 @@ pub use object::XlMetaV2Object;
 pub use delete_marker::XlMetaV2DeleteMarker;
 pub use version::XlMetaV2Version;
 pub use xl_meta::XlMetaV2;
+pub use shallow_version::XlMetaV2ShallowVersion;
+pub use v1_object::*;
 use std::error::Error;
 
 pub trait XLMetaSerializer {
