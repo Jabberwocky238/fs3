@@ -50,6 +50,7 @@ impl XLMetaSerializer for XlMetaV2 {
 
 impl XlMetaV2 {
     fn encode_payload(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+        use super::golang_struct::GoBytes;
         let mut p = Vec::new();
         rmp::encode::write_uint(&mut p, 3)?;
         rmp::encode::write_uint(&mut p, 3)?;
@@ -58,7 +59,8 @@ impl XlMetaV2 {
         for ver in &self.versions {
             let h = XlMetaV2VersionHeader::from(ver);
             rmp::encode::write_bin(&mut p, &h.encode()?)?;
-            rmp::encode::write_bin(&mut p, &rmp_serde::to_vec_named(ver)?)?;
+            let ver_bytes: GoBytes = ver.into();
+            rmp::encode::write_bin(&mut p, ver_bytes.as_ref())?;
         }
         Ok(p)
     }
@@ -78,7 +80,7 @@ impl XlMetaV2 {
         for _ in 0..count {
             let _hdr = decoder.read_bytes()?;
             let meta = decoder.read_bytes()?;
-            versions.push(XlMetaV2Version::decode_from_gomap(&meta)?);
+            versions.push(XlMetaV2Version::try_from(&meta[..])?);
         }
         Ok(versions)
     }

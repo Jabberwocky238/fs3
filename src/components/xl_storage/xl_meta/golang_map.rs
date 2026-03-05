@@ -1,5 +1,129 @@
-/// 手写msgpack解码器 - 兼容Go msgp格式
+/// 手写msgpack解码器/编码器 - 兼容Go msgp格式
 use std::collections::HashMap;
+
+pub struct GoMapEncoder {
+    buf: Vec<u8>,
+}
+
+impl GoMapEncoder {
+    pub fn new() -> Self {
+        Self { buf: Vec::new() }
+    }
+
+    pub fn into_bytes(self) -> Vec<u8> {
+        self.buf
+    }
+
+    pub fn write_int32(&mut self, val: i32) {
+        if val >= 0 && val <= 127 {
+            self.buf.push(val as u8);
+        } else if val >= -32 && val < 0 {
+            self.buf.push(val as u8);
+        } else {
+            self.buf.push(0xd2);
+            self.buf.extend_from_slice(&val.to_be_bytes());
+        }
+    }
+
+    pub fn write_int64(&mut self, val: i64) {
+        if val >= 0 && val <= 127 {
+            self.buf.push(val as u8);
+        } else if val >= -32 && val < 0 {
+            self.buf.push(val as u8);
+        } else if val >= i16::MIN as i64 && val <= i16::MAX as i64 {
+            self.buf.push(0xd1);
+            self.buf.extend_from_slice(&(val as i16).to_be_bytes());
+        } else {
+            self.buf.push(0xd3);
+            self.buf.extend_from_slice(&val.to_be_bytes());
+        }
+    }
+
+    pub fn write_uint8(&mut self, val: u8) {
+        if val <= 0x7f {
+            self.buf.push(val);
+        } else {
+            self.buf.push(0xcc);
+            self.buf.push(val);
+        }
+    }
+
+    pub fn write_str(&mut self, s: &str) {
+        let bytes = s.as_bytes();
+        let len = bytes.len();
+        if len <= 31 {
+            self.buf.push(0xa0 | (len as u8));
+        } else if len <= 255 {
+            self.buf.push(0xd9);
+            self.buf.push(len as u8);
+        } else if len <= 65535 {
+            self.buf.push(0xda);
+            self.buf.extend_from_slice(&(len as u16).to_be_bytes());
+        } else {
+            self.buf.push(0xdb);
+            self.buf.extend_from_slice(&(len as u32).to_be_bytes());
+        }
+        self.buf.extend_from_slice(bytes);
+    }
+
+    pub fn write_bin(&mut self, data: &[u8]) {
+        let len = data.len();
+        if len <= 255 {
+            self.buf.push(0xc4);
+            self.buf.push(len as u8);
+        } else if len <= 65535 {
+            self.buf.push(0xc5);
+            self.buf.extend_from_slice(&(len as u16).to_be_bytes());
+        } else {
+            self.buf.push(0xc6);
+            self.buf.extend_from_slice(&(len as u32).to_be_bytes());
+        }
+        self.buf.extend_from_slice(data);
+    }
+
+    pub fn write_array_len(&mut self, len: u32) {
+        if len <= 15 {
+            self.buf.push(0x90 | (len as u8));
+        } else if len <= 65535 {
+            self.buf.push(0xdc);
+            self.buf.extend_from_slice(&(len as u16).to_be_bytes());
+        } else {
+            self.buf.push(0xdd);
+            self.buf.extend_from_slice(&len.to_be_bytes());
+        }
+    }
+
+    pub fn write_map_len(&mut self, len: u32) {
+        if len <= 15 {
+            self.buf.push(0x80 | (len as u8));
+        } else if len <= 65535 {
+            self.buf.push(0xde);
+            self.buf.extend_from_slice(&(len as u16).to_be_bytes());
+        } else {
+            self.buf.push(0xdf);
+            self.buf.extend_from_slice(&len.to_be_bytes());
+        }
+    }
+
+    pub fn write_nil(&mut self) {
+        self.buf.push(0xc0);
+    }
+
+    pub fn write_raw(&mut self, data: &[u8]) {
+        self.buf.extend_from_slice(data);
+    }
+
+    // Force int16 encoding (for MinIO compatibility on Size fields)
+    pub fn write_int64_as_int16_or_larger(&mut self, val: i64) {
+        if val >= i16::MIN as i64 && val <= i16::MAX as i64 {
+            self.buf.push(0xd1);
+            self.buf.extend_from_slice(&(val as i16).to_be_bytes());
+        } else {
+            self.buf.push(0xd3);
+            self.buf.extend_from_slice(&val.to_be_bytes());
+        }
+    }
+}
 
 pub struct GoMapDecoder<'a> {
     data: &'a [u8],

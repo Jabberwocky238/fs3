@@ -16,8 +16,32 @@ pub struct XlMetaV2Version {
     pub delete_marker: Option<XlMetaV2DeleteMarker>,
 }
 
-impl XlMetaV2Version {
-    pub fn decode_from_gomap(data: &[u8]) -> Result<Self, String> {
+impl From<&XlMetaV2Version> for super::golang_struct::GoBytes {
+    fn from(ver: &XlMetaV2Version) -> Self {
+        use super::golang_struct::{GoStructBuilder, GoBytes};
+        let mut b = GoStructBuilder::new(3);
+
+        b.field_u8("Type", ver.version_type as u8);
+
+        if let Some(ref obj) = ver.object_v2 {
+            let obj_bytes: GoBytes = obj.into();
+            b.field_nested("V2Obj", obj_bytes.as_ref());
+        }
+
+        if let Some(ref _dm) = ver.delete_marker {
+            b.field_nil("DelObj");
+        }
+
+        b.field_u8("v", 0);
+
+        b.build()
+    }
+}
+
+impl TryFrom<&[u8]> for XlMetaV2Version {
+    type Error = String;
+
+    fn try_from(data: &[u8]) -> Result<Self, Self::Error> {
         let mut decoder = GoMapDecoder::new(data);
         let len = decoder.read_map_len()?;
 
@@ -32,11 +56,9 @@ impl XlMetaV2Version {
                     version_type = VersionType::from_u8(decoder.read_int()? as u8);
                 }
                 "V2Obj" => {
-                    // TODO: 解码XlMetaV2Object
                     decoder.skip_value()?;
                 }
                 "DelObj" => {
-                    // TODO: 解码XlMetaV2DeleteMarker
                     decoder.skip_value()?;
                 }
                 _ => {
@@ -51,7 +73,9 @@ impl XlMetaV2Version {
             delete_marker,
         })
     }
+}
 
+impl XlMetaV2Version {
     pub fn valid(&self) -> bool {
         match self.version_type {
             VersionType::Object => {
