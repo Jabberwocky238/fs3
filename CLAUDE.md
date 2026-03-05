@@ -130,3 +130,15 @@ src\types\traits文件夹承载了整个仓库所有的核心trait
 ## Roadmap
 
 See `README.md` for complete feature list with MinIO source references.
+
+## MinIO Behavior Documentation
+
+**Record actual MinIO filesystem changes in `docs/minio_actual/`**
+
+For each operation, document:
+1. Initial state (directory tree before operation)
+2. Operation performed (boto3 command)
+3. Final state (directory tree after operation)
+4. File contents (xl.meta, data files)
+
+This provides ground truth for fs3 implementation.

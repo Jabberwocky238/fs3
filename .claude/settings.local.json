@@ -11,7 +11,12 @@
       "Bash(mv:*)",
       "WebSearch",
       "WebFetch(domain:docs.rs)",
-      "Bash(make:*)"
+      "Bash(make:*)",
+      "Bash(python:*)",
+      "Bash(for f in test_*.py)",
+      "Bash(do echo \"=== $f ===\")",
+      "Read(//d/1-code/__trash__/fs3/**)",
+      "Bash(done)"
     ]
   }
 }
