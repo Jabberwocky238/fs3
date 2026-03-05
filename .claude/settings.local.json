@@ -10,7 +10,8 @@
       "Bash(test:*)",
       "Bash(mv:*)",
       "WebSearch",
-      "WebFetch(domain:docs.rs)"
+      "WebFetch(domain:docs.rs)",
+      "Bash(make:*)"
     ]
   }
 }

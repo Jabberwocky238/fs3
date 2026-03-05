@@ -215,7 +215,7 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
         .await?;
         let mp = self
             .engine()
-            .new_multipart_upload(&req.object.bucket, &req.object.object, to_write_opt(None))
+            .new_multipart_upload(&req.object.bucket, &req.object.object, to_write_opt(None, 0))
             .await?;
         Ok(NewMultipartUploadResponse {
             upload_id: Some(mp.upload_id),
@@ -356,7 +356,7 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
                 &src_key,
                 &req.object.bucket,
                 &req.object.object,
-                to_write_opt(None),
+                to_write_opt(None, 0),
             )
             .await?;
         Ok(CopyObjectResponse {
@@ -386,7 +386,7 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
                 &req.object.bucket,
                 &req.object.object,
                 stream,
-                to_write_opt(None),
+                to_write_opt(None, 0),
             )
             .await?;
         Ok(PutObjectExtractResponse {
@@ -427,11 +427,11 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
 
             let stream: crate::types::s3::core::BoxByteStream =
                 Box::pin(futures::stream::once(async { Ok(bytes::Bytes::from(buf)) }));
-            let opt = to_write_opt(req.content_type);
+            let opt = to_write_opt(req.content_type, req.content_length.unwrap_or(0));
             let obj = self.engine().put_object(&req.object.bucket, &req.object.object, stream, opt).await?;
             Ok(PutObjectResponse { object: Some(to_resp_object(&obj)), ..Default::default() })
         } else {
-            let opt = to_write_opt(req.content_type);
+            let opt = to_write_opt(req.content_type, req.content_length.unwrap_or(0));
             let obj = self.engine().put_object(&req.object.bucket, &req.object.object, req.body, opt).await?;
             Ok(PutObjectResponse { object: Some(to_resp_object(&obj)), ..Default::default() })
         }

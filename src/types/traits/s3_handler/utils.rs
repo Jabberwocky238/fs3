@@ -84,7 +84,7 @@ pub fn to_list_opt(query: &ListQuery, include_metadata: bool) -> ListOptions {
     }
 }
 
-pub fn to_write_opt(content_type: Option<String>) -> ObjectWriteOptions {
+pub fn to_write_opt(content_type: Option<String>, size: u64) -> ObjectWriteOptions {
     ObjectWriteOptions {
         content_type,
         content_encoding: None,
@@ -96,7 +96,7 @@ pub fn to_write_opt(content_type: Option<String>) -> ObjectWriteOptions {
         retention: None,
         legal_hold: None,
         sse_algorithm: None,
-        size: None,
+        size,
     }
 }
 

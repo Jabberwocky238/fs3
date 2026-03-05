@@ -297,11 +297,13 @@ impl<'a> From<ObjectEntryRef<'a>> for AppendObjectRejectedRequest {
 impl<'a> From<ObjectEntryRef<'a>> for PutObjectRequest {
     fn from(v: ObjectEntryRef<'a>) -> Self {
         let data = bytes::Bytes::copy_from_slice(v.body);
+        let content_length = Some(v.body.len() as u64);
         Self {
             object: object_ref(v),
             body: Box::pin(futures::stream::once(async { Ok(data) })),
             content_type: header(v, "content-type"),
             content_md5: header(v, "content-md5"),
+            content_length,
         }
     }
 }

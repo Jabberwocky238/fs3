@@ -28,6 +28,8 @@ impl ObjectObjectLayer for ErasureServerPools {
         let version_id = opts.version_id.as_deref().unwrap_or("null");
         let fi = self.storage.read_version(ctx, bucket, object, version_id).await?;
 
+        eprintln!("DEBUG get_object: fi.size={}, opts.range={:?}", fi.size, opts.range);
+
         let file_path = format!("{}/{}", object, fi.data_dir);
         let chunk_size = 64 * 1024;
         let (start_offset, total_size) = if let Some((start, end)) = opts.range {
@@ -35,6 +37,8 @@ impl ObjectObjectLayer for ErasureServerPools {
         } else {
             (0, fi.size)
         };
+
+        eprintln!("DEBUG get_object: start_offset={}, total_size={}", start_offset, total_size);
 
         use futures::stream::{self, StreamExt};
         let storage = self.storage.clone();
