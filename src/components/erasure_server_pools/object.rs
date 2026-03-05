@@ -20,7 +20,7 @@ impl ObjectObjectLayer for ErasureServerPools {
             size: fi.size,
             etag: "".to_string(),
             content_type: "application/octet-stream".to_string(),
-            user_defined: opts.user_defined,
+            user_defined: fi.user_metadata,
         })
     }
 
@@ -33,7 +33,7 @@ impl ObjectObjectLayer for ErasureServerPools {
         let file_path = format!("{}/{}", object, fi.data_dir);
         let chunk_size = 64 * 1024;
         let (start_offset, total_size) = if let Some((start, end)) = opts.range {
-            (start, end.min(fi.size - 1) + 1)
+            (start, end + 1)
         } else {
             (0, fi.size)
         };
@@ -65,7 +65,7 @@ impl ObjectObjectLayer for ErasureServerPools {
         let info = ObjectInfo {
             bucket: ctx.request_id.clone(),
             name: object.to_string(),
-            size: fi.size,
+            size: total_size - start_offset,
             etag: fi.version_id.clone(),
             content_type: "application/octet-stream".to_string(),
             user_defined: opts.user_defined,
@@ -79,21 +79,22 @@ impl ObjectObjectLayer for ErasureServerPools {
         let data_dir = uuid::Uuid::new_v4().to_string();
 
         let file_path = format!("{}/{}", object, data_dir);
-        self.storage.create_file(ctx, bucket, &file_path, data.size, data.reader).await?;
+        let actual_size = self.storage.create_file(ctx, bucket, &file_path, data.size, data.reader).await?;
 
         let fi = FileInfo {
             volume: bucket.to_string(),
             name: object.to_string(),
             version_id: version_id.clone(),
-            size: data.size as u64,
+            size: actual_size,
             data_dir,
+            user_metadata: opts.user_defined.clone(),
         };
         self.storage.write_metadata(ctx, bucket, object, fi).await?;
 
         Ok(ObjectInfo {
             bucket: bucket.to_string(),
             name: object.to_string(),
-            size: data.size as u64,
+            size: actual_size,
             etag: version_id,
             content_type: "application/octet-stream".to_string(),
             user_defined: opts.user_defined,
@@ -131,6 +132,7 @@ impl ObjectObjectLayer for ErasureServerPools {
             version_id: uuid::Uuid::new_v4().to_string(),
             size: src_fi.size,
             data_dir: dst_data_dir,
+            user_metadata: src_fi.user_metadata.clone(),
         };
         self.storage.write_metadata(ctx, dst_bucket, dst_object, dst_fi.clone()).await?;
 

@@ -11,4 +11,6 @@ pub struct XlMetaVersion {
     pub data_dir: String,
     pub size: u64,
     pub mod_time: i64,
+    #[serde(default)]
+    pub user_metadata: std::collections::HashMap<String, String>,
 }

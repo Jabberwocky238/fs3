@@ -187,6 +187,14 @@ where
         ),
         Method::PUT => {
             let content_length = Some(body.len() as u64);
+            let mut user_metadata = HashMap::new();
+            for (k, v) in headers.iter() {
+                if let Some(key) = k.as_str().strip_prefix("x-amz-meta-") {
+                    if let Ok(val) = v.to_str() {
+                        user_metadata.insert(key.to_string(), val.to_string());
+                    }
+                }
+            }
             S3Response::PutObject(
                 handler.put_object(PutObjectRequest {
                     object: mk(),
@@ -194,6 +202,7 @@ where
                     content_type: header(&headers, "content-type"),
                     content_md5: header(&headers, "content-md5"),
                     content_length,
+                    user_metadata,
                 }).await.map_err(object_err)?,
             )
         },

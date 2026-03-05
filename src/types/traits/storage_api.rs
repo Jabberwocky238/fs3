@@ -22,7 +22,7 @@ pub trait StorageMetadata: Send + Sync {
 #[async_trait]
 pub trait StorageFile: Send + Sync {
     async fn read_file(&self, ctx: &Context, volume: &str, path: &str, offset: i64, buf: &mut [u8]) -> Result<i64, StorageError>;
-    async fn create_file(&self, ctx: &Context, volume: &str, path: &str, size: i64, reader: BoxByteStream) -> Result<(), StorageError>;
+    async fn create_file(&self, ctx: &Context, volume: &str, path: &str, size: i64, reader: BoxByteStream) -> Result<u64, StorageError>;
     async fn append_file(&self, ctx: &Context, volume: &str, path: &str, buf: &[u8]) -> Result<(), StorageError>;
     async fn rename_file(&self, ctx: &Context, src_vol: &str, src_path: &str, dst_vol: &str, dst_path: &str) -> Result<(), StorageError>;
 }

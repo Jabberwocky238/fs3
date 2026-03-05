@@ -14,6 +14,8 @@ pub struct FileInfo {
     pub version_id: String,
     pub size: u64,
     pub data_dir: String,
+    #[serde(default)]
+    pub user_metadata: std::collections::HashMap<String, String>,
 }
 
 pub struct PutObjReader {

@@ -27,6 +27,8 @@ pub struct ObjectInfo {
     pub last_modified: Option<String>,
     #[serde(rename = "StorageClass", skip_serializing_if = "Option::is_none")]
     pub storage_class: Option<String>,
+    #[serde(skip)]
+    pub user_defined: std::collections::HashMap<String, String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]

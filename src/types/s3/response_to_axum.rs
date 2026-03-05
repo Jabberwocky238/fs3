@@ -43,6 +43,13 @@ impl IntoResponse for S3Response {
                             headers.insert("etag", v);
                         }
                     }
+                    for (k, v) in &obj.user_defined {
+                        if let Ok(header_name) = format!("x-amz-meta-{}", k).parse::<axum::http::HeaderName>() {
+                            if let Ok(val) = v.parse::<axum::http::HeaderValue>() {
+                                headers.insert(header_name, val);
+                            }
+                        }
+                    }
                 }
                 resp
             }

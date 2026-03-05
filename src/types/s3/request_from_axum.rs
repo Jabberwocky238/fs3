@@ -304,6 +304,7 @@ impl<'a> From<ObjectEntryRef<'a>> for PutObjectRequest {
             content_type: header(v, "content-type"),
             content_md5: header(v, "content-md5"),
             content_length,
+            user_metadata: Default::default(),
         }
     }
 }

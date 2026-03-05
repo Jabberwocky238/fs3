@@ -141,6 +141,7 @@ impl StorageMetadata for XlStorage {
             version_id: version.version_id.clone(),
             size: version.size,
             data_dir: version.data_dir.clone(),
+            user_metadata: version.user_metadata.clone(),
         })
     }
 
@@ -156,6 +157,7 @@ impl StorageMetadata for XlStorage {
                 data_dir: fi.data_dir,
                 size: fi.size,
                 mod_time: 0,
+                user_metadata: fi.user_metadata,
             }],
         };
         let data = serde_json::to_vec(&xl_meta)
@@ -184,7 +186,7 @@ impl StorageFile for XlStorage {
         Ok(n as i64)
     }
 
-    async fn create_file(&self, _ctx: &Context, volume: &str, path: &str, _size: i64, mut reader: crate::types::s3::core::BoxByteStream) -> Result<(), StorageError> {
+    async fn create_file(&self, _ctx: &Context, volume: &str, path: &str, _size: i64, mut reader: crate::types::s3::core::BoxByteStream) -> Result<u64, StorageError> {
         let file_path = self.path.join(volume).join(path);
         if let Some(parent) = file_path.parent() {
             tokio::fs::create_dir_all(parent).await
@@ -194,12 +196,14 @@ impl StorageFile for XlStorage {
             .map_err(|e| StorageError::Io(e.to_string()))?;
         use tokio::io::AsyncWriteExt;
         use futures::StreamExt;
+        let mut total = 0u64;
         while let Some(chunk) = reader.next().await {
             let bytes = chunk.map_err(|e| StorageError::Io(e.to_string()))?;
             file.write_all(&bytes).await
                 .map_err(|e| StorageError::Io(e.to_string()))?;
+            total += bytes.len() as u64;
         }
-        Ok(())
+        Ok(total)
     }
 
     async fn append_file(&self, _ctx: &Context, volume: &str, path: &str, buf: &[u8]) -> Result<(), StorageError> {

@@ -23,6 +23,7 @@ impl S3BucketWebsiteEngine for FS3Engine {
         let len = data.len() as i64;
         let stream = futures::stream::once(async move { Ok::<bytes::Bytes, std::io::Error>(bytes::Bytes::from(data)) });
         self.storage.create_file(&ctx, bucket, path, len, Box::pin(stream)).await
+            .map(|_| ())
             .map_err(|e| S3EngineError::Storage(e.to_string()))
     }
 

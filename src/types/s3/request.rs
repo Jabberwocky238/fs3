@@ -257,6 +257,7 @@ pub struct PutObjectRequest {
     pub content_type: Option<String>,
     pub content_md5: Option<String>,
     pub content_length: Option<u64>,
+    pub user_metadata: std::collections::HashMap<String, String>,
 }
 
 impl std::fmt::Debug for PutObjectRequest {

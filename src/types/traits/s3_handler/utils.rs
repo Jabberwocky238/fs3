@@ -66,6 +66,7 @@ pub fn to_resp_object(v: &crate::types::s3::core::S3Object) -> ObjectInfo {
         etag: Some(v.etag.clone()),
         last_modified: Some(v.last_modified.to_rfc3339_opts(SecondsFormat::Secs, true)),
         storage_class: Some(format!("{:?}", v.storage_class)),
+        user_defined: v.user_metadata.clone(),
     }
 }
 
@@ -84,12 +85,12 @@ pub fn to_list_opt(query: &ListQuery, include_metadata: bool) -> ListOptions {
     }
 }
 
-pub fn to_write_opt(content_type: Option<String>, size: u64) -> ObjectWriteOptions {
+pub fn to_write_opt(content_type: Option<String>, size: u64, user_metadata: std::collections::HashMap<String, String>) -> ObjectWriteOptions {
     ObjectWriteOptions {
         content_type,
         content_encoding: None,
         storage_class: StorageClass::Standard,
-        user_metadata: std::collections::HashMap::new(),
+        user_metadata,
         user_tags: std::collections::HashMap::new(),
         checksum: None,
         versioning: VersioningState::Off,
