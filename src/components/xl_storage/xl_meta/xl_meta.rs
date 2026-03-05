@@ -58,7 +58,7 @@ impl XlMetaV2 {
         for ver in &self.versions {
             let h = XlMetaV2VersionHeader::from(ver);
             rmp::encode::write_bin(&mut p, &h.encode()?)?;
-            rmp::encode::write_bin(&mut p, &rmp_serde::to_vec(ver)?)?;
+            rmp::encode::write_bin(&mut p, &rmp_serde::to_vec_named(ver)?)?;
         }
         Ok(p)
     }

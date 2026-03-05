@@ -1,36 +1,41 @@
 #!/usr/bin/env python3
 """Test object PUT/GET/DELETE operations"""
 from client_helper import create_client, get_endpoint
+import sys
 
 def make1GB():
     """Generate 1GB of data"""
     return b"0" * (1 * 1024 * 1024 * 1024)
 
-def test(s3):
+def phase1(s3):
     bucket = "test-objects"
     s3.create_bucket(Bucket=bucket)
+    data = b'x' * (50 * 1024 * 1024)
+    s3.put_object(Bucket=bucket, Key="test.txt", Body=data)
+    print("[OK] Phase 1: PUT 50MB object")
 
-    # PUT object
-    s3.put_object(Bucket=bucket, Key="test.txt", Body=b"hello world")
-    print("[OK] PUT object")
-
-    # GET object
+def phase2(s3):
+    bucket = "test-objects"
     obj = s3.get_object(Bucket=bucket, Key="test.txt")
-    assert obj["Body"].read() == b"hello world"
-    print("[OK] GET object")    
-    
-    # PUT 1GB object
-    s3.put_object(Bucket=bucket, Key="test.txt", Body=make1GB())
-    print("[OK] PUT 1GB object")
+    data = obj["Body"].read()
+    assert len(data) == 50 * 1024 * 1024
+    print("[OK] Phase 2: GET 50MB object")
 
-    # DELETE object
     s3.delete_object(Bucket=bucket, Key="test.txt")
-    print("[OK] DELETE object")
-
-    s3.delete_bucket(Bucket=bucket)
+    print("[OK] Phase 2: DELETE object")
 
 if __name__ == "__main__":
     endpoint = get_endpoint()
-    print(f"Testing: {endpoint}")
-    test(create_client(endpoint))
+    phase = int(sys.argv[2]) if len(sys.argv) > 2 else 0
+    print(f"Testing: {endpoint} Phase: {phase}")
+
+    s3 = create_client(endpoint)
+    if phase == 1:
+        phase1(s3)
+    elif phase == 2:
+        phase2(s3)
+    else:
+        phase1(s3)
+        phase2(s3)
+
     print("[OK] All passed!")

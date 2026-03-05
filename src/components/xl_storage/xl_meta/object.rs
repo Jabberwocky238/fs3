@@ -1,8 +1,26 @@
 /// Object metadata - 对应 MinIO xlMetaV2Object
 
 use super::types::{ErasureAlgo, ChecksumAlgo};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Serializer, Deserializer};
 use std::collections::HashMap;
+
+fn serialize_vec_as_nil<S>(v: &Vec<String>, s: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    if v.is_empty() {
+        s.serialize_none()
+    } else {
+        v.serialize(s)
+    }
+}
+
+fn deserialize_vec_from_nil<'de, D>(d: D) -> Result<Vec<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    Option::<Vec<String>>::deserialize(d).map(|opt| opt.unwrap_or_default())
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct XlMetaV2Object {
@@ -26,11 +44,11 @@ pub struct XlMetaV2Object {
     pub checksum_algo: ChecksumAlgo,
     #[serde(rename = "PartNums")]
     pub part_numbers: Vec<i32>,
-    #[serde(rename = "PartETags")]
+    #[serde(rename = "PartETags", serialize_with = "serialize_vec_as_nil", deserialize_with = "deserialize_vec_from_nil")]
     pub part_etags: Vec<String>,
     #[serde(rename = "PartSizes")]
     pub part_sizes: Vec<i64>,
-    #[serde(rename = "PartASizes", skip_serializing_if = "Vec::is_empty", default)]
+    #[serde(rename = "PartASizes")]
     pub part_actual_sizes: Vec<i64>,
     #[serde(rename = "PartIdx", skip_serializing_if = "Vec::is_empty", default)]
     pub part_indices: Vec<Vec<u8>>,
@@ -38,9 +56,9 @@ pub struct XlMetaV2Object {
     pub size: i64,
     #[serde(rename = "MTime")]
     pub mod_time: i64,
-    #[serde(rename = "MetaSys", skip_serializing_if = "HashMap::is_empty", default)]
+    #[serde(rename = "MetaSys")]
     pub meta_sys: HashMap<String, Vec<u8>>,
-    #[serde(rename = "MetaUsr", skip_serializing_if = "HashMap::is_empty", default)]
+    #[serde(rename = "MetaUsr")]
     pub meta_user: HashMap<String, String>,
 }
 

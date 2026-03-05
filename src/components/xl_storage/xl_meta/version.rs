@@ -13,8 +13,6 @@ pub struct XlMetaV2Version {
     pub object_v2: Option<XlMetaV2Object>,
     #[serde(rename = "DelObj", skip_serializing_if = "Option::is_none")]
     pub delete_marker: Option<XlMetaV2DeleteMarker>,
-    #[serde(rename = "WrittenByVersion", skip_serializing_if = "Option::is_none", default)]
-    pub written_by_version: Option<u64>,
 }
 
 impl XlMetaV2Version {

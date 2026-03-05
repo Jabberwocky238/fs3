@@ -7,7 +7,7 @@ pub const XL_HEADER: [u8; 4] = *b"XL2 ";
 pub const XL_VERSION_MAJOR: u16 = 1;
 pub const XL_VERSION_MINOR: u16 = 3;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum VersionType {
     Invalid = 0,
@@ -16,18 +16,89 @@ pub enum VersionType {
     Legacy = 3,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+impl serde::Serialize for VersionType {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_u8(*self as u8)
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for VersionType {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let v = u8::deserialize(deserializer)?;
+        Ok(match v {
+            0 => VersionType::Invalid,
+            1 => VersionType::Object,
+            2 => VersionType::Delete,
+            3 => VersionType::Legacy,
+            _ => VersionType::Invalid,
+        })
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum ErasureAlgo {
     Invalid = 0,
     ReedSolomon = 1,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+impl serde::Serialize for ErasureAlgo {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_u8(*self as u8)
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for ErasureAlgo {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let v = u8::deserialize(deserializer)?;
+        Ok(match v {
+            0 => ErasureAlgo::Invalid,
+            1 => ErasureAlgo::ReedSolomon,
+            _ => ErasureAlgo::Invalid,
+        })
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum ChecksumAlgo {
     Invalid = 0,
     HighwayHash = 1,
+}
+
+impl serde::Serialize for ChecksumAlgo {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_u8(*self as u8)
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for ChecksumAlgo {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let v = u8::deserialize(deserializer)?;
+        Ok(match v {
+            0 => ChecksumAlgo::Invalid,
+            1 => ChecksumAlgo::HighwayHash,
+            _ => ChecksumAlgo::Invalid,
+        })
+    }
 }
 
 pub type XlMetaInlineData = Vec<u8>;
