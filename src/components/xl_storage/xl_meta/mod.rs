@@ -1,17 +1,16 @@
-mod xl_meta_types;
-mod xl_meta_encode;
-mod xl_meta_decode;
+// 模块组织
 
-pub use xl_meta_types::*;
-use xl_meta_encode::encode_xl_meta;
-use xl_meta_decode::decode_xl_meta;
+mod types;
+mod version_header;
+mod object;
+mod delete_marker;
+mod version;
+mod xl_meta;
 
-impl XlMetaV2 {
-    pub fn encode(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-        encode_xl_meta(self)
-    }
-
-    pub fn decode(buf: &[u8]) -> Result<Self, Box<dyn std::error::Error>> {
-        decode_xl_meta(buf)
-    }
-}
+// 导出
+pub use types::*;
+pub use version_header::XlMetaV2VersionHeader;
+pub use object::XlMetaV2Object;
+pub use delete_marker::XlMetaV2DeleteMarker;
+pub use version::XlMetaV2Version;
+pub use xl_meta::XlMetaV2;

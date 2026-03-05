@@ -175,17 +175,17 @@ impl StorageMetadata for XlStorage {
         let obj = XlMetaV2Object {
             version_id: *vid.as_bytes(),
             data_dir: *ddir.as_bytes(),
-            ec_algo: 1,
-            ec_m: 1,
-            ec_n: 1,
-            ec_bsize: 1048576,
-            ec_index: 1,
-            ec_dist: vec![1],
-            csum_algo: 1,
-            part_nums: vec![],
-            part_etags: None,
+            erasure_algorithm: ErasureAlgo::ReedSolomon, // ec_algo: 1,
+            erasure_m: 1,
+            erasure_n: 1,
+            erasure_block_size: 1048576,
+            erasure_index: 1,
+            erasure_dist: vec![1],
+            checksum_algo: ChecksumAlgo::HighwayHash, // csum_algo: 1,
+            part_numbers: vec![],
+            part_etags: vec![],
             part_sizes: vec![],
-            part_asizes: vec![],
+            part_actual_sizes: vec![],
             size: fi.size as i64,
             mod_time: chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0),
             meta_sys,
@@ -194,8 +194,9 @@ impl StorageMetadata for XlStorage {
 
         let xl_meta = XlMetaV2 {
             versions: vec![XlMetaV2Version {
-                version_type: 1,
+                version_type: VersionType::Object,
                 object_v2: Some(obj),
+                delete_marker: None,
             }],
             inline_data,
         };
