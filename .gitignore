@@ -10,3 +10,5 @@
 .debug/
 
 *.exe
+test_*.meta
+test_*.json

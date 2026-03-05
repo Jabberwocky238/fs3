@@ -66,8 +66,8 @@ impl XlMetaV2 {
     fn decode_payload(payload: &[u8], _minor: u16) -> Result<Vec<XlMetaV2Version>, Box<dyn std::error::Error>> {
         use std::io::Cursor;
         let mut c = Cursor::new(payload);
-        let _: i64 = rmp::decode::read_int(&mut c)?;
-        let _: i64 = rmp::decode::read_int(&mut c)?;
+        let _hdr_ver = rmp::decode::read_pfix(&mut c)?;
+        let _meta_ver = rmp::decode::read_pfix(&mut c)?;
 
         let count = rmp::decode::read_array_len(&mut c)? as usize;
         let mut versions = Vec::with_capacity(count);
@@ -78,7 +78,10 @@ impl XlMetaV2 {
 
             let mlen = rmp::decode::read_bin_len(&mut c)?;
             let pos = c.position() as usize;
-            versions.push(rmp_serde::from_slice(&payload[pos..pos + mlen as usize])?);
+            let ver_data = &payload[pos..pos + mlen as usize];
+
+            // Use from_read_ref to decode from slice with named format
+            versions.push(rmp_serde::from_read_ref(ver_data)?);
             c.set_position((pos + mlen as usize) as u64);
         }
         Ok(versions)

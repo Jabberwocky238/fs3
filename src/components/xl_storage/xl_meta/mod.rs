@@ -8,6 +8,7 @@ mod version;
 mod xl_meta;
 mod shallow_version;
 mod v1_object;
+mod golang_map;
 
 // 导出
 pub use types::*;
