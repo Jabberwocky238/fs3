@@ -2,6 +2,8 @@
 
 use super::types::VersionType;
 use super::version::XlMetaV2Version;
+use super::XLMetaSerializer;
+use std::io::Cursor;
 
 #[derive(Debug, Clone)]
 pub struct XlMetaV2VersionHeader {
@@ -14,8 +16,8 @@ pub struct XlMetaV2VersionHeader {
     pub ec_m: i32,
 }
 
-impl XlMetaV2VersionHeader {
-    pub fn from_version(ver: &XlMetaV2Version) -> Self {
+impl From<&XlMetaV2Version> for XlMetaV2VersionHeader {
+    fn from(ver: &XlMetaV2Version) -> Self {
         let (vid, mod_time, ec_n, ec_m) = match &ver.object_v2 {
             Some(obj) => (obj.version_id, obj.mod_time, obj.erasure_n, obj.erasure_m),
             None => match &ver.delete_marker {
@@ -36,8 +38,8 @@ impl XlMetaV2VersionHeader {
     }
 }
 
-impl XlMetaV2VersionHeader {
-    pub fn encode(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+impl XLMetaSerializer for XlMetaV2VersionHeader {
+    fn encode(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         let mut buf = Vec::new();
         rmp::encode::write_bin(&mut buf, &self.version_id)?;
         rmp::encode::write_sint(&mut buf, self.mod_time)?;
@@ -48,13 +50,14 @@ impl XlMetaV2VersionHeader {
         rmp::encode::write_uint(&mut buf, self.ec_m as u64)?;
         Ok(buf)
     }
+
+    fn decode(data: &[u8]) -> Result<Self, Box<dyn std::error::Error>> {
+        Self::decode_with_minor(data, 3)
+    }
 }
 
-use super::types::VersionType;
-use std::io::Cursor;
-
 impl XlMetaV2VersionHeader {
-    pub fn decode(data: &[u8], minor: u16) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn decode_with_minor(data: &[u8], minor: u16) -> Result<Self, Box<dyn std::error::Error>> {
         let mut cursor = Cursor::new(data);
 
         let mut version_id = [0u8; 16];

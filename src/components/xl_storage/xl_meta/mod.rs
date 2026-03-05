@@ -14,3 +14,9 @@ pub use object::XlMetaV2Object;
 pub use delete_marker::XlMetaV2DeleteMarker;
 pub use version::XlMetaV2Version;
 pub use xl_meta::XlMetaV2;
+use std::error::Error;
+
+pub trait XLMetaSerializer {
+    fn encode(&self) -> Result<Vec<u8>, Box<dyn Error>>;
+    fn decode(buf: &[u8]) -> Result<Self, Box<dyn Error>> where Self: Sized;
+}
