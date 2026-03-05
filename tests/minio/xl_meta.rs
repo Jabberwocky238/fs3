@@ -7,7 +7,7 @@ use serde_json::Value;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use fs3::components::xl_storage::xl_meta::*;
+    use s3_mount_gateway_rust::components::xl_storage::{XlMetaV2Version, VersionType};
 
     fn run_decoder(args: &[&str], input: Option<&[u8]>) -> Result<Vec<u8>, String> {
         let mut cmd = Command::new("./xlmeta-decoder.exe");
