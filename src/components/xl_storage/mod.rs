@@ -6,7 +6,7 @@ use crate::types::s3::object_layer_types::Context;
 use crate::types::errors::StorageError;
 
 mod xl_types;
-pub use xl_meta::*;
+use xl_types::{XlMetaV2, XlMetaV2Version, XlMetaV2Object};
 use xl_types::xl_meta_v2_object::{ErasureAlgo, ChecksumAlgo};
 use xl_types::xl_meta_v2_version::VersionType;
 
@@ -203,7 +203,8 @@ impl StorageMetadata for XlStorage {
                 delete_marker: None,
                 written_by_version: 0,
             }],
-            inline_data,
+            data: if inline_data.is_empty() { None } else { Some(inline_data) },
+            meta_v: 1,
         };
 
         let data = xl_meta.encode()
@@ -228,12 +229,12 @@ impl StorageFile for XlStorage {
             let meta_path = self.xl_meta_path(volume, obj_path);
             if let Ok(meta_data) = tokio::fs::read(&meta_path).await {
                 if let Ok(xl_meta) = XlMetaV2::decode(&meta_data) {
-                    if !xl_meta.inline_data.is_empty() {
+                    if !xl_meta.inline_data().is_empty() {
                         let start = offset as usize;
-                        let end = std::cmp::min(start + buf.len(), xl_meta.inline_data.len());
-                        if start < xl_meta.inline_data.len() {
+                        let end = std::cmp::min(start + buf.len(), xl_meta.inline_data().len());
+                        if start < xl_meta.inline_data().len() {
                             let n = end - start;
-                            buf[..n].copy_from_slice(&xl_meta.inline_data[start..end]);
+                            buf[..n].copy_from_slice(&xl_meta.inline_data()[start..end]);
                             return Ok(n as i64);
                         }
                         return Ok(0);
