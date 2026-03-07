@@ -11,10 +11,14 @@ const (
 	LegacyType         VersionType = 3
 )
 
-type XlMetaV2Version struct {
-	Type             VersionType           `msg:"Type"`
-	ObjectV1         []byte                `msg:"V1Obj,omitempty"`
-	ObjectV2         *XlMetaV2Object       `msg:"V2Obj,omitempty"`
-	DeleteMarker     *XlMetaV2DeleteMarker `msg:"DelObj,omitempty"`
-	WrittenByVersion uint64                `msg:"v"`
+// xlMetaV2Version describes the journal entry, Type defines
+// the current journal entry type other types might be nil based
+// on what Type field carries, it is imperative for the caller
+// to verify which journal type first before accessing rest of the fields.
+type xlMetaV2Version struct {
+	Type             VersionType           `json:"Type" msg:"Type"`
+	ObjectV1         *XlMetaV1Object       `json:"V1Obj,omitempty" msg:"V1Obj,omitempty"`
+	ObjectV2         *XlMetaV2Object       `json:"V2Obj,omitempty" msg:"V2Obj,omitempty"`
+	DeleteMarker     *XlMetaV2DeleteMarker `json:"DelObj,omitempty" msg:"DelObj,omitempty"`
+	WrittenByVersion uint64                `msg:"v"` // Tracks written by MinIO version
 }

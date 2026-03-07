@@ -16,7 +16,10 @@
       "Bash(for f in test_*.py)",
       "Bash(do echo \"=== $f ===\")",
       "Read(//d/1-code/__trash__/fs3/**)",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(go generate:*)",
+      "Bash(sed:*)",
+      "Bash(rm:*)"
     ]
   }
 }

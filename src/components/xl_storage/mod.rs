@@ -6,6 +6,7 @@ use crate::types::s3::object_layer_types::Context;
 use crate::types::errors::StorageError;
 
 mod xl_meta;
+mod xl_types;
 pub use xl_meta::*;
 
 pub struct XlStorage {

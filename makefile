@@ -7,7 +7,6 @@ build:
 build-minio:
 	cd minio && go build -o minio.exe .
 	cp minio/minio.exe ./minio.exe
-
 clean:
 	cargo clean
 	rm -f ./fs3.exe
