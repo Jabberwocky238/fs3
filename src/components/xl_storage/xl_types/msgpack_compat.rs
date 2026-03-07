@@ -22,11 +22,26 @@ impl MsgpackWriter {
 
     pub fn write_int64_field(&mut self, key: &str, val: i64) {
         write_str(&mut self.buf, key).unwrap();
-        write_sint(&mut self.buf, val).unwrap();
+        if val >= -128 && val <= 127 {
+            write_sint(&mut self.buf, val).unwrap();
+        } else if val >= i16::MIN as i64 && val <= i16::MAX as i64 {
+            self.buf.push(0xd1);
+            self.buf.extend_from_slice(&(val as i16).to_be_bytes());
+        } else if val >= i32::MIN as i64 && val <= i32::MAX as i64 {
+            self.buf.push(0xd2);
+            self.buf.extend_from_slice(&(val as i32).to_be_bytes());
+        } else {
+            self.buf.push(0xd3);
+            self.buf.extend_from_slice(&val.to_be_bytes());
+        }
     }
 
     pub fn write_int16_field(&mut self, key: &str, val: i16) {
         write_str(&mut self.buf, key).unwrap();
+        self.write_int16_field_value(val);
+    }
+
+    pub fn write_int16_field_value(&mut self, val: i16) {
         if val >= 0 && val <= 127 {
             self.buf.push(val as u8);
         } else if val >= -32 && val < 0 {
@@ -39,6 +54,10 @@ impl MsgpackWriter {
 
     pub fn write_int32_field(&mut self, key: &str, val: i32) {
         write_str(&mut self.buf, key).unwrap();
+        self.write_int32_field_value(val);
+    }
+
+    pub fn write_int32_field_value(&mut self, val: i32) {
         self.buf.push(0xd2);
         self.buf.extend_from_slice(&val.to_be_bytes());
     }
@@ -106,14 +125,17 @@ impl MsgpackWriter {
 
     pub fn write_int64_array(&mut self, vals: &[i64]) {
         for &v in vals {
-            if v >= i16::MIN as i64 && v <= i16::MAX as i64 {
+            if v >= -128 && v <= 127 {
+                write_sint(&mut self.buf, v).unwrap();
+            } else if v >= i16::MIN as i64 && v <= i16::MAX as i64 {
                 self.buf.push(0xd1);
                 self.buf.extend_from_slice(&(v as i16).to_be_bytes());
             } else if v >= i32::MIN as i64 && v <= i32::MAX as i64 {
                 self.buf.push(0xd2);
                 self.buf.extend_from_slice(&(v as i32).to_be_bytes());
             } else {
-                write_sint(&mut self.buf, v).unwrap();
+                self.buf.push(0xd3);
+                self.buf.extend_from_slice(&v.to_be_bytes());
             }
         }
     }

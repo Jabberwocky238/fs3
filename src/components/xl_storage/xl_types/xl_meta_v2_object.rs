@@ -1,6 +1,6 @@
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use indexmap::IndexMap;
 
 use super::msgpack_compat::{MsgpackReader, MsgpackWriter};
 
@@ -40,8 +40,8 @@ pub struct XlMetaV2Object {
     pub part_indices: Option<Vec<Vec<u8>>>,
     pub size: i64,
     pub mod_time: i64,
-    pub meta_sys: Option<HashMap<String, Vec<u8>>>,
-    pub meta_user: Option<HashMap<String, String>>,
+    pub meta_sys: Option<IndexMap<String, Vec<u8>>>,
+    pub meta_user: Option<IndexMap<String, String>>,
 }
 
 impl From<Vec<u8>> for XlMetaV2Object {
@@ -82,7 +82,7 @@ impl From<XlMetaV2Object> for Vec<u8> {
         w.write_u8_field("EcAlgo", val.erasure_algorithm as u8);
         w.write_int64_field("EcM", val.erasure_m as i64);
         w.write_int64_field("EcN", val.erasure_n as i64);
-        w.write_int32_field("EcBSize", val.erasure_block_size as i32);
+        w.write_int64_field("EcBSize", val.erasure_block_size);
         w.write_int64_field("EcIndex", val.erasure_index as i64);
         w.write_array_field("EcDist", val.erasure_dist.len() as u32, |w| w.write_u8_array(&val.erasure_dist));
         w.write_u8_field("CSumAlgo", val.bitrot_checksum_algo as u8);
@@ -112,7 +112,12 @@ impl From<XlMetaV2Object> for Vec<u8> {
             });
         }
 
-        w.write_int16_field("Size", val.size);
+        w.write_str("Size");
+        if val.size >= -32768 && val.size <= 32767 {
+            w.write_int16_field_value(val.size as i16);
+        } else {
+            w.write_int32_field_value(val.size as i32);
+        }
         w.write_int32_field("MTime", val.mod_time as i32);
 
         w.write_str("MetaSys");

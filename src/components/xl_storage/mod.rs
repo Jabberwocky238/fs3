@@ -145,7 +145,7 @@ impl StorageMetadata for XlStorage {
             version_id: vid,
             size: obj.size as u64,
             data_dir: ddir,
-            user_metadata: obj.meta_user.clone().unwrap_or_default(),
+            user_metadata: obj.meta_user.clone().unwrap_or_default().into_iter().collect(),
         })
     }
 
@@ -189,8 +189,8 @@ impl StorageMetadata for XlStorage {
             part_indices: Some(vec![]),
             size: fi.size as i64,
             mod_time: chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0),
-            meta_sys: Some(meta_sys),
-            meta_user: Some(fi.user_metadata),
+            meta_sys: Some(meta_sys.into_iter().collect()),
+            meta_user: Some(fi.user_metadata.into_iter().collect()),
         };
 
         let obj_bytes: Vec<u8> = obj.into();

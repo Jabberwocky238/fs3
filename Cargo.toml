@@ -17,6 +17,7 @@ futures = "0.3"
 chrono = { version = "0.4", features = ["serde", "clock"] }
 clap = { version = "4", features = ["derive"] }
 hex = "0.4"
+indexmap = { version = "2", features = ["serde"] }
 md5 = "0.8"
 rand = "0.8"
 serde = { version = "1", features = ["derive"] }
