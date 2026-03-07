@@ -5,7 +5,6 @@ use crate::types::s3::storage_types::*;
 use crate::types::s3::object_layer_types::Context;
 use crate::types::errors::StorageError;
 
-mod xl_meta;
 mod xl_types;
 pub use xl_meta::*;
 use xl_types::xl_meta_v2_object::{ErasureAlgo, ChecksumAlgo};
