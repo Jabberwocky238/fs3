@@ -10,6 +10,7 @@ mod shallow_version;
 mod v1_object;
 mod golang_map;
 mod golang_struct;
+mod xl_storage;
 
 // 导出
 pub use types::*;
@@ -22,6 +23,7 @@ pub use shallow_version::XlMetaV2ShallowVersion;
 pub use v1_object::*;
 pub use golang_map::GoMapDecoder;
 pub use golang_struct::GoBytes;
+pub use xl_storage::{XlStorage, check_path_length};
 use std::error::Error;
 
 pub trait XLMetaSerializer {
