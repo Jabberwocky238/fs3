@@ -50,16 +50,16 @@ impl From<Vec<u8>> for XlMetaV2Object {
         Self {
             version_id: r.get_bytes("ID").unwrap().try_into().unwrap(),
             data_dir: r.get_bytes("DDir").unwrap().try_into().unwrap(),
-            erasure_algorithm: if r.get_u8("EcAlgo").unwrap() == 1 { ErasureAlgo::ReedSolomon } else { ErasureAlgo::Invalid },
-            erasure_m: r.get_i64("EcM").unwrap() as i32,
-            erasure_n: r.get_i64("EcN").unwrap() as i32,
-            erasure_block_size: r.get_i64("EcBSize").unwrap(),
-            erasure_index: r.get_i64("EcIndex").unwrap() as i32,
-            erasure_dist: r.get_u8_array("EcDist").unwrap(),
-            bitrot_checksum_algo: if r.get_u8("CSumAlgo").unwrap() == 1 { ChecksumAlgo::HighwayHash } else { ChecksumAlgo::Invalid },
-            part_numbers: r.get_int_array("PartNums").unwrap(),
-            part_etags: r.get_str_array("PartETags").unwrap(),
-            part_sizes: r.get_i64_array("PartSizes").unwrap(),
+            erasure_algorithm: if r.get_u8("EcAlgo").unwrap_or(0) == 1 { ErasureAlgo::ReedSolomon } else { ErasureAlgo::Invalid },
+            erasure_m: r.get_i64("EcM").unwrap_or(0) as i32,
+            erasure_n: r.get_i64("EcN").unwrap_or(0) as i32,
+            erasure_block_size: r.get_i64("EcBSize").unwrap_or(0),
+            erasure_index: r.get_i64("EcIndex").unwrap_or(0) as i32,
+            erasure_dist: r.get_u8_array("EcDist").unwrap_or_default(),
+            bitrot_checksum_algo: if r.get_u8("CSumAlgo").unwrap_or(0) == 1 { ChecksumAlgo::HighwayHash } else { ChecksumAlgo::Invalid },
+            part_numbers: r.get_int_array("PartNums").unwrap_or_default(),
+            part_etags: r.get_str_array("PartETags").unwrap_or_default(),
+            part_sizes: r.get_i64_array("PartSizes").unwrap_or_default(),
             part_actual_sizes: r.get_i64_array("PartASizes"),
             part_indices: None,
             size: r.get_i64("Size").unwrap(),
@@ -82,7 +82,7 @@ impl From<XlMetaV2Object> for Vec<u8> {
         w.write_u8_field("EcAlgo", val.erasure_algorithm as u8);
         w.write_int_field("EcM", val.erasure_m as i64);
         w.write_int_field("EcN", val.erasure_n as i64);
-        w.write_int_field("EcBSize", val.erasure_block_size);
+        w.write_int32_field("EcBSize", val.erasure_block_size as i32);
         w.write_int_field("EcIndex", val.erasure_index as i64);
         w.write_array_field("EcDist", val.erasure_dist.len() as u32, |w| w.write_u8_array(&val.erasure_dist));
         w.write_u8_field("CSumAlgo", val.bitrot_checksum_algo as u8);
@@ -138,6 +138,12 @@ impl From<XlMetaV2Object> for Vec<u8> {
         }
 
         w.finish()
+    }
+}
+
+impl From<&XlMetaV2Object> for Vec<u8> {
+    fn from(obj: &XlMetaV2Object) -> Self {
+        obj.clone().into()
     }
 }
 

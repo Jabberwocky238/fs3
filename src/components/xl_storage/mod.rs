@@ -8,6 +8,8 @@ use crate::types::errors::StorageError;
 mod xl_meta;
 mod xl_types;
 pub use xl_meta::*;
+use xl_types::xl_meta_v2_object::{ErasureAlgo, ChecksumAlgo};
+use xl_types::xl_meta_v2_version::VersionType;
 
 pub struct XlStorage {
     path: PathBuf,
@@ -146,7 +148,7 @@ impl StorageMetadata for XlStorage {
             version_id: vid,
             size: obj.size as u64,
             data_dir: ddir,
-            user_metadata: obj.meta_user.clone(),
+            user_metadata: obj.meta_user.clone().unwrap_or_default(),
         })
     }
 
@@ -182,23 +184,25 @@ impl StorageMetadata for XlStorage {
             erasure_block_size: 1048576,
             erasure_index: 1,
             erasure_dist: vec![1],
-            checksum_algo: ChecksumAlgo::HighwayHash,
+            bitrot_checksum_algo: ChecksumAlgo::HighwayHash,
             part_numbers: vec![1],
             part_etags: vec![],
             part_sizes: vec![fi.size as i64],
-            part_actual_sizes: vec![fi.size as i64],
-            part_indices: vec![],
+            part_actual_sizes: Some(vec![fi.size as i64]),
+            part_indices: Some(vec![]),
             size: fi.size as i64,
             mod_time: chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0),
-            meta_sys,
-            meta_user: fi.user_metadata,
+            meta_sys: Some(meta_sys),
+            meta_user: Some(fi.user_metadata),
         };
 
         let xl_meta = XlMetaV2 {
             versions: vec![XlMetaV2Version {
                 version_type: VersionType::Object,
+                object_v1: None,
                 object_v2: Some(obj),
                 delete_marker: None,
+                written_by_version: 0,
             }],
             inline_data,
         };

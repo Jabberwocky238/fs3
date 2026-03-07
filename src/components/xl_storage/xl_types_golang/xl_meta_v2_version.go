@@ -15,7 +15,7 @@ const (
 // the current journal entry type other types might be nil based
 // on what Type field carries, it is imperative for the caller
 // to verify which journal type first before accessing rest of the fields.
-type xlMetaV2Version struct {
+type XlMetaV2Version struct {
 	Type             VersionType           `json:"Type" msg:"Type"`
 	ObjectV1         *XlMetaV1Object       `json:"V1Obj,omitempty" msg:"V1Obj,omitempty"`
 	ObjectV2         *XlMetaV2Object       `json:"V2Obj,omitempty" msg:"V2Obj,omitempty"`
