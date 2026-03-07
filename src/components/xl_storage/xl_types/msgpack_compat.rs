@@ -20,12 +20,12 @@ impl MsgpackWriter {
         write_str(&mut self.buf, val).unwrap();
     }
 
-    pub fn write_int_field(&mut self, key: &str, val: i64) {
+    pub fn write_int64_field(&mut self, key: &str, val: i64) {
         write_str(&mut self.buf, key).unwrap();
         write_sint(&mut self.buf, val).unwrap();
     }
 
-    pub fn write_int16_field(&mut self, key: &str, val: i64) {
+    pub fn write_int16_field(&mut self, key: &str, val: i16) {
         write_str(&mut self.buf, key).unwrap();
         if val >= 0 && val <= 127 {
             self.buf.push(val as u8);
@@ -98,13 +98,13 @@ impl MsgpackWriter {
         f(self);
     }
 
-    pub fn write_int_array(&mut self, vals: &[i32]) {
+    pub fn write_int32_array(&mut self, vals: &[i32]) {
         for &v in vals {
             write_sint(&mut self.buf, v as i64).unwrap();
         }
     }
 
-    pub fn write_i64_array(&mut self, vals: &[i64]) {
+    pub fn write_int64_array(&mut self, vals: &[i64]) {
         for &v in vals {
             if v >= i16::MIN as i64 && v <= i16::MAX as i64 {
                 self.buf.push(0xd1);
@@ -199,7 +199,7 @@ impl MsgpackReader {
             })
     }
 
-    pub fn get_int_array(&self, key: &str) -> Option<Vec<i32>> {
+    pub fn get_i32_array(&self, key: &str) -> Option<Vec<i32>> {
         self.map.iter()
             .find(|(k, _)| k.as_str() == Some(key))
             .and_then(|(_, v)| {

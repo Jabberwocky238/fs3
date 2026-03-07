@@ -21,7 +21,8 @@ impl From<XlMetaV2ShallowVersion> for Vec<u8> {
     fn from(val: XlMetaV2ShallowVersion) -> Self {
         let mut w = MsgpackWriter::new();
         w.write_map_len(2);
-        w.write_bin_field("h", &val.header.clone().into());
+        let header_bytes: Vec<u8> = val.header.into();
+        w.write_bin_field("h", &header_bytes);
         w.write_bin_field("m", &val.meta);
         w.finish()
     }

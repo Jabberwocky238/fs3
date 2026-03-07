@@ -13,6 +13,9 @@ pub mod xl_meta_v2_shallow_version;
 pub mod xl_meta_v2_version;
 pub mod xl_meta_v2_version_header;
 
+#[cfg(test)]
+mod xl_meta_v2_test;
+
 pub use checksum_info::*;
 pub use checksum_info_json::*;
 pub use erasure_info::*;

@@ -57,7 +57,7 @@ impl From<Vec<u8>> for XlMetaV2Object {
             erasure_index: r.get_i64("EcIndex").unwrap_or(0) as i32,
             erasure_dist: r.get_u8_array("EcDist").unwrap_or_default(),
             bitrot_checksum_algo: if r.get_u8("CSumAlgo").unwrap_or(0) == 1 { ChecksumAlgo::HighwayHash } else { ChecksumAlgo::Invalid },
-            part_numbers: r.get_int_array("PartNums").unwrap_or_default(),
+            part_numbers: r.get_i32_array("PartNums").unwrap_or_default(),
             part_etags: r.get_str_array("PartETags").unwrap_or_default(),
             part_sizes: r.get_i64_array("PartSizes").unwrap_or_default(),
             part_actual_sizes: r.get_i64_array("PartASizes"),
@@ -80,13 +80,13 @@ impl From<XlMetaV2Object> for Vec<u8> {
         w.write_bytes_field("ID", &val.version_id);
         w.write_bytes_field("DDir", &val.data_dir);
         w.write_u8_field("EcAlgo", val.erasure_algorithm as u8);
-        w.write_int_field("EcM", val.erasure_m as i64);
-        w.write_int_field("EcN", val.erasure_n as i64);
+        w.write_int64_field("EcM", val.erasure_m as i64);
+        w.write_int64_field("EcN", val.erasure_n as i64);
         w.write_int32_field("EcBSize", val.erasure_block_size as i32);
-        w.write_int_field("EcIndex", val.erasure_index as i64);
+        w.write_int64_field("EcIndex", val.erasure_index as i64);
         w.write_array_field("EcDist", val.erasure_dist.len() as u32, |w| w.write_u8_array(&val.erasure_dist));
         w.write_u8_field("CSumAlgo", val.bitrot_checksum_algo as u8);
-        w.write_array_field("PartNums", val.part_numbers.len() as u32, |w| w.write_int_array(&val.part_numbers));
+        w.write_array_field("PartNums", val.part_numbers.len() as u32, |w| w.write_int32_array(&val.part_numbers));
 
         w.write_str("PartETags");
         if val.part_etags.is_empty() {
@@ -95,11 +95,11 @@ impl From<XlMetaV2Object> for Vec<u8> {
             w.write_array(val.part_etags.len() as u32, |w| w.write_str_array(&val.part_etags));
         }
 
-        w.write_array_field("PartSizes", val.part_sizes.len() as u32, |w| w.write_i64_array(&val.part_sizes));
+        w.write_array_field("PartSizes", val.part_sizes.len() as u32, |w| w.write_int64_array(&val.part_sizes));
 
         w.write_str("PartASizes");
         if let Some(ref sizes) = val.part_actual_sizes {
-            w.write_array(sizes.len() as u32, |w| w.write_i64_array(sizes));
+            w.write_array(sizes.len() as u32, |w| w.write_int64_array(sizes));
         } else {
             w.write_nil();
         }

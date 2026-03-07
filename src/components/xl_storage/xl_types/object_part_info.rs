@@ -39,7 +39,7 @@ impl From<ObjectPartInfo> for Vec<u8> {
         w.write_map_len(field_count);
 
         w.write_str_field("e", val.etag.as_deref().unwrap_or(""));
-        w.write_int_field("n", val.number as i64);
+        w.write_int64_field("n", val.number as i64);
         w.write_int16_field("s", val.size);
         w.write_int16_field("as", val.actual_size);
         w.write_go_time_field("mt", val.mod_time);

@@ -6,9 +6,8 @@ use crate::types::s3::object_layer_types::Context;
 use crate::types::errors::StorageError;
 
 mod xl_types;
-use xl_types::{XlMetaV2, XlMetaV2Version, XlMetaV2Object};
+use xl_types::{XlMetaV2, XlMetaV2ShallowVersion, XlMetaV2Object, XlMetaV2VersionHeader};
 use xl_types::xl_meta_v2_object::{ErasureAlgo, ChecksumAlgo};
-use xl_types::xl_meta_v2_version::VersionType;
 
 pub struct XlStorage {
     path: PathBuf,
@@ -127,16 +126,15 @@ impl StorageMetadata for XlStorage {
         let meta_path = self.xl_meta_path(volume, path);
         let data = tokio::fs::read(&meta_path).await
             .map_err(|_| StorageError::FileNotFound(path.to_string()))?;
-        let xl_meta = XlMetaV2::decode(&data)
-            .map_err(|e| StorageError::Io(e.to_string()))?;
+        let xl_meta: XlMetaV2 = data.into();
 
         if xl_meta.versions.is_empty() {
             return Err(StorageError::FileNotFound("no versions".to_string()));
         }
 
         let version = &xl_meta.versions[0];
-        let obj = version.object_v2.as_ref()
-            .ok_or_else(|| StorageError::FileNotFound("no object data".to_string()))?;
+        let obj_data = &version.meta;
+        let obj: XlMetaV2Object = obj_data.clone().into();
 
         let vid = uuid::Uuid::from_bytes(obj.version_id).to_string();
         let ddir = uuid::Uuid::from_bytes(obj.data_dir).to_string();
@@ -195,20 +193,27 @@ impl StorageMetadata for XlStorage {
             meta_user: Some(fi.user_metadata),
         };
 
+        let obj_bytes: Vec<u8> = obj.into();
+        let header = XlMetaV2VersionHeader {
+            version_id: *vid.as_bytes(),
+            mod_time: chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0) as i64,
+            signature: [0x78, 0x6c, 0x32, 0x20],
+            version_type: 1,
+            flags: 0,
+            ec_n: 0,
+            ec_m: 1,
+        };
+
         let xl_meta = XlMetaV2 {
-            versions: vec![XlMetaV2Version {
-                version_type: VersionType::Object,
-                object_v1: None,
-                object_v2: Some(obj),
-                delete_marker: None,
-                written_by_version: 0,
+            versions: vec![XlMetaV2ShallowVersion {
+                header,
+                meta: obj_bytes,
             }],
-            data: if inline_data.is_empty() { None } else { Some(inline_data) },
+            inline_data: if inline_data.is_empty() { None } else { Some(inline_data) },
             meta_v: 1,
         };
 
-        let data = xl_meta.encode()
-            .map_err(|e| StorageError::Io(e.to_string()))?;
+        let data: Vec<u8> = xl_meta.into();
         tokio::fs::write(&meta_path, &data).await
             .map_err(|e| StorageError::Io(e.to_string()))
     }
@@ -228,17 +233,16 @@ impl StorageFile for XlStorage {
             let obj_path = parts[1];
             let meta_path = self.xl_meta_path(volume, obj_path);
             if let Ok(meta_data) = tokio::fs::read(&meta_path).await {
-                if let Ok(xl_meta) = XlMetaV2::decode(&meta_data) {
-                    if !xl_meta.inline_data().is_empty() {
-                        let start = offset as usize;
-                        let end = std::cmp::min(start + buf.len(), xl_meta.inline_data().len());
-                        if start < xl_meta.inline_data().len() {
-                            let n = end - start;
-                            buf[..n].copy_from_slice(&xl_meta.inline_data()[start..end]);
-                            return Ok(n as i64);
-                        }
-                        return Ok(0);
+                let xl_meta: XlMetaV2 = meta_data.into();
+                if let Some(ref data) = xl_meta.inline_data {
+                    let start = offset as usize;
+                    let end = std::cmp::min(start + buf.len(), data.len());
+                    if start < data.len() {
+                        let n = end - start;
+                        buf[..n].copy_from_slice(&data[start..end]);
+                        return Ok(n as i64);
                     }
+                    return Ok(0);
                 }
             }
         }
