@@ -16,7 +16,15 @@ pub struct FileInfo {
     pub data_dir: String,
     #[serde(default)]
     pub user_metadata: std::collections::HashMap<String, String>,
+    #[serde(default = "default_one")]
+    pub erasure_index: i32,
+    #[serde(default = "default_one")]
+    pub erasure_m: i32,
+    #[serde(default)]
+    pub erasure_n: i32,
 }
+
+fn default_one() -> i32 { 1 }
 
 pub struct PutObjReader {
     pub reader: BoxByteStream,

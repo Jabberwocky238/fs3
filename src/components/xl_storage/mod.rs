@@ -146,6 +146,9 @@ impl StorageMetadata for XlStorage {
             size: obj.size as u64,
             data_dir: ddir,
             user_metadata: obj.meta_user.clone().unwrap_or_default().into_iter().collect(),
+            erasure_index: obj.erasure_index,
+            erasure_m: obj.erasure_m,
+            erasure_n: obj.erasure_n,
         })
     }
 
@@ -176,11 +179,11 @@ impl StorageMetadata for XlStorage {
             version_id: *vid.as_bytes(),
             data_dir: *ddir.as_bytes(),
             erasure_algorithm: ErasureAlgo::ReedSolomon,
-            erasure_m: 1,
-            erasure_n: 0,
+            erasure_m: fi.erasure_m,
+            erasure_n: fi.erasure_n,
             erasure_block_size: 1048576,
-            erasure_index: 1,
-            erasure_dist: vec![1],
+            erasure_index: fi.erasure_index,
+            erasure_dist: vec![fi.erasure_index as u8],
             bitrot_checksum_algo: ChecksumAlgo::HighwayHash,
             part_numbers: vec![1],
             part_etags: vec![],
@@ -200,8 +203,8 @@ impl StorageMetadata for XlStorage {
             signature: [0x78, 0x6c, 0x32, 0x20],
             version_type: 1,
             flags: 0,
-            ec_n: 0,
-            ec_m: 1,
+            ec_n: fi.erasure_n as u8,
+            ec_m: fi.erasure_m as u8,
         };
 
         let xl_meta = XlMetaV2 {

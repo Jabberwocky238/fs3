@@ -28,6 +28,7 @@ Build a lightweight S3-compatible object storage gateway in Rust, compatible wit
 # 1. 启动服务器
 minio.exe server --address 127.0.0.1:9000 --console-address 127.0.0.1:9001 .debug/minio
 fs3.exe server --address 127.0.0.1:9100 .debug/fs3
+# 无需sleep等待服务器启动，服务器会瞬间启动
 
 # 2. 执行Phase 1 - MinIO和fs3都写入数据
 python test_xxx.py http://127.0.0.1:9000 1

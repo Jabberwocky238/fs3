@@ -88,6 +88,9 @@ impl ObjectObjectLayer for ErasureServerPools {
             size: actual_size,
             data_dir,
             user_metadata: opts.user_defined.clone(),
+            erasure_index: 1,
+            erasure_m: 1,
+            erasure_n: 0,
         };
         self.storage.write_metadata(ctx, bucket, object, fi).await?;
 
@@ -133,6 +136,9 @@ impl ObjectObjectLayer for ErasureServerPools {
             size: src_fi.size,
             data_dir: dst_data_dir,
             user_metadata: src_fi.user_metadata.clone(),
+            erasure_index: src_fi.erasure_index,
+            erasure_m: src_fi.erasure_m,
+            erasure_n: src_fi.erasure_n,
         };
         self.storage.write_metadata(ctx, dst_bucket, dst_object, dst_fi.clone()).await?;
 

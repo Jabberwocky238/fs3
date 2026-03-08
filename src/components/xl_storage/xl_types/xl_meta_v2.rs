@@ -13,7 +13,12 @@ pub struct XlMetaV2 {
 
 impl From<Vec<u8>> for XlMetaV2 {
     fn from(bytes: Vec<u8>) -> Self {
-        let r = MsgpackReader::new(&bytes);
+        let payload = if bytes.len() > 8 && &bytes[0..4] == b"XL2 " {
+            &bytes[8..]
+        } else {
+            &bytes[..]
+        };
+        let r = MsgpackReader::new(payload);
         Self {
             versions: vec![],
             inline_data: r.get_bytes("Data"),
@@ -24,25 +29,84 @@ impl From<Vec<u8>> for XlMetaV2 {
 
 impl From<XlMetaV2> for Vec<u8> {
     fn from(val: XlMetaV2) -> Self {
-        let mut w = MsgpackWriter::new();
-        w.write_map_len(3);
-        w.write_array_field("Versions", val.versions.len() as u32, |w| {
-            for v in &val.versions {
-                w.write_map_len(2);
-                w.write_str("h");
-                w.write_map_len(7);
-                w.write_bin_field("vid", &v.header.version_id);
-                w.write_int32_field("mt", v.header.mod_time as i32);
-                w.write_bin_field("sig", &v.header.signature);
-                w.write_u8_field("vt", v.header.version_type);
-                w.write_u8_field("f", v.header.flags);
-                w.write_u8_field("n", v.header.ec_n);
-                w.write_u8_field("m", v.header.ec_m);
-                w.write_bin_field("m", &v.meta);
+        let mut result = Vec::new();
+
+        // XL2 header
+        result.extend_from_slice(b"XL2 ");
+        result.extend_from_slice(&[1u8, 0u8, 3u8, 0u8]);
+
+        // Placeholder for bin32 size (will fill later)
+        result.push(0xc6);
+        result.extend_from_slice(&[0u8, 0u8, 0u8, 0u8]);
+        let data_offset = result.len();
+
+        // xlHeaderVersion (1)
+        result.push(0x01);
+        // xlMetaVersion (1)
+        result.push(0x01);
+        // versions count
+        if val.versions.len() <= 127 {
+            result.push(val.versions.len() as u8);
+        } else {
+            result.push(0xcd);
+            result.extend_from_slice(&(val.versions.len() as u16).to_be_bytes());
+        }
+
+        // Serialize each version
+        for v in &val.versions {
+            // Serialize header
+            let mut hw = MsgpackWriter::new();
+            hw.write_map_len(7);
+            hw.write_bin_field("vid", &v.header.version_id);
+            hw.write_int32_field("mt", v.header.mod_time as i32);
+            hw.write_bin_field("sig", &v.header.signature);
+            hw.write_u8_field("vt", v.header.version_type);
+            hw.write_u8_field("f", v.header.flags);
+            hw.write_u8_field("n", v.header.ec_n);
+            hw.write_u8_field("m", v.header.ec_m);
+            let header_bytes = hw.finish();
+
+            // Append header as bin
+            if header_bytes.len() <= 255 {
+                result.push(0xc4);
+                result.push(header_bytes.len() as u8);
+            } else if header_bytes.len() <= 65535 {
+                result.push(0xc5);
+                result.extend_from_slice(&(header_bytes.len() as u16).to_be_bytes());
+            } else {
+                result.push(0xc6);
+                result.extend_from_slice(&(header_bytes.len() as u32).to_be_bytes());
             }
-        });
-        w.write_bin_field("Data", val.inline_data.as_deref().unwrap_or(&[]));
-        w.write_u8_field("MetaV", val.meta_v);
-        w.finish()
+            result.extend_from_slice(&header_bytes);
+
+            // Append meta as bin
+            if v.meta.len() <= 255 {
+                result.push(0xc4);
+                result.push(v.meta.len() as u8);
+            } else if v.meta.len() <= 65535 {
+                result.push(0xc5);
+                result.extend_from_slice(&(v.meta.len() as u16).to_be_bytes());
+            } else {
+                result.push(0xc6);
+                result.extend_from_slice(&(v.meta.len() as u32).to_be_bytes());
+            }
+            result.extend_from_slice(&v.meta);
+        }
+
+        // Update bin32 size
+        let data_size = (result.len() - data_offset) as u32;
+        result[data_offset-4..data_offset].copy_from_slice(&data_size.to_be_bytes());
+
+        // Add CRC (muint32)
+        result.push(0xce);
+        let crc = xxhash_rust::xxh64::xxh64(&result[data_offset..], 0) as u32;
+        result.extend_from_slice(&crc.to_be_bytes());
+
+        // Append inline data
+        if let Some(ref data) = val.inline_data {
+            result.extend_from_slice(data);
+        }
+
+        result
     }
 }
