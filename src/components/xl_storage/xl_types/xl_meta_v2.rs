@@ -1,6 +1,8 @@
 use super::msgpack_compat::{MsgpackReader, MsgpackWriter};
 use super::xl_meta_v2_shallow_version::XlMetaV2ShallowVersion;
 use super::xl_meta_v2_version_header::XlMetaV2VersionHeader;
+use rmpv::{decode::read_value, Value};
+use std::io::Cursor;
 
 pub type XlMetaInlineData = Vec<u8>;
 
@@ -13,17 +15,72 @@ pub struct XlMetaV2 {
 
 impl From<Vec<u8>> for XlMetaV2 {
     fn from(bytes: Vec<u8>) -> Self {
-        let payload = if bytes.len() > 8 && &bytes[0..4] == b"XL2 " {
-            &bytes[8..]
+        if bytes.len() > 13 && &bytes[0..4] == b"XL2 " && bytes[8] == 0xc6 {
+            let payload_len = u32::from_be_bytes(bytes[9..13].try_into().unwrap()) as usize;
+            let payload_start = 13;
+            let payload_end = payload_start.saturating_add(payload_len).min(bytes.len());
+            let mut cursor = Cursor::new(&bytes[payload_start..payload_end]);
+
+            let meta_v = read_value(&mut cursor)
+                .ok()
+                .and_then(|_| read_value(&mut cursor).ok())
+                .and_then(|v| v.as_u64())
+                .map(|v| v as u8)
+                .unwrap_or(1);
+
+            let versions_len = read_value(&mut cursor)
+                .ok()
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0) as usize;
+
+            let mut versions = Vec::with_capacity(versions_len);
+            for _ in 0..versions_len {
+                let header = match read_value(&mut cursor).ok().and_then(value_into_bytes) {
+                    Some(bytes) => bytes,
+                    None => break,
+                };
+                let meta = match read_value(&mut cursor).ok().and_then(value_into_bytes) {
+                    Some(bytes) => bytes,
+                    None => break,
+                };
+                versions.push(XlMetaV2ShallowVersion {
+                    header: header.into(),
+                    meta,
+                });
+            }
+
+            let inline_offset = payload_end + 5;
+            let inline_data = if bytes.len() > inline_offset {
+                Some(bytes[inline_offset..].to_vec())
+            } else {
+                None
+            };
+
+            Self {
+                versions,
+                inline_data,
+                meta_v,
+            }
         } else {
-            &bytes[..]
-        };
-        let r = MsgpackReader::new(payload);
-        Self {
-            versions: vec![],
-            inline_data: r.get_bytes("Data"),
-            meta_v: r.get_u8("MetaV").unwrap_or(1),
+            let payload = if bytes.len() > 8 && &bytes[0..4] == b"XL2 " {
+                &bytes[8..]
+            } else {
+                &bytes[..]
+            };
+            let r = MsgpackReader::new(payload);
+            Self {
+                versions: vec![],
+                inline_data: r.get_bytes("Data"),
+                meta_v: r.get_u8("MetaV").unwrap_or(1),
+            }
         }
+    }
+}
+
+fn value_into_bytes(value: Value) -> Option<Vec<u8>> {
+    match value {
+        Value::Binary(bytes) => Some(bytes),
+        _ => value.as_slice().map(|bytes| bytes.to_vec()),
     }
 }
 

@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use std::error::Error;
 
 use crate::types::s3::request::*;
 use crate::types::s3::response::*;
@@ -10,7 +11,7 @@ use crate::types::errors::S3EngineError;
 use super::utils::*;
 
 #[async_trait]
-pub trait BucketS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: Send + Sync {
+pub trait BucketS3Handler<E: Error + Send + Sync + 'static>: Send + Sync {
     type Engine: S3BucketEngine + S3MultipartEngine + S3ObjectEngine + Send + Sync;
     type Policy: S3PolicyEngine;
     fn engine(&self) -> &Self::Engine;
@@ -127,12 +128,11 @@ pub trait BucketS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
 
     async fn delete_multiple_objects(&self, req: DeleteMultipleObjectsRequest) -> Result<DeleteMultipleObjectsResponse, E> {
         check_access(self.policy(), S3Action::DeleteObject, Some(&req.bucket.bucket), None).await?;
-        let keys = parse_delete_keys(&req.payload.xml);
-        if keys.is_empty() {
+        if req.payload.keys.is_empty() {
             return Err(S3HandlerBridgeError::InvalidRequest("DeleteMultipleObjects payload has no <Key>".to_string()).into());
         }
         let r = self.engine()
-            .delete_objects(&req.bucket.bucket, keys, to_delete_opt(None))
+            .delete_objects(&req.bucket.bucket, req.payload.keys, to_delete_opt(None))
             .await?;
         Ok(DeleteMultipleObjectsResponse {
             deleted: r.deleted.into_iter().filter_map(|d| d.version_id).collect(),

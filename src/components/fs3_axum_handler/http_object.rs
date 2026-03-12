@@ -1,19 +1,23 @@
 use std::collections::HashMap;
+use std::io;
+use std::pin::Pin;
 use std::sync::Arc;
 
-use axum::body::Bytes;
+use axum::body::Body;
 use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, Method};
 use axum::routing::any;
 use axum::Router;
+use futures::StreamExt as _;
 
 use crate::types::s3::core::ObjectAttribute;
 use crate::types::s3::request::*;
 use crate::types::s3::response::S3Response;
+use crate::types::s3::xml;
 use crate::types::errors::S3EngineError;
 use crate::types::traits::s3_handler::{S3Handler, S3HandlerBridgeError};
 
-use super::util::{body_string, get, has, header, header_eq, multipart_selector};
+use super::util::{get, has, header, header_eq, multipart_selector};
 use super::{HandlerError, ObjectError};
 
 fn object_err(e: impl std::fmt::Display) -> HandlerError {
@@ -39,13 +43,24 @@ where
     Router::new().route("/{bucket}/{*object}", any(object_entry::<T, E>)).with_state(state)
 }
 
+fn body_stream(body: Body) -> crate::types::s3::core::BoxByteStream {
+    Box::pin(body.into_data_stream().map(|result| {
+        result.map_err(|err| io::Error::other(err.to_string()))
+    }))
+}
+
+async fn body_text(body: Body) -> Result<String, S3HandlerBridgeError> {
+    let stream = body_stream(body);
+    crate::types::traits::s3_handler::utils::stream_to_string(stream).await
+}
+
 async fn object_entry<T, E>(
     State(handler): State<Arc<T>>,
     Path((bucket, object_path)): Path<(String, String)>,
     method: Method,
     headers: HeaderMap,
     Query(q): Query<HashMap<String, String>>,
-    body: Bytes,
+    body: Body,
 ) -> Result<S3Response, HandlerError>
 where
     T: S3Handler<E> + Send + Sync,
@@ -70,7 +85,6 @@ where
         return Ok(S3Response::RejectedApi(v));
     }
 
-    let text = String::from_utf8_lossy(&body).to_string();
     let copy_source = header(&headers, "x-amz-copy-source");
     let resp = match method {
         Method::HEAD => S3Response::HeadObject(
@@ -152,30 +166,58 @@ where
             handler.put_object_part(PutObjectPartRequest {
                 object: mk(),
                 multipart: multipart_selector(&q),
-                body: Box::pin(futures::stream::once(async { Ok(body) })),
+                body: body_stream(body),
                 checksum: header(&headers, "x-amz-checksum-sha256"),
             }).await.map_err(object_err)?,
         ),
-        Method::PUT if has(&q, "acl") => S3Response::PutObjectAcl(
-            handler.put_object_acl(PutObjectAclRequest { object: mk(), xml: body_string(&body) }).await.map_err(object_err)?,
-        ),
-        Method::PUT if has(&q, "tagging") => S3Response::PutObjectTagging(
-            handler.put_object_tagging(PutObjectTaggingRequest { object: mk(), xml: text }).await.map_err(object_err)?,
-        ),
-        Method::PUT if has(&q, "retention") => S3Response::PutObjectRetention(
-            handler.put_object_retention(PutObjectRetentionRequest { bucket: BucketRef { bucket: bucket.clone() }, object: mk(), xml: text }).await.map_err(object_err)?,
-        ),
-        Method::PUT if has(&q, "legal-hold") => S3Response::PutObjectLegalHold(
-            handler.put_object_legal_hold(PutObjectLegalHoldRequest { bucket: BucketRef { bucket: bucket.clone() }, object: mk(), xml: text }).await.map_err(object_err)?,
-        ),
+        Method::PUT if has(&q, "acl") => {
+            let xml = body_text(body).await.map_err(object_err)?;
+            let acl = if xml.trim().is_empty() {
+                None
+            } else {
+                Some(xml::parse_access_control_policy(&xml).map_err(object_err)?)
+            };
+            S3Response::PutObjectAcl(
+                handler.put_object_acl(PutObjectAclRequest { object: mk(), acl }).await.map_err(object_err)?,
+            )
+        }
+        Method::PUT if has(&q, "tagging") => {
+            let xml = body_text(body).await.map_err(object_err)?;
+            let tags = xml::parse_tagging(&xml).map_err(object_err)?;
+            S3Response::PutObjectTagging(
+                handler.put_object_tagging(PutObjectTaggingRequest { object: mk(), tags }).await.map_err(object_err)?,
+            )
+        }
+        Method::PUT if has(&q, "retention") => {
+            let xml = body_text(body).await.map_err(object_err)?;
+            let retention = xml::parse_retention(&xml).map_err(object_err)?;
+            S3Response::PutObjectRetention(
+                handler.put_object_retention(PutObjectRetentionRequest {
+                    bucket: BucketRef { bucket: bucket.clone() },
+                    object: mk(),
+                    retention,
+                }).await.map_err(object_err)?,
+            )
+        }
+        Method::PUT if has(&q, "legal-hold") => {
+            let xml = body_text(body).await.map_err(object_err)?;
+            let legal_hold = xml::parse_legal_hold(&xml).map_err(object_err)?;
+            S3Response::PutObjectLegalHold(
+                handler.put_object_legal_hold(PutObjectLegalHoldRequest {
+                    bucket: BucketRef { bucket: bucket.clone() },
+                    object: mk(),
+                    legal_hold,
+                }).await.map_err(object_err)?,
+            )
+        }
         Method::PUT if header_eq(&headers, "x-amz-snowball-extract", "true") => S3Response::PutObjectExtract(
-            handler.put_object_extract(PutObjectExtractRequest { object: mk(), body: body.to_vec() }).await.map_err(object_err)?,
+            handler.put_object_extract(PutObjectExtractRequest { object: mk(), body: body_stream(body) }).await.map_err(object_err)?,
         ),
         Method::PUT if header(&headers, "x-amz-write-offset-bytes").is_some() => S3Response::AppendObjectRejected(
             handler.append_object_rejected(AppendObjectRejectedRequest {
                 object: mk(),
                 write_offset_bytes: header(&headers, "x-amz-write-offset-bytes").unwrap_or_default(),
-                body: body.to_vec(),
+                body: body_stream(body),
             }).await.map_err(object_err)?,
         ),
         Method::PUT if copy_source.is_some() => S3Response::CopyObject(
@@ -186,7 +228,7 @@ where
             }).await.map_err(object_err)?,
         ),
         Method::PUT => {
-            let content_length = Some(body.len() as u64);
+            let content_length = header(&headers, "content-length").and_then(|v| v.parse::<u64>().ok());
             let mut user_metadata = HashMap::new();
             for (k, v) in headers.iter() {
                 if let Some(key) = k.as_str().strip_prefix("x-amz-meta-") {
@@ -198,7 +240,7 @@ where
             S3Response::PutObject(
                 handler.put_object(PutObjectRequest {
                     object: mk(),
-                    body: Box::pin(futures::stream::once(async move { Ok(body) })),
+                    body: body_stream(body),
                     content_type: header(&headers, "content-type"),
                     content_md5: header(&headers, "content-md5"),
                     content_length,
@@ -207,22 +249,41 @@ where
             )
         },
 
-        Method::POST if has(&q, "uploadId") => S3Response::CompleteMultipartUpload(
-            handler.complete_multipart_upload(CompleteMultipartUploadRequest {
-                object: mk(),
-                upload_id: get(&q, "uploadId").unwrap_or_default(),
-                xml: text,
-            }).await.map_err(object_err)?,
-        ),
+        Method::POST if has(&q, "uploadId") => {
+            let xml = body_text(body).await.map_err(object_err)?;
+            let completed = xml::parse_complete_multipart_upload(&xml).map_err(object_err)?;
+            S3Response::CompleteMultipartUpload(
+                handler.complete_multipart_upload(CompleteMultipartUploadRequest {
+                    object: mk(),
+                    upload_id: get(&q, "uploadId").unwrap_or_default(),
+                    completed,
+                }).await.map_err(object_err)?,
+            )
+        }
         Method::POST if has(&q, "uploads") => S3Response::NewMultipartUpload(
             handler.new_multipart_upload(NewMultipartUploadRequest { object: mk() }).await.map_err(object_err)?,
         ),
-        Method::POST if has(&q, "select") && get(&q, "select-type").as_deref() == Some("2") => S3Response::SelectObjectContent(
-            handler.select_object_content(SelectObjectContentRequest { object: mk(), select_type: 2, xml: text }).await.map_err(object_err)?,
-        ),
-        Method::POST if has(&q, "restore") => S3Response::PostRestoreObject(
-            handler.post_restore_object(PostRestoreObjectRequest { object: mk(), xml: text }).await.map_err(object_err)?,
-        ),
+        Method::POST if has(&q, "select") && get(&q, "select-type").as_deref() == Some("2") => {
+            let xml = body_text(body).await.map_err(object_err)?;
+            let input = xml::parse_select_object_content(&xml).map_err(object_err)?;
+            S3Response::SelectObjectContent(
+                handler.select_object_content(SelectObjectContentRequest {
+                    object: mk(),
+                    select_type: 2,
+                    input,
+                }).await.map_err(object_err)?,
+            )
+        }
+        Method::POST if has(&q, "restore") => {
+            let xml = body_text(body).await.map_err(object_err)?;
+            let restore = xml::parse_restore_object(&xml).map_err(object_err)?;
+            S3Response::PostRestoreObject(
+                handler.post_restore_object(PostRestoreObjectRequest {
+                    object: mk(),
+                    restore,
+                }).await.map_err(object_err)?,
+            )
+        }
 
         Method::DELETE if has(&q, "uploadId") => S3Response::AbortMultipartUpload(
             handler.abort_multipart_upload(AbortMultipartUploadRequest { object: mk(), upload_id: get(&q, "uploadId").unwrap_or_default() }).await.map_err(object_err)?,

@@ -7,9 +7,10 @@ use crate::types::traits::s3_engine::{S3BucketEngine, S3BucketConfigEngine, S3Bu
 use crate::types::traits::s3_policyengine::S3PolicyEngine;
 use crate::types::s3::policy::S3Action;
 use async_trait::async_trait;
+use std::error::Error;
 
 #[async_trait]
-pub trait BucketCorsS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: Send + Sync {
+pub trait BucketCorsS3Handler<E: Error + Send + Sync + 'static>: Send + Sync {
     type Engine: S3BucketEngine + S3BucketConfigEngine + S3BucketWebsiteEngine;
     type Policy: S3PolicyEngine;
     fn engine(&self) -> &Self::Engine;
@@ -34,9 +35,7 @@ pub trait BucketCorsS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError
 
     async fn put_bucket_cors(&self, req: PutBucketCorsRequest) -> Result<PutBucketCorsResponse, E> {
         utils::check_access(self.policy(), S3Action::PutBucketCors, Some(&req.bucket.bucket), None).await?;
-        let xml = req.xml.as_deref().ok_or_else(|| S3HandlerBridgeError::InvalidRequest("Missing CORS configuration".to_string()))?;
-        let cors = quick_xml::de::from_str(xml).map_err(|e| S3HandlerBridgeError::XmlParse(e.to_string()))?;
-        self.engine().set_bucket_cors(&req.bucket.bucket, Some(cors)).await?;
+        self.engine().set_bucket_cors(&req.bucket.bucket, Some(req.cors)).await?;
         Ok(PutBucketCorsResponse { meta: Default::default() })
     }
 

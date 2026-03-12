@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use std::error::Error;
 use crate::types::s3::request::*;
 use crate::types::s3::response::*;
 use crate::types::traits::s3_engine::S3BucketNotificationEngine;
@@ -8,7 +9,7 @@ use crate::types::errors::S3EngineError;
 use super::utils::*;
 
 #[async_trait]
-pub trait BucketNotificationS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: Send + Sync {
+pub trait BucketNotificationS3Handler<E: Error + Send + Sync + 'static>: Send + Sync {
     type Engine: S3BucketNotificationEngine + Send + Sync;
     type Policy: S3PolicyEngine + Send + Sync;
     fn bucket_notification_engine_provider(&self) -> &Self::Engine;
@@ -22,12 +23,12 @@ pub trait BucketNotificationS3Handler<E: From<S3HandlerBridgeError> + From<S3Eng
 
     async fn put_bucket_notification(&self, req: PutBucketNotificationRequest) -> Result<PutBucketNotificationResponse, E> {
         check_access(self.bucket_notification_policy_provider(), S3Action::PutBucketNotification, Some(&req.bucket.bucket), None).await?;
-        let configs = parse_notification_config(&req.xml);
+        let configs = req
+            .configs
+            .into_iter()
+            .map(|config| format!("target={},events={}", config.target_arn, config.events.join("|")))
+            .collect();
         self.bucket_notification_engine_provider().put_bucket_notification(&req.bucket.bucket, configs).await?;
         Ok(Default::default())
     }
-}
-
-fn parse_notification_config(_xml: &str) -> Vec<String> {
-    vec![]
 }

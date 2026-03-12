@@ -1,9 +1,9 @@
 use async_trait::async_trait;
 
 use crate::types::s3::core::*;
-use crate::types::errors::S3MetadataStorageError;
+use crate::types::traits::BoxError;
 
-type Result<T> = std::result::Result<T, S3MetadataStorageError>;
+type Result<T> = std::result::Result<T, BoxError>;
 
 /// Trait for persisting S3 metadata (buckets, objects, multipart uploads).
 /// Implementations handle storage to databases, files, etc.

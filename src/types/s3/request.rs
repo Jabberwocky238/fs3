@@ -1,104 +1,85 @@
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use crate::types::s3::core::ObjectAttribute;
+use crate::types::s3::core::BoxByteStream;
+use crate::types::s3::core::{
+    BucketEncryption, BucketObjectLockConfig, BucketReplication, BucketVersioning, BucketWebsite,
+    CompleteMultipartInput, CorsConfiguration, ObjectLegalHold, ObjectRetention,
+};
+use crate::types::s3::xml::{
+    AccessControlPolicyInput, LifecycleRuleInput, NotificationConfigInput, RestoreObjectInput,
+    SelectObjectContentInput,
+};
 
 pub type HeaderMap = HashMap<String, String>;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct RequestContext {
     pub host: Option<String>,
     pub request_id: Option<String>,
     pub trace_id: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct BucketRef {
     pub bucket: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct ObjectRef {
     pub bucket: String,
     pub object: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct MultipartSelector {
-    #[serde(rename = "uploadId")]
     pub upload_id: String,
-    #[serde(rename = "partNumber")]
     pub part_number: Option<u32>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct ListQuery {
     pub prefix: Option<String>,
     pub delimiter: Option<String>,
-    #[serde(rename = "max-keys")]
     pub max_keys: Option<u32>,
-    #[serde(rename = "continuation-token")]
     pub continuation_token: Option<String>,
-    #[serde(rename = "start-after")]
     pub start_after: Option<String>,
     pub marker: Option<String>,
-    #[serde(rename = "version-id-marker")]
     pub version_id_marker: Option<String>,
-    #[serde(rename = "key-marker")]
     pub key_marker: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct PostPolicyForm {
     pub fields: HashMap<String, String>,
-    pub payload: Vec<u8>,
+    pub payload: BoxByteStream,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct DeleteObjectsInput {
-    pub xml: String,
+    pub quiet: bool,
+    pub keys: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
-pub struct RawDocument {
-    pub content: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct EventFilter {
     pub events: Vec<String>,
     pub prefix: Option<String>,
     pub suffix: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct S3RequestEnvelope {
     pub context: Option<RequestContext>,
     pub headers: HeaderMap,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct HeadObjectRequest {
     pub object: ObjectRef,
     pub range: Option<String>,
-    #[serde(rename = "versionId")]
     pub version_id: Option<String>,
-    #[serde(rename = "If-Match")]
     pub if_match: Option<String>,
-    #[serde(rename = "If-None-Match")]
     pub if_none_match: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetObjectAttributesRequest {
     pub object: ObjectRef,
     pub attributes: Vec<ObjectAttribute>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct CopyObjectPartRequest {
     pub object: ObjectRef,
     pub multipart: MultipartSelector,
-    #[serde(rename = "x-amz-copy-source")]
     pub copy_source: String,
 }
 
@@ -109,484 +90,379 @@ pub struct PutObjectPartRequest {
     pub checksum: Option<String>,
 }
 
-impl std::fmt::Debug for PutObjectPartRequest {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("PutObjectPartRequest").field("object", &self.object).field("body", &"<stream>").finish()
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct ListObjectPartsRequest {
     pub object: ObjectRef,
-    #[serde(rename = "uploadId")]
     pub upload_id: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct CompleteMultipartUploadRequest {
     pub object: ObjectRef,
-    #[serde(rename = "uploadId")]
     pub upload_id: String,
-    pub xml: String,
+    pub completed: CompleteMultipartInput,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct NewMultipartUploadRequest {
     pub object: ObjectRef,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct AbortMultipartUploadRequest {
     pub object: ObjectRef,
-    #[serde(rename = "uploadId")]
     pub upload_id: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetObjectAclRequest {
     pub object: ObjectRef,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct PutObjectAclRequest {
     pub object: ObjectRef,
-    pub xml: Option<String>,
+    pub acl: Option<AccessControlPolicyInput>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetObjectTaggingRequest {
     pub object: ObjectRef,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct PutObjectTaggingRequest {
     pub object: ObjectRef,
-    pub xml: String,
+    pub tags: HashMap<String, String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct DeleteObjectTaggingRequest {
     pub object: ObjectRef,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct SelectObjectContentRequest {
     pub object: ObjectRef,
-    #[serde(rename = "select-type")]
     pub select_type: u8,
-    pub xml: String,
+    pub input: SelectObjectContentInput,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetObjectRetentionRequest {
     pub bucket: BucketRef,
     pub object: ObjectRef,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetObjectLegalHoldRequest {
     pub bucket: BucketRef,
     pub object: ObjectRef,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetObjectLambdaRequest {
     pub object: ObjectRef,
-    #[serde(rename = "lambdaArn")]
     pub lambda_arn: String,
     pub range: Option<String>,
-    #[serde(rename = "versionId")]
     pub version_id: Option<String>,
-    #[serde(rename = "If-Match")]
     pub if_match: Option<String>,
-    #[serde(rename = "If-None-Match")]
     pub if_none_match: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetObjectRequest {
     pub object: ObjectRef,
     pub range: Option<String>,
-    #[serde(rename = "versionId")]
     pub version_id: Option<String>,
-    #[serde(rename = "If-Match")]
     pub if_match: Option<String>,
-    #[serde(rename = "If-None-Match")]
     pub if_none_match: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct CopyObjectRequest {
     pub object: ObjectRef,
-    #[serde(rename = "x-amz-copy-source")]
     pub copy_source: String,
     pub metadata_directive: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct PutObjectRetentionRequest {
     pub bucket: BucketRef,
     pub object: ObjectRef,
-    pub xml: String,
+    pub retention: ObjectRetention,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct PutObjectLegalHoldRequest {
     pub bucket: BucketRef,
     pub object: ObjectRef,
-    pub xml: String,
+    pub legal_hold: ObjectLegalHold,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct PutObjectExtractRequest {
     pub object: ObjectRef,
-    pub body: Vec<u8>,
+    pub body: BoxByteStream,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct AppendObjectRejectedRequest {
     pub object: ObjectRef,
-    #[serde(rename = "x-amz-write-offset-bytes")]
     pub write_offset_bytes: String,
-    pub body: Vec<u8>,
+    pub body: BoxByteStream,
 }
 
 pub struct PutObjectRequest {
     pub object: ObjectRef,
-    pub body: crate::types::s3::core::BoxByteStream,
+    pub body: BoxByteStream,
     pub content_type: Option<String>,
     pub content_md5: Option<String>,
     pub content_length: Option<u64>,
     pub user_metadata: std::collections::HashMap<String, String>,
 }
 
-impl std::fmt::Debug for PutObjectRequest {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("PutObjectRequest").field("object", &self.object).field("body", &"<stream>").finish()
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct DeleteObjectRequest {
     pub object: ObjectRef,
-    #[serde(rename = "versionId")]
     pub version_id: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct PostRestoreObjectRequest {
     pub object: ObjectRef,
-    pub xml: String,
+    pub restore: RestoreObjectInput,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetBucketLocationRequest {
     pub bucket: BucketRef,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetBucketPolicyRequest {
     pub bucket: BucketRef,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetBucketLifecycleRequest {
     pub bucket: BucketRef,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetBucketEncryptionRequest {
     pub bucket: BucketRef,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetBucketObjectLockConfigRequest {
     pub bucket: BucketRef,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetBucketReplicationConfigRequest {
     pub bucket: BucketRef,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetBucketVersioningRequest {
     pub bucket: BucketRef,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetBucketNotificationRequest {
     pub bucket: BucketRef,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct ListenBucketNotificationRequest {
     pub bucket: BucketRef,
     pub filter: EventFilter,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct ResetBucketReplicationStatusRequest {
     pub bucket: BucketRef,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetBucketAclRequest {
     pub bucket: BucketRef,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct PutBucketAclRequest {
     pub bucket: BucketRef,
-    pub xml: Option<String>,
+    pub acl: Option<AccessControlPolicyInput>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetBucketCorsRequest {
     pub bucket: BucketRef,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct PutBucketCorsRequest {
     pub bucket: BucketRef,
-    pub xml: Option<String>,
+    pub cors: CorsConfiguration,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct DeleteBucketCorsRequest {
     pub bucket: BucketRef,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetBucketWebsiteRequest {
     pub bucket: BucketRef,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetBucketAccelerateRequest {
     pub bucket: BucketRef,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetBucketRequestPaymentRequest {
     pub bucket: BucketRef,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetBucketLoggingRequest {
     pub bucket: BucketRef,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetBucketTaggingRequest {
     pub bucket: BucketRef,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct PutBucketWebsiteRequest {
     pub bucket: BucketRef,
-    pub xml: String,
+    pub website: BucketWebsite,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct DeleteBucketWebsiteRequest {
     pub bucket: BucketRef,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct DeleteBucketTaggingRequest {
     pub bucket: BucketRef,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct ListMultipartUploadsRequest {
     pub bucket: BucketRef,
     pub query: ListQuery,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct ListObjectsV2MRequest {
     pub bucket: BucketRef,
     pub query: ListQuery,
     pub metadata: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct ListObjectsV2Request {
     pub bucket: BucketRef,
     pub query: ListQuery,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct ListObjectVersionsMRequest {
     pub bucket: BucketRef,
     pub query: ListQuery,
     pub metadata: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct ListObjectVersionsRequest {
     pub bucket: BucketRef,
     pub query: ListQuery,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetBucketPolicyStatusRequest {
     pub bucket: BucketRef,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct PutBucketLifecycleRequest {
     pub bucket: BucketRef,
-    pub xml: String,
+    pub rules: Vec<LifecycleRuleInput>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct PutBucketReplicationConfigRequest {
     pub bucket: BucketRef,
-    pub xml: String,
+    pub replication: BucketReplication,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct PutBucketEncryptionRequest {
     pub bucket: BucketRef,
-    pub xml: String,
+    pub encryption: BucketEncryption,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct PutBucketPolicyRequest {
     pub bucket: BucketRef,
     pub json: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct PutBucketObjectLockConfigRequest {
     pub bucket: BucketRef,
-    pub xml: String,
+    pub config: BucketObjectLockConfig,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct PutBucketTaggingRequest {
     pub bucket: BucketRef,
-    pub xml: String,
+    pub tags: HashMap<String, String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct PutBucketVersioningRequest {
     pub bucket: BucketRef,
-    pub xml: String,
+    pub versioning: BucketVersioning,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct PutBucketNotificationRequest {
     pub bucket: BucketRef,
-    pub xml: String,
+    pub configs: Vec<NotificationConfigInput>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct ResetBucketReplicationStartRequest {
     pub bucket: BucketRef,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct PutBucketRequest {
     pub bucket: BucketRef,
     pub region: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct HeadBucketRequest {
     pub bucket: BucketRef,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct PostPolicyRequest {
     pub bucket: BucketRef,
     pub form: PostPolicyForm,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct DeleteMultipleObjectsRequest {
     pub bucket: BucketRef,
     pub payload: DeleteObjectsInput,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct DeleteBucketPolicyRequest {
     pub bucket: BucketRef,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct DeleteBucketReplicationRequest {
     pub bucket: BucketRef,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct DeleteBucketLifecycleRequest {
     pub bucket: BucketRef,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct DeleteBucketEncryptionRequest {
     pub bucket: BucketRef,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct DeleteBucketRequest {
     pub bucket: BucketRef,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetBucketReplicationMetricsV2Request {
     pub bucket: BucketRef,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct GetBucketReplicationMetricsRequest {
     pub bucket: BucketRef,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct ValidateBucketReplicationCredsRequest {
     pub bucket: BucketRef,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct ListObjectsV1Request {
     pub bucket: BucketRef,
     pub query: ListQuery,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct RootListenNotificationRequest {
     pub filter: EventFilter,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct ListBucketsRequest;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct ListBucketsDoubleSlashRequest;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct RejectedObjectTorrentRequest {
     pub object: ObjectRef,
     pub method: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct RejectedObjectAclDeleteRequest {
     pub object: ObjectRef,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct RejectedBucketApiRequest {
     pub bucket: BucketRef,
     pub api: String,
     pub method: String,
 }
 
-#[derive(Debug)]
 pub enum S3Request {
     HeadObject(HeadObjectRequest),
     GetObjectAttributes(GetObjectAttributesRequest),

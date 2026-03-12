@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use std::error::Error;
 use crate::types::s3::request::*;
 use crate::types::s3::response::*;
 use crate::types::traits::s3_engine::S3ObjectTaggingEngine;
@@ -8,7 +9,7 @@ use crate::types::errors::S3EngineError;
 use super::utils::*;
 
 #[async_trait]
-pub trait ObjectTaggingS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: Send + Sync {
+pub trait ObjectTaggingS3Handler<E: Error + Send + Sync + 'static>: Send + Sync {
     type Engine: S3ObjectTaggingEngine + Send + Sync;
     type Policy: S3PolicyEngine + Send + Sync;
     fn object_tagging_engine_provider(&self) -> &Self::Engine;
@@ -22,8 +23,7 @@ pub trait ObjectTaggingS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineEr
 
     async fn put_object_tagging(&self, req: PutObjectTaggingRequest) -> Result<PutObjectTaggingResponse, E> {
         check_access(self.object_tagging_policy_provider(), S3Action::PutObjectTagging, Some(&req.object.bucket), Some(&req.object.object)).await?;
-        let tags = parse_tags_xml(&req.xml);
-        self.object_tagging_engine_provider().put_object_tagging(&req.object.bucket, &req.object.object, tags).await?;
+        self.object_tagging_engine_provider().put_object_tagging(&req.object.bucket, &req.object.object, req.tags).await?;
         Ok(Default::default())
     }
 
@@ -32,20 +32,4 @@ pub trait ObjectTaggingS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineEr
         self.object_tagging_engine_provider().delete_object_tagging(&req.object.bucket, &req.object.object).await?;
         Ok(Default::default())
     }
-}
-
-fn parse_tags_xml(xml: &str) -> std::collections::HashMap<String, String> {
-    let mut tags = std::collections::HashMap::new();
-    for tag in xml.split("<Tag>").skip(1) {
-        if let Some(end) = tag.find("</Tag>") {
-            let content = &tag[..end];
-            if let (Some(k), Some(v)) = (
-                content.find("<Key>").and_then(|s| content[s+5..].find("</Key>").map(|e| &content[s+5..s+5+e])),
-                content.find("<Value>").and_then(|s| content[s+7..].find("</Value>").map(|e| &content[s+7..s+7+e]))
-            ) {
-                tags.insert(k.to_string(), v.to_string());
-            }
-        }
-    }
-    tags
 }

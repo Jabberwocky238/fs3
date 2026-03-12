@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use std::error::Error;
 use crate::types::s3::request::*;
 use crate::types::s3::response::*;
 use crate::types::traits::s3_engine::S3BucketWebsiteEngine;
@@ -8,7 +9,7 @@ use crate::types::errors::S3EngineError;
 use super::utils::*;
 
 #[async_trait]
-pub trait BucketWebsiteS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: Send + Sync {
+pub trait BucketWebsiteS3Handler<E: Error + Send + Sync + 'static>: Send + Sync {
     type Engine: S3BucketWebsiteEngine + Send + Sync;
     type Policy: S3PolicyEngine + Send + Sync;
     fn bucket_website_engine_provider(&self) -> &Self::Engine;
@@ -41,7 +42,15 @@ pub trait BucketWebsiteS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineEr
 
     async fn put_bucket_website(&self, req: PutBucketWebsiteRequest) -> Result<PutBucketWebsiteResponse, E> {
         check_access(self.bucket_website_policy_provider(), S3Action::PutBucketWebsite, Some(&req.bucket.bucket), None).await?;
-        self.bucket_website_engine_provider().put_bucket_website(&req.bucket.bucket, req.xml).await?;
+        let mut website = format!(
+            "<WebsiteConfiguration><IndexDocument><Suffix>{}</Suffix></IndexDocument>",
+            req.website.index_document
+        );
+        if let Some(error_document) = req.website.error_document {
+            website.push_str(&format!("<ErrorDocument><Key>{error_document}</Key></ErrorDocument>"));
+        }
+        website.push_str("</WebsiteConfiguration>");
+        self.bucket_website_engine_provider().put_bucket_website(&req.bucket.bucket, website).await?;
         Ok(PutBucketWebsiteResponse { meta: Default::default() })
     }
 }

@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use crate::types::s3::policy::S3Action;
+use crate::types::traits::BoxError;
 
 /// S3 策略引擎的请求上下文，包含评估策略所需的全部信息
 #[derive(Debug, Clone)]
@@ -42,34 +43,34 @@ pub enum PolicyEngineError {
 #[async_trait]
 pub trait S3IamPolicyEngine: Send + Sync {
     /// 评估 IAM 策略（用户策略 + 组策略合并）
-    async fn is_allowed(&self, ctx: &PolicyEvalContext) -> Result<PolicyEffect, PolicyEngineError>;
+    async fn is_allowed(&self, ctx: &PolicyEvalContext) -> Result<PolicyEffect, BoxError>;
 
     /// 获取用户关联的策略名列表
-    async fn get_user_policies(&self, identity: &str) -> Result<Vec<String>, PolicyEngineError>;
+    async fn get_user_policies(&self, identity: &str) -> Result<Vec<String>, BoxError>;
 
     /// 获取组关联的策略名列表
-    async fn get_group_policies(&self, group: &str) -> Result<Vec<String>, PolicyEngineError>;
+    async fn get_group_policies(&self, group: &str) -> Result<Vec<String>, BoxError>;
 }
 
 /// 桶级策略引擎 — 资源级访问控制
 #[async_trait]
 pub trait S3BucketPolicyEngine: Send + Sync {
     /// 评估桶策略
-    async fn is_allowed(&self, bucket: &str, ctx: &PolicyEvalContext) -> Result<PolicyEffect, PolicyEngineError>;
+    async fn is_allowed(&self, bucket: &str, ctx: &PolicyEvalContext) -> Result<PolicyEffect, BoxError>;
 
     /// 获取桶策略文档（JSON）
-    async fn get_bucket_policy(&self, bucket: &str) -> Result<Option<String>, PolicyEngineError>;
+    async fn get_bucket_policy(&self, bucket: &str) -> Result<Option<String>, BoxError>;
 
     /// 设置桶策略文档
-    async fn put_bucket_policy(&self, bucket: &str, policy_json: &str) -> Result<(), PolicyEngineError>;
+    async fn put_bucket_policy(&self, bucket: &str, policy_json: &str) -> Result<(), BoxError>;
 
     /// 删除桶策略
-    async fn delete_bucket_policy(&self, bucket: &str) -> Result<(), PolicyEngineError>;
+    async fn delete_bucket_policy(&self, bucket: &str) -> Result<(), BoxError>;
 }
 
 /// 组合策略引擎 — 统一入口，串联 IAM + 桶策略
 #[async_trait]
 pub trait S3PolicyEngine: Send + Sync + S3IamPolicyEngine + S3BucketPolicyEngine {
     /// 综合评估：owner 直接放行，否则 IAM 策略 + 桶策略联合判定
-    async fn check_access(&self, ctx: &PolicyEvalContext) -> Result<PolicyEffect, PolicyEngineError>;
+    async fn check_access(&self, ctx: &PolicyEvalContext) -> Result<PolicyEffect, BoxError>;
 }

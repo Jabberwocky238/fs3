@@ -84,6 +84,91 @@ impl XlStorage {
     fn object_tags_path(&self, bucket: &str, key: &str) -> PathBuf {
         self.path.join(bucket).join(key).join("tags.json")
     }
+
+    fn object_data_path(&self, volume: &str, path: &str, data_dir: &str) -> PathBuf {
+        self.path.join(volume).join(path).join(data_dir)
+    }
+
+    fn encode_shallow_version(&self, fi: &FileInfo) -> Result<XlMetaV2ShallowVersion, StorageError> {
+        let vid = uuid::Uuid::parse_str(&fi.version_id)
+            .map_err(|e| StorageError::Io(e.to_string()))?;
+        let ddir = uuid::Uuid::parse_str(&fi.data_dir)
+            .map_err(|e| StorageError::Io(e.to_string()))?;
+
+        let mut meta_sys = std::collections::HashMap::new();
+        if inline_data.is_some() {
+            meta_sys.insert("x-minio-internal-inline-data".to_string(), b"true".to_vec());
+        }
+
+        let obj = XlMetaV2Object {
+            version_id: *vid.as_bytes(),
+            data_dir: *ddir.as_bytes(),
+            erasure_algorithm: ErasureAlgo::ReedSolomon,
+            erasure_m: fi.erasure_m,
+            erasure_n: fi.erasure_n,
+            erasure_block_size: 1048576,
+            erasure_index: fi.erasure_index,
+            erasure_dist: vec![fi.erasure_index as u8],
+            bitrot_checksum_algo: ChecksumAlgo::HighwayHash,
+            part_numbers: vec![1],
+            part_etags: vec![],
+            part_sizes: vec![fi.size as i64],
+            part_actual_sizes: Some(vec![fi.size as i64]),
+            part_indices: Some(vec![]),
+            size: fi.size as i64,
+            mod_time: chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0),
+            meta_sys: Some(meta_sys.into_iter().collect()),
+            meta_user: Some(fi.user_metadata.clone().into_iter().collect()),
+        };
+
+        let obj_bytes: Vec<u8> = obj.into();
+        let header = XlMetaV2VersionHeader {
+            version_id: *vid.as_bytes(),
+            mod_time: chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0) as i64,
+            signature: [0x78, 0x6c, 0x32, 0x20],
+            version_type: 1,
+            flags: 0,
+            ec_n: fi.erasure_n as u8,
+            ec_m: fi.erasure_m as u8,
+        };
+
+        Ok(XlMetaV2ShallowVersion {
+            header,
+            meta: obj_bytes,
+        })
+    }
+
+    fn encode_metadata(&self, fi: &FileInfo, inline_data: Option<Vec<u8>>) -> Result<Vec<u8>, StorageError> {
+        let xl_meta = XlMetaV2 {
+            versions: vec![self.encode_shallow_version(fi)?],
+            inline_data,
+            meta_v: 1,
+        };
+        Ok(xl_meta.into())
+    }
+
+    fn decode_file_info(&self, volume: &str, path: &str, version: &XlMetaV2ShallowVersion) -> FileInfo {
+        let obj: XlMetaV2Object = version.meta.clone().into();
+        FileInfo {
+            volume: volume.to_string(),
+            name: path.to_string(),
+            version_id: uuid::Uuid::from_bytes(obj.version_id).to_string(),
+            size: obj.size as u64,
+            data_dir: uuid::Uuid::from_bytes(obj.data_dir).to_string(),
+            user_metadata: obj.meta_user.unwrap_or_default().into_iter().collect(),
+            erasure_index: obj.erasure_index,
+            erasure_m: obj.erasure_m,
+            erasure_n: obj.erasure_n,
+        }
+    }
+
+    async fn read_xl_meta(&self, volume: &str, path: &str) -> Result<Option<XlMetaV2>, StorageError> {
+        match tokio::fs::read(self.xl_meta_path(volume, path)).await {
+            Ok(data) => Ok(Some(data.into())),
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(err) => Err(StorageError::Io(err.to_string())),
+        }
+    }
 }
 
 #[async_trait]
@@ -123,102 +208,90 @@ impl StorageVolume for XlStorage {
 #[async_trait]
 impl StorageMetadata for XlStorage {
     async fn read_version(&self, _ctx: &Context, volume: &str, path: &str, version_id: &str) -> Result<FileInfo, StorageError> {
-        let meta_path = self.xl_meta_path(volume, path);
-        let data = tokio::fs::read(&meta_path).await
-            .map_err(|_| StorageError::FileNotFound(path.to_string()))?;
-        let xl_meta: XlMetaV2 = data.into();
+        let xl_meta = self.read_xl_meta(volume, path).await?
+            .ok_or_else(|| StorageError::FileNotFound(path.to_string()))?;
 
         if xl_meta.versions.is_empty() {
             return Err(StorageError::FileNotFound("no versions".to_string()));
         }
 
-        let version = &xl_meta.versions[0];
-        let obj_data = &version.meta;
-        let obj: XlMetaV2Object = obj_data.clone().into();
+        let version = if version_id == "null" {
+            xl_meta.versions.first()
+        } else {
+            xl_meta.versions.iter().find(|version| {
+                uuid::Uuid::from_bytes(version.header.version_id).to_string() == version_id
+            })
+        }.ok_or_else(|| StorageError::FileNotFound(version_id.to_string()))?;
 
-        let vid = uuid::Uuid::from_bytes(obj.version_id).to_string();
-        let ddir = uuid::Uuid::from_bytes(obj.data_dir).to_string();
-
-        Ok(FileInfo {
-            volume: volume.to_string(),
-            name: path.to_string(),
-            version_id: vid,
-            size: obj.size as u64,
-            data_dir: ddir,
-            user_metadata: obj.meta_user.clone().unwrap_or_default().into_iter().collect(),
-            erasure_index: obj.erasure_index,
-            erasure_m: obj.erasure_m,
-            erasure_n: obj.erasure_n,
-        })
+        Ok(self.decode_file_info(volume, path, version))
     }
 
-    async fn write_metadata(&self, _ctx: &Context, volume: &str, path: &str, fi: FileInfo) -> Result<(), StorageError> {
-        let meta_path = self.xl_meta_path(volume, path);
-        if let Some(parent) = meta_path.parent() {
+    async fn write_all(&self, _ctx: &Context, volume: &str, path: &str, data: &[u8]) -> Result<(), StorageError> {
+        let file_path = self.path.join(volume).join(path);
+        if let Some(parent) = file_path.parent() {
             tokio::fs::create_dir_all(parent).await
                 .map_err(|e| StorageError::Io(e.to_string()))?;
         }
-
-        let vid = uuid::Uuid::parse_str(&fi.version_id)
-            .map_err(|e| StorageError::Io(e.to_string()))?;
-        let ddir = uuid::Uuid::parse_str(&fi.data_dir)
-            .map_err(|e| StorageError::Io(e.to_string()))?;
-
-        let mut meta_sys = std::collections::HashMap::new();
-        let inline_data = if fi.size < 128 * 1024 {
-            let data_path = self.path.join(volume).join(path).join(&fi.data_dir);
-            let data = tokio::fs::read(&data_path).await.unwrap_or_default();
-            meta_sys.insert("x-minio-internal-inline-data".to_string(), b"true".to_vec());
-            let _ = tokio::fs::remove_file(&data_path).await;
-            data
-        } else {
-            Vec::new()
-        };
-
-        let obj = XlMetaV2Object {
-            version_id: *vid.as_bytes(),
-            data_dir: *ddir.as_bytes(),
-            erasure_algorithm: ErasureAlgo::ReedSolomon,
-            erasure_m: fi.erasure_m,
-            erasure_n: fi.erasure_n,
-            erasure_block_size: 1048576,
-            erasure_index: fi.erasure_index,
-            erasure_dist: vec![fi.erasure_index as u8],
-            bitrot_checksum_algo: ChecksumAlgo::HighwayHash,
-            part_numbers: vec![1],
-            part_etags: vec![],
-            part_sizes: vec![fi.size as i64],
-            part_actual_sizes: Some(vec![fi.size as i64]),
-            part_indices: Some(vec![]),
-            size: fi.size as i64,
-            mod_time: chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0),
-            meta_sys: Some(meta_sys.into_iter().collect()),
-            meta_user: Some(fi.user_metadata.into_iter().collect()),
-        };
-
-        let obj_bytes: Vec<u8> = obj.into();
-        let header = XlMetaV2VersionHeader {
-            version_id: *vid.as_bytes(),
-            mod_time: chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0) as i64,
-            signature: [0x78, 0x6c, 0x32, 0x20],
-            version_type: 1,
-            flags: 0,
-            ec_n: fi.erasure_n as u8,
-            ec_m: fi.erasure_m as u8,
-        };
-
-        let xl_meta = XlMetaV2 {
-            versions: vec![XlMetaV2ShallowVersion {
-                header,
-                meta: obj_bytes,
-            }],
-            inline_data: if inline_data.is_empty() { None } else { Some(inline_data) },
-            meta_v: 1,
-        };
-
-        let data: Vec<u8> = xl_meta.into();
-        tokio::fs::write(&meta_path, &data).await
+        tokio::fs::write(&file_path, data).await
             .map_err(|e| StorageError::Io(e.to_string()))
+    }
+
+    async fn write_metadata(&self, _ctx: &Context, volume: &str, path: &str, fi: FileInfo) -> Result<(), StorageError> {
+        let mut xl_meta = self.read_xl_meta(volume, path).await?.unwrap_or(XlMetaV2 {
+            versions: Vec::new(),
+            inline_data: None,
+            meta_v: 1,
+        });
+        xl_meta.versions.insert(0, self.encode_shallow_version(&fi)?);
+        let data: Vec<u8> = xl_meta.into();
+        self.write_all(_ctx, volume, &format!("{path}/xl.meta"), &data).await
+    }
+
+    async fn rename_data(&self, ctx: &Context, src_volume: &str, src_path: &str, fi: FileInfo, dst_volume: &str, dst_path: &str) -> Result<Option<String>, StorageError> {
+        let mut dst_meta = self.read_xl_meta(dst_volume, dst_path).await?.unwrap_or(XlMetaV2 {
+            versions: Vec::new(),
+            inline_data: None,
+            meta_v: 1,
+        });
+        let old_data_dir = dst_meta.versions.first()
+            .map(|version| self.decode_file_info(dst_volume, dst_path, version).data_dir);
+
+        dst_meta.versions.insert(0, self.encode_shallow_version(&fi)?);
+        let meta_bytes: Vec<u8> = dst_meta.into();
+        self.write_all(ctx, src_volume, &format!("{src_path}/xl.meta"), &meta_bytes).await?;
+
+        let src_data_path = self.object_data_path(src_volume, src_path, &fi.data_dir);
+        let dst_data_path = self.object_data_path(dst_volume, dst_path, &fi.data_dir);
+        if let Some(parent) = dst_data_path.parent() {
+            tokio::fs::create_dir_all(parent).await
+                .map_err(|e| StorageError::Io(e.to_string()))?;
+        }
+        tokio::fs::rename(&src_data_path, &dst_data_path).await
+            .map_err(|e| StorageError::Io(e.to_string()))?;
+
+        let src_meta_path = self.xl_meta_path(src_volume, src_path);
+        let dst_meta_path = self.xl_meta_path(dst_volume, dst_path);
+        if let Some(parent) = dst_meta_path.parent() {
+            tokio::fs::create_dir_all(parent).await
+                .map_err(|e| StorageError::Io(e.to_string()))?;
+        }
+        tokio::fs::rename(&src_meta_path, &dst_meta_path).await
+            .map_err(|e| StorageError::Io(e.to_string()))?;
+
+        if let Some(old_data_dir) = &old_data_dir {
+            if old_data_dir != &fi.data_dir {
+                let old_path = self.object_data_path(dst_volume, dst_path, old_data_dir);
+                match tokio::fs::remove_dir_all(&old_path).await {
+                    Ok(_) => {}
+                    Err(err) if err.kind() == std::io::ErrorKind::NotFound => {}
+                    Err(err) => return Err(StorageError::Io(err.to_string())),
+                }
+            }
+        }
+
+        let temp_root = self.path.join(src_volume).join(src_path);
+        let _ = tokio::fs::remove_dir_all(&temp_root).await;
+        Ok(old_data_dir)
     }
 
     async fn delete_version(&self, _ctx: &Context, volume: &str, path: &str, _fi: FileInfo) -> Result<(), StorageError> {

@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use std::error::Error;
 use crate::types::s3::request::*;
 use crate::types::s3::response::*;
 use crate::types::traits::s3_engine::S3BucketLifecycleEngine;
@@ -8,7 +9,7 @@ use crate::types::errors::S3EngineError;
 use super::utils::*;
 
 #[async_trait]
-pub trait BucketLifecycleS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: Send + Sync {
+pub trait BucketLifecycleS3Handler<E: Error + Send + Sync + 'static>: Send + Sync {
     type Engine: S3BucketLifecycleEngine + Send + Sync;
     type Policy: S3PolicyEngine + Send + Sync;
     fn bucket_lifecycle_engine_provider(&self) -> &Self::Engine;
@@ -22,7 +23,23 @@ pub trait BucketLifecycleS3Handler<E: From<S3HandlerBridgeError> + From<S3Engine
 
     async fn put_bucket_lifecycle(&self, req: PutBucketLifecycleRequest) -> Result<PutBucketLifecycleResponse, E> {
         check_access(self.bucket_lifecycle_policy_provider(), S3Action::PutBucketLifecycle, Some(&req.bucket.bucket), None).await?;
-        let rules = vec![req.xml.clone()];
+        let rules = req
+            .rules
+            .into_iter()
+            .map(|rule| {
+                let mut parts = Vec::new();
+                if let Some(id) = rule.id {
+                    parts.push(format!("id={id}"));
+                }
+                if let Some(status) = rule.status {
+                    parts.push(format!("status={status}"));
+                }
+                if let Some(prefix) = rule.prefix {
+                    parts.push(format!("prefix={prefix}"));
+                }
+                parts.join(",")
+            })
+            .collect();
         self.bucket_lifecycle_engine_provider().put_bucket_lifecycle(&req.bucket.bucket, rules).await?;
         Ok(Default::default())
     }

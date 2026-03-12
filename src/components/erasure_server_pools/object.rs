@@ -77,9 +77,11 @@ impl ObjectObjectLayer for ErasureServerPools {
     async fn put_object(&self, ctx: &Context, bucket: &str, object: &str, data: PutObjReader, opts: ObjectOptions) -> Result<ObjectInfo, S3Error> {
         let version_id = uuid::Uuid::new_v4().to_string();
         let data_dir = uuid::Uuid::new_v4().to_string();
+        let temp_object = uuid::Uuid::new_v4().to_string();
+        let temp_volume = ".minio.sys/tmp";
 
-        let file_path = format!("{}/{}", object, data_dir);
-        let actual_size = self.storage.create_file(ctx, bucket, &file_path, data.size, data.reader).await?;
+        let temp_file_path = format!("{}/{}", temp_object, data_dir);
+        let actual_size = self.storage.create_file(ctx, temp_volume, &temp_file_path, data.size, data.reader).await?;
 
         let fi = FileInfo {
             volume: bucket.to_string(),
@@ -92,7 +94,7 @@ impl ObjectObjectLayer for ErasureServerPools {
             erasure_m: 1,
             erasure_n: 0,
         };
-        self.storage.write_metadata(ctx, bucket, object, fi).await?;
+        self.storage.rename_data(ctx, temp_volume, &temp_object, fi, bucket, object).await?;
 
         Ok(ObjectInfo {
             bucket: bucket.to_string(),
@@ -166,5 +168,56 @@ impl ObjectObjectLayer for ErasureServerPools {
             content_type: "".to_string(),
             user_defined: opts.user_defined,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use crate::components::xl_storage::XlStorage;
+    use crate::types::traits::storage_api::{StorageMetadata, StorageVolume};
+
+    use super::*;
+
+    #[tokio::test]
+    async fn put_object_overwrite_cleans_old_data_dir() {
+        let mount_root = std::env::temp_dir().join(format!("fs3-put-object-{}", uuid::Uuid::new_v4()));
+        let storage = Arc::new(XlStorage::new(mount_root.clone()));
+        let object_layer = ErasureServerPools::new(storage.clone());
+        let ctx = Context { request_id: "put-object-test".to_string() };
+        let bucket = "bucket";
+        let object = "object.txt";
+
+        storage.make_vol(&ctx, bucket).await.unwrap();
+
+        let first_reader = PutObjReader {
+            reader: Box::pin(futures::stream::once(async { Ok(bytes::Bytes::from_static(b"first")) })),
+            size: 5,
+        };
+        object_layer.put_object(&ctx, bucket, object, first_reader, ObjectOptions::default()).await.unwrap();
+        let first = storage.read_version(&ctx, bucket, object, "null").await.unwrap();
+
+        let second_reader = PutObjReader {
+            reader: Box::pin(futures::stream::once(async { Ok(bytes::Bytes::from_static(b"second version")) })),
+            size: 14,
+        };
+        object_layer.put_object(&ctx, bucket, object, second_reader, ObjectOptions::default()).await.unwrap();
+        let second = storage.read_version(&ctx, bucket, object, "null").await.unwrap();
+
+        assert_ne!(first.data_dir, second.data_dir);
+        assert!(!mount_root.join(bucket).join(object).join(&first.data_dir).exists());
+        assert!(mount_root.join(bucket).join(object).join(&second.data_dir).exists());
+
+        let tmp_root = mount_root.join(".minio.sys").join("tmp");
+        let leftovers: Vec<_> = std::fs::read_dir(&tmp_root)
+            .unwrap()
+            .filter_map(Result::ok)
+            .map(|entry| entry.file_name().to_string_lossy().to_string())
+            .filter(|name| name != ".trash")
+            .collect();
+        assert!(leftovers.is_empty(), "temporary upload paths were not cleaned: {leftovers:?}");
+
+        let _ = std::fs::remove_dir_all(&mount_root);
     }
 }

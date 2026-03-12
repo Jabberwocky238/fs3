@@ -50,7 +50,7 @@ python test_xxx.py http://127.0.0.1:9100 2  # fs3读取MinIO的存储
 
 出现任何测试问题，第一步，检查minio源码如何实现，第二步，修改fs3源码适配，第三步，重新测试。
 
-当前有三个测试文件夹，aws，minio和boto3，aws和minio是rust的集成测试，使用cargo test启动。
+当前有四个测试文件夹，aws，minio，boto3 和 boto3_2tier，aws和minio是rust的集成测试，使用cargo test启动。
 
 ```bash
 # Run single test (RECOMMENDED)
@@ -65,7 +65,9 @@ cargo test --test minio_tests cors
 # Verify compilation (faster than build)
 cargo check
 ```
-tests/boto3是个特殊文件夹，使用`cd /d/1-code/__trash__/fs3/tests/boto3 && python test_xxx.py http://127.0.0.1:9000`来进行调用。
+`tests/boto3` 是普通 boto3 黑盒测试，单阶段执行，使用 `cd /d/1-code/__trash__/fs3/tests/boto3 && python test_xxx.py http://127.0.0.1:9000` 调用。
+
+`tests/boto3_2tier` 是专门的两阶段兼容性测试，使用 `cd /d/1-code/__trash__/fs3/tests/boto3_2tier && python test_xxx.py http://127.0.0.1:9000 1` 和 `python test_xxx.py http://127.0.0.1:9000 2` 调用。
 
 **你需要使用make build和make build-minio来构建minio.exe和fs3.exe，一定要使用make**，因为涉及到copy操作，cargo不会构建在根目录。
 

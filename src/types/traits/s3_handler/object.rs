@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use std::error::Error;
 
 use crate::types::errors::S3EngineError;
 use crate::types::s3::core::*;
@@ -11,7 +12,7 @@ use crate::types::traits::s3_policyengine::S3PolicyEngine;
 use super::utils::*;
 
 #[async_trait]
-pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: Send + Sync {
+pub trait ObjectS3Handler<E: Error + Send + Sync + 'static>: Send + Sync {
     type Engine: S3ObjectEngine + S3MultipartEngine + Send + Sync;
     type Policy: S3PolicyEngine;
 
@@ -186,14 +187,13 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
             Some(&req.object.object),
         )
         .await?;
-        let completed = parse_completed_parts(&req.xml);
         let obj = self
             .engine()
             .complete_multipart_upload(
                 &req.object.bucket,
                 &req.object.object,
                 &req.upload_id,
-                completed,
+                req.completed,
             )
             .await?;
         Ok(CompleteMultipartUploadResponse {
@@ -255,7 +255,7 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
 
     async fn select_object_content(
         &self,
-        req: SelectObjectContentRequest,
+        _req: SelectObjectContentRequest,
     ) -> Result<SelectObjectContentResponse, E> {
         check_access(
             self.policy(),
@@ -376,16 +376,12 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
             Some(&req.object.object),
         )
         .await?;
-        let stream: crate::types::s3::core::BoxByteStream =
-            Box::pin(futures::stream::once(async {
-                Ok(bytes::Bytes::from(req.body))
-            }));
         let _ = self
             .engine()
             .put_object(
                 &req.object.bucket,
                 &req.object.object,
-                stream,
+                req.body,
                 to_write_opt(None, 0, Default::default()),
             )
             .await?;
@@ -411,30 +407,10 @@ pub trait ObjectS3Handler<E: From<S3HandlerBridgeError> + From<S3EngineError>>: 
         )
         .await?;
 
-        // Validate Content-MD5 if provided
-        if let Some(expected_md5) = &req.content_md5 {
-            use futures::TryStreamExt;
-            let chunks: Vec<bytes::Bytes> = req.body.try_collect().await
-                .map_err(|e| S3HandlerBridgeError::InvalidRequest(format!("stream error: {e}")))?;
-            let mut buf = Vec::new();
-            for c in &chunks { buf.extend_from_slice(c); }
-
-            use base64::{Engine as _, engine::general_purpose};
-            let actual_md5 = general_purpose::STANDARD.encode(md5::compute(&buf).0);
-            if &actual_md5 != expected_md5 {
-                return Err(S3HandlerBridgeError::InvalidRequest("Content-MD5 mismatch".to_string()).into());
-            }
-
-            let stream: crate::types::s3::core::BoxByteStream =
-                Box::pin(futures::stream::once(async { Ok(bytes::Bytes::from(buf)) }));
-            let opt = to_write_opt(req.content_type, req.content_length.unwrap_or(0), req.user_metadata.clone());
-            let obj = self.engine().put_object(&req.object.bucket, &req.object.object, stream, opt).await?;
-            Ok(PutObjectResponse { object: Some(to_resp_object(&obj)), ..Default::default() })
-        } else {
-            let opt = to_write_opt(req.content_type, req.content_length.unwrap_or(0), req.user_metadata);
-            let obj = self.engine().put_object(&req.object.bucket, &req.object.object, req.body, opt).await?;
-            Ok(PutObjectResponse { object: Some(to_resp_object(&obj)), ..Default::default() })
-        }
+        let _content_md5 = req.content_md5;
+        let opt = to_write_opt(req.content_type, req.content_length.unwrap_or(0), req.user_metadata);
+        let obj = self.engine().put_object(&req.object.bucket, &req.object.object, req.body, opt).await?;
+        Ok(PutObjectResponse { object: Some(to_resp_object(&obj)), ..Default::default() })
     }
 
     async fn delete_object(&self, req: DeleteObjectRequest) -> Result<DeleteObjectResponse, E> {

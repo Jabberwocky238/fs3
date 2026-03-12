@@ -2,54 +2,56 @@ use async_trait::async_trait;
 use crate::types::s3::core::*;
 use crate::types::s3::storage_types::*;
 use crate::types::s3::object_layer_types::Context;
-use crate::types::errors::*;
+use crate::types::traits::BoxError;
 
 #[async_trait]
 pub trait StorageVolume: Send + Sync {
-    async fn make_vol(&self, ctx: &Context, volume: &str) -> Result<(), StorageError>;
-    async fn list_vols(&self, ctx: &Context) -> Result<Vec<VolInfo>, StorageError>;
-    async fn stat_vol(&self, ctx: &Context, volume: &str) -> Result<VolInfo, StorageError>;
-    async fn delete_vol(&self, ctx: &Context, volume: &str, force: bool) -> Result<(), StorageError>;
+    async fn make_vol(&self, ctx: &Context, volume: &str) -> Result<(), BoxError>;
+    async fn list_vols(&self, ctx: &Context) -> Result<Vec<VolInfo>, BoxError>;
+    async fn stat_vol(&self, ctx: &Context, volume: &str) -> Result<VolInfo, BoxError>;
+    async fn delete_vol(&self, ctx: &Context, volume: &str, force: bool) -> Result<(), BoxError>;
 }
 
 #[async_trait]
 pub trait StorageMetadata: Send + Sync {
-    async fn read_version(&self, ctx: &Context, volume: &str, path: &str, version_id: &str) -> Result<FileInfo, StorageError>;
-    async fn write_metadata(&self, ctx: &Context, volume: &str, path: &str, fi: FileInfo) -> Result<(), StorageError>;
-    async fn delete_version(&self, ctx: &Context, volume: &str, path: &str, fi: FileInfo) -> Result<(), StorageError>;
+    async fn read_version(&self, ctx: &Context, volume: &str, path: &str, version_id: &str) -> Result<FileInfo, BoxError>;
+    async fn write_all(&self, ctx: &Context, volume: &str, path: &str, data: &[u8]) -> Result<(), BoxError>;
+    async fn write_metadata(&self, ctx: &Context, volume: &str, path: &str, fi: FileInfo) -> Result<(), BoxError>;
+    async fn rename_data(&self, ctx: &Context, src_volume: &str, src_path: &str, fi: FileInfo, dst_volume: &str, dst_path: &str) -> Result<Option<String>, BoxError>;
+    async fn delete_version(&self, ctx: &Context, volume: &str, path: &str, fi: FileInfo) -> Result<(), BoxError>;
 }
 
 #[async_trait]
 pub trait StorageFile: Send + Sync {
-    async fn read_file(&self, ctx: &Context, volume: &str, path: &str, offset: i64, buf: &mut [u8]) -> Result<i64, StorageError>;
-    async fn create_file(&self, ctx: &Context, volume: &str, path: &str, size: i64, reader: BoxByteStream) -> Result<u64, StorageError>;
-    async fn append_file(&self, ctx: &Context, volume: &str, path: &str, buf: &[u8]) -> Result<(), StorageError>;
-    async fn rename_file(&self, ctx: &Context, src_vol: &str, src_path: &str, dst_vol: &str, dst_path: &str) -> Result<(), StorageError>;
+    async fn read_file(&self, ctx: &Context, volume: &str, path: &str, offset: i64, buf: &mut [u8]) -> Result<i64, BoxError>;
+    async fn create_file(&self, ctx: &Context, volume: &str, path: &str, size: i64, reader: BoxByteStream) -> Result<u64, BoxError>;
+    async fn append_file(&self, ctx: &Context, volume: &str, path: &str, buf: &[u8]) -> Result<(), BoxError>;
+    async fn rename_file(&self, ctx: &Context, src_vol: &str, src_path: &str, dst_vol: &str, dst_path: &str) -> Result<(), BoxError>;
 }
 
 #[async_trait]
 pub trait StorageBucketConfig: Send + Sync {
-    async fn read_bucket_policy(&self, ctx: &Context, bucket: &str) -> Result<Option<String>, StorageError>;
-    async fn write_bucket_policy(&self, ctx: &Context, bucket: &str, policy: &str) -> Result<(), StorageError>;
-    async fn delete_bucket_policy(&self, ctx: &Context, bucket: &str) -> Result<(), StorageError>;
+    async fn read_bucket_policy(&self, ctx: &Context, bucket: &str) -> Result<Option<String>, BoxError>;
+    async fn write_bucket_policy(&self, ctx: &Context, bucket: &str, policy: &str) -> Result<(), BoxError>;
+    async fn delete_bucket_policy(&self, ctx: &Context, bucket: &str) -> Result<(), BoxError>;
 
-    async fn read_bucket_tags(&self, ctx: &Context, bucket: &str) -> Result<Option<String>, StorageError>;
-    async fn write_bucket_tags(&self, ctx: &Context, bucket: &str, tags: &str) -> Result<(), StorageError>;
-    async fn delete_bucket_tags(&self, ctx: &Context, bucket: &str) -> Result<(), StorageError>;
+    async fn read_bucket_tags(&self, ctx: &Context, bucket: &str) -> Result<Option<String>, BoxError>;
+    async fn write_bucket_tags(&self, ctx: &Context, bucket: &str, tags: &str) -> Result<(), BoxError>;
+    async fn delete_bucket_tags(&self, ctx: &Context, bucket: &str) -> Result<(), BoxError>;
 
-    async fn read_bucket_versioning(&self, ctx: &Context, bucket: &str) -> Result<Option<String>, StorageError>;
-    async fn write_bucket_versioning(&self, ctx: &Context, bucket: &str, status: &str) -> Result<(), StorageError>;
+    async fn read_bucket_versioning(&self, ctx: &Context, bucket: &str) -> Result<Option<String>, BoxError>;
+    async fn write_bucket_versioning(&self, ctx: &Context, bucket: &str, status: &str) -> Result<(), BoxError>;
 
-    async fn read_bucket_cors(&self, ctx: &Context, bucket: &str) -> Result<Option<String>, StorageError>;
-    async fn write_bucket_cors(&self, ctx: &Context, bucket: &str, cors: &str) -> Result<(), StorageError>;
-    async fn delete_bucket_cors(&self, ctx: &Context, bucket: &str) -> Result<(), StorageError>;
+    async fn read_bucket_cors(&self, ctx: &Context, bucket: &str) -> Result<Option<String>, BoxError>;
+    async fn write_bucket_cors(&self, ctx: &Context, bucket: &str, cors: &str) -> Result<(), BoxError>;
+    async fn delete_bucket_cors(&self, ctx: &Context, bucket: &str) -> Result<(), BoxError>;
 }
 
 #[async_trait]
 pub trait StorageObjectConfig: Send + Sync {
-    async fn read_object_tags(&self, ctx: &Context, bucket: &str, key: &str) -> Result<Option<String>, StorageError>;
-    async fn write_object_tags(&self, ctx: &Context, bucket: &str, key: &str, tags: &str) -> Result<(), StorageError>;
-    async fn delete_object_tags(&self, ctx: &Context, bucket: &str, key: &str) -> Result<(), StorageError>;
+    async fn read_object_tags(&self, ctx: &Context, bucket: &str, key: &str) -> Result<Option<String>, BoxError>;
+    async fn write_object_tags(&self, ctx: &Context, bucket: &str, key: &str, tags: &str) -> Result<(), BoxError>;
+    async fn delete_object_tags(&self, ctx: &Context, bucket: &str, key: &str) -> Result<(), BoxError>;
 }
 
 pub trait StorageAPI: StorageVolume + StorageMetadata + StorageFile + StorageBucketConfig + StorageObjectConfig {}
