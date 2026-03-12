@@ -6,8 +6,9 @@ use crate::types::s3::object_layer_types::Context;
 use crate::types::errors::StorageError;
 
 mod xl_types;
-use xl_types::{XlMetaV2, XlMetaV2ShallowVersion, XlMetaV2Object, XlMetaV2VersionHeader};
+use xl_types::{XlMetaV2, XlMetaV2ShallowVersion, XlMetaV2Object, XlMetaV2Version, XlMetaV2VersionHeader};
 use xl_types::xl_meta_v2_object::{ErasureAlgo, ChecksumAlgo};
+use xl_types::xl_meta_v2_version::VersionType;
 
 pub struct XlStorage {
     path: PathBuf,
@@ -94,6 +95,7 @@ impl XlStorage {
             .map_err(|e| StorageError::from(e.to_string()))?;
         let ddir = uuid::Uuid::parse_str(&fi.data_dir)
             .map_err(|e| StorageError::from(e.to_string()))?;
+        let mod_time = chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0);
 
         let mut meta_sys = std::collections::HashMap::new();
         if has_inline_data {
@@ -118,15 +120,23 @@ impl XlStorage {
             part_actual_sizes: Some(vec![fi.size as i64]),
             part_indices: Some(vec![]),
             size: fi.size as i64,
-            mod_time: chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0),
+            mod_time,
             meta_sys: Some(meta_sys.into_iter().collect()),
             meta_user: Some(fi.user_metadata.clone().into_iter().collect()),
         };
 
-        let obj_bytes: Vec<u8> = obj.into();
+        let version = XlMetaV2Version {
+            version_type: VersionType::Object,
+            object_v1: None,
+            object_v2: Some(obj),
+            delete_marker: None,
+            written_by_version: 0,
+        };
+        let version_bytes: Vec<u8> = (&version).into();
+
         let header = XlMetaV2VersionHeader {
             version_id: *vid.as_bytes(),
-            mod_time: chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0) as i64,
+            mod_time,
             signature: [0x78, 0x6c, 0x32, 0x20],
             version_type: 1,
             flags: 0,
@@ -136,7 +146,7 @@ impl XlStorage {
 
         Ok(XlMetaV2ShallowVersion {
             header,
-            meta: obj_bytes,
+            meta: version_bytes,
         })
     }
 
@@ -149,9 +159,12 @@ impl XlStorage {
         Ok(xl_meta.into())
     }
 
-    fn decode_file_info(&self, volume: &str, path: &str, version: &XlMetaV2ShallowVersion) -> FileInfo {
-        let obj: XlMetaV2Object = version.meta.clone().into();
-        FileInfo {
+    fn decode_file_info(&self, volume: &str, path: &str, version: &XlMetaV2ShallowVersion) -> Result<FileInfo, StorageError> {
+        let version_body: XlMetaV2Version = version.meta.clone().into();
+        let obj = version_body.object_v2
+            .ok_or_else(|| StorageError::from("xl.meta version does not contain object metadata"))?;
+
+        Ok(FileInfo {
             volume: volume.to_string(),
             name: path.to_string(),
             version_id: uuid::Uuid::from_bytes(obj.version_id).to_string(),
@@ -163,7 +176,7 @@ impl XlStorage {
             erasure_index: obj.erasure_index,
             erasure_m: obj.erasure_m,
             erasure_n: obj.erasure_n,
-        }
+        })
     }
 
     async fn read_xl_meta(&self, volume: &str, path: &str) -> Result<Option<XlMetaV2>, StorageError> {
@@ -229,7 +242,7 @@ impl StorageMetadata<StorageError> for XlStorage {
             })
         }.ok_or_else(|| StorageError::from(format!("file not found: {version_id}")))?;
 
-        Ok(self.decode_file_info(volume, path, version))
+        self.decode_file_info(volume, path, version)
     }
 
     async fn write_all(&self, _ctx: &Context, volume: &str, path: &str, data: &[u8], _opts: WriteAllOptions) -> Result<(), StorageError> {
@@ -270,7 +283,8 @@ impl StorageMetadata<StorageError> for XlStorage {
             meta_v: 1,
         });
         let old_data_dir = dst_meta.versions.first()
-            .map(|version| self.decode_file_info(dst_volume, dst_path, version).data_dir);
+            .and_then(|version| self.decode_file_info(dst_volume, dst_path, version).ok())
+            .map(|file_info| file_info.data_dir);
 
         dst_meta.versions.insert(0, self.encode_shallow_version(&fi, false)?);
         let meta_bytes: Vec<u8> = dst_meta.into();
@@ -552,4 +566,6 @@ impl StorageObjectConfig<StorageError> for XlStorage {
         }
     }
 }
+
+
 

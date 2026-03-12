@@ -28,7 +28,7 @@ pub async fn create_minio_server() -> std::io::Result<(SocketAddr, String, JoinH
     let listener = TcpListener::bind(("127.0.0.1", 0)).await?;
     let addr = listener.local_addr()?;
     let endpoint = format!("http://{addr}");
-    let app = axum_router::<_, S3EngineError>(handler);
+    let app = axum_router(handler);
 
     let task = tokio::spawn(async move {
         let _ = axum::serve(listener, app).await;
@@ -42,17 +42,6 @@ pub fn create_minio_client(endpoint: &str) -> Result<MinioClient, MinioError> {
     let provider = StaticProvider::new(MINIO_ACCESS_KEY, MINIO_SECRET_KEY, None);
     MinioClient::new(base_url, Some(Box::new(provider)), None, Some(true))
 }
-
-// pub fn create_aws_client(endpoint: &str) -> AwsClient {
-//     let creds = Credentials::new(MINIO_ACCESS_KEY, MINIO_SECRET_KEY, None, None, "static");
-//     let config = aws_sdk_s3::Config::builder()
-//         .endpoint_url(endpoint)
-//         .region(Region::new("us-east-1"))
-//         .credentials_provider(creds)
-//         .force_path_style(true)
-//         .build();
-//     AwsClient::from_conf(config)
-// }
 
 pub fn random_bucket_name() -> String {
     format!("test-{}", uuid::Uuid::new_v4().to_string().split('-').next().unwrap())

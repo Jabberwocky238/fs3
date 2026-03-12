@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use chrono::Utc;
 use reqwest::Client;
 
 use crate::types::FS3Error;
@@ -9,9 +10,12 @@ use crate::types::s3::storage_types::{
     WriteAllOptions,
 };
 use crate::types::storage_endpoint::StorageEndpoint;
-use crate::types::storage_remote::{
-    DeletePathRequest, DeletePathResponse, ReadVersionRequest, ReadVersionResponse,
-    RenameDataRequest, RenameDataResponse, StorageRemoteError, WriteAllRequest, WriteAllResponse,
+use crate::components::remote_storage::wire::{
+    MinioDeleteFileRequest, MinioStorageCall, MinioWriteAllRequest, STORAGE_REST_METHOD_READ_VERSION,
+    STORAGE_REST_PARAM_DISK_ID, STORAGE_REST_PARAM_FILE_PATH, STORAGE_REST_PARAM_HEALING,
+    STORAGE_REST_PARAM_INCLUDE_FREE_VERSIONS, STORAGE_REST_PARAM_ORIG_VOLUME,
+    STORAGE_REST_PARAM_VERSION_ID, STORAGE_REST_PARAM_VOLUME, STORAGE_REST_VERSION,
+    decode_minio_file_info, encode_minio_delete_file_request, encode_minio_write_all_request,
 };
 use crate::types::traits::storage_api::{
     StorageBucketConfig, StorageFile, StorageMetadata, StorageObjectConfig, StorageVolume,
@@ -39,6 +43,10 @@ impl RemoteStorageClient {
         &self.endpoint.storage_id
     }
 
+    fn disk_id(&self) -> &str {
+        &self.endpoint.storage_id
+    }
+
     fn unsupported(&self, method: &str) -> FS3Error {
         FS3Error::internal(format!(
             "remote storage method {method} is not implemented for endpoint {}",
@@ -46,47 +54,29 @@ impl RemoteStorageClient {
         ))
     }
 
-    fn transport_placeholder(&self, method: &str) -> FS3Error {
+    fn minio_transport_unimplemented(&self, call: MinioStorageCall) -> FS3Error {
         FS3Error::internal(format!(
-            "remote storage transport for {method} is not wired yet for endpoint {}",
-            self.endpoint.address
+            "MinIO-compatible remote storage transport for {} is not implemented for endpoint {}",
+            call.as_str(),
+            self.endpoint.address,
         ))
     }
 
-    fn route_url(&self, route: &str) -> String {
+    pub fn storage_rest_url(&self) -> String {
         format!(
-            "{}/{}",
+            "{}/minio/storage/{}/{}",
             self.endpoint.address.trim_end_matches('/'),
-            route.trim_start_matches('/')
+            self.endpoint.storage_id,
+            STORAGE_REST_VERSION,
         )
     }
 
-    async fn post_json<Req, Resp>(&self, route: &str, body: &Req) -> Result<Resp, FS3Error>
-    where
-        Req: serde::Serialize + ?Sized,
-        Resp: serde::de::DeserializeOwned,
-    {
-        let response = self
-            .http
-            .post(self.route_url(route))
-            .json(body)
-            .send()
-            .await
-            .map_err(|err| FS3Error::internal(format!("remote storage request failed: {err}")))?;
+    fn storage_rest_method_url(&self, method: &str) -> String {
+        format!("{}{}", self.storage_rest_url(), method)
+    }
 
-        if response.status().is_success() {
-            return response
-                .json::<Resp>()
-                .await
-                .map_err(|err| FS3Error::internal(format!("remote storage response decode failed: {err}")));
-        }
-
-        let status = response.status();
-        let remote = response.json::<StorageRemoteError>().await.ok();
-        let message = remote
-            .map(|err| err.message)
-            .unwrap_or_else(|| format!("remote storage request failed with status {status}"));
-        Err(FS3Error::new(status, message))
+    fn auth_token(&self) -> Option<String> {
+        std::env::var("FS3_REMOTE_AUTH_TOKEN").ok()
     }
 }
 
@@ -118,17 +108,55 @@ impl StorageMetadata<FS3Error> for RemoteStorageClient {
         path: &str,
         version_id: &str,
     ) -> Result<FileInfo, FS3Error> {
-        let resp: ReadVersionResponse = self
-            .post_json(
-                "/__fs3/storage/read-version",
-                &ReadVersionRequest {
-                    volume: volume.to_string(),
-                    path: path.to_string(),
-                    version_id: version_id.to_string(),
+        let mut request = self
+            .http
+            .get(self.storage_rest_method_url(STORAGE_REST_METHOD_READ_VERSION))
+            .query(&[
+                (STORAGE_REST_PARAM_DISK_ID, self.disk_id()),
+                (STORAGE_REST_PARAM_ORIG_VOLUME, ""),
+                (STORAGE_REST_PARAM_VOLUME, volume),
+                (STORAGE_REST_PARAM_FILE_PATH, path),
+                (STORAGE_REST_PARAM_VERSION_ID, version_id),
+                (STORAGE_REST_PARAM_INCLUDE_FREE_VERSIONS, "false"),
+                (STORAGE_REST_PARAM_HEALING, "false"),
+            ]);
+
+        if let Some(token) = self.auth_token() {
+            request = request
+                .header("Authorization", format!("Bearer {token}"))
+                .header(
+                    "X-Minio-Time",
+                    Utc::now()
+                        .timestamp_nanos_opt()
+                        .unwrap_or_default()
+                        .to_string(),
+                );
+        }
+
+        let response = request
+            .send()
+            .await
+            .map_err(|err| FS3Error::internal(format!("MinIO ReadVersion request failed: {err}")))?;
+        let status = response.status();
+        let body = response
+            .bytes()
+            .await
+            .map_err(|err| FS3Error::internal(format!("MinIO ReadVersion response read failed: {err}")))?;
+
+        if !status.is_success() {
+            let message = String::from_utf8_lossy(&body).trim().to_string();
+            return Err(FS3Error::new(
+                status,
+                if message.is_empty() {
+                    format!("MinIO ReadVersion request failed with status {status}")
+                } else {
+                    message
                 },
-            )
-            .await?;
-        Ok(resp.file_info)
+            ));
+        }
+
+        decode_minio_file_info(&body)
+            .map_err(|err| FS3Error::internal(format!("MinIO ReadVersion decode failed: {err}")))
     }
 
     async fn write_all(
@@ -137,20 +165,16 @@ impl StorageMetadata<FS3Error> for RemoteStorageClient {
         volume: &str,
         path: &str,
         data: &[u8],
-        opts: WriteAllOptions,
+        _opts: WriteAllOptions,
     ) -> Result<(), FS3Error> {
-        let _: WriteAllResponse = self
-            .post_json(
-                "/__fs3/storage/write-all",
-                &WriteAllRequest {
-                    volume: volume.to_string(),
-                    path: path.to_string(),
-                    data: data.to_vec(),
-                    opts,
-                },
-            )
-            .await?;
-        Ok(())
+        let _payload = encode_minio_write_all_request(&MinioWriteAllRequest {
+            disk_id: self.disk_id().to_string(),
+            volume: volume.to_string(),
+            file_path: path.to_string(),
+            buf: data.to_vec(),
+        })
+        .map_err(|err| FS3Error::internal(format!("MinIO WriteAll payload encode failed: {err}")))?;
+        Err(self.minio_transport_unimplemented(MinioStorageCall::WriteAll))
     }
 
     async fn write_metadata(
@@ -166,27 +190,14 @@ impl StorageMetadata<FS3Error> for RemoteStorageClient {
     async fn rename_data(
         &self,
         _ctx: &Context,
-        src_volume: &str,
-        src_path: &str,
-        fi: FileInfo,
-        dst_volume: &str,
-        dst_path: &str,
-        opts: RenameDataOptions,
+        _src_volume: &str,
+        _src_path: &str,
+        _fi: FileInfo,
+        _dst_volume: &str,
+        _dst_path: &str,
+        _opts: RenameDataOptions,
     ) -> Result<RenameDataResult, FS3Error> {
-        let resp: RenameDataResponse = self
-            .post_json(
-                "/__fs3/storage/rename-data",
-                &RenameDataRequest {
-                    src_volume: src_volume.to_string(),
-                    src_path: src_path.to_string(),
-                    file_info: fi,
-                    dst_volume: dst_volume.to_string(),
-                    dst_path: dst_path.to_string(),
-                    opts,
-                },
-            )
-            .await?;
-        Ok(resp.result)
+        Err(self.minio_transport_unimplemented(MinioStorageCall::RenameData))
     }
 
     async fn delete_version(
@@ -247,17 +258,14 @@ impl StorageFile<FS3Error> for RemoteStorageClient {
         path: &str,
         opts: DeletePathOptions,
     ) -> Result<(), FS3Error> {
-        let _: DeletePathResponse = self
-            .post_json(
-                "/__fs3/storage/delete-path",
-                &DeletePathRequest {
-                    volume: volume.to_string(),
-                    path: path.to_string(),
-                    opts,
-                },
-            )
-            .await?;
-        Ok(())
+        let _payload = encode_minio_delete_file_request(&MinioDeleteFileRequest {
+            disk_id: self.disk_id().to_string(),
+            volume: volume.to_string(),
+            file_path: path.to_string(),
+            opts: opts.into(),
+        })
+        .map_err(|err| FS3Error::internal(format!("MinIO Delete payload encode failed: {err}")))?;
+        Err(self.minio_transport_unimplemented(MinioStorageCall::Delete))
     }
 }
 
