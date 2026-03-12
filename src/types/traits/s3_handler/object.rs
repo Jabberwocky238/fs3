@@ -1,4 +1,4 @@
-﻿use crate::types::FS3Error;
+use crate::types::FS3Error;
 use crate::types::s3::core::*;
 use crate::types::s3::policy::S3Action;
 use crate::types::s3::request::*;
@@ -11,8 +11,8 @@ use axum::http::{HeaderMap, HeaderName, HeaderValue};
 
 use super::request_validation::{
     DecodedAwsChunkedStream, ParsedServerSideEncryption, RequestValidationPlan,
-    ValidatingRequestStream, decode_content_md5, parse_aws_chunked_upload,
-    parse_checksum_headers, validate_sse_headers,
+    ValidatingRequestStream, decode_content_md5, parse_aws_chunked_upload, parse_checksum_headers,
+    validate_sse_headers,
 };
 use super::utils::*;
 
@@ -28,7 +28,6 @@ where
     fn policy(&self) -> &Self::Policy;
 
     async fn head_object(&self, req: HeadObjectRequest) -> Result<HeadObjectResponse, E> {
-
         let obj = self
             .engine()
             .head_object(
@@ -65,7 +64,6 @@ where
         &self,
         req: GetObjectAttributesRequest,
     ) -> Result<GetObjectAttributesResponse, E> {
-
         let bucket = req.object.bucket.clone();
         let object = req.object.object.clone();
         let opts: ObjectReadOptions = req.into();
@@ -159,7 +157,6 @@ where
         &self,
         req: ListObjectPartsRequest,
     ) -> Result<ListObjectPartsResponse, E> {
-
         let parts = self
             .engine()
             .list_object_parts(&req.object.bucket, &req.object.object, &req.upload_id)
@@ -242,7 +239,6 @@ where
         &self,
         req: SelectObjectContentRequest,
     ) -> Result<SelectObjectContentResponse, E> {
-
         unimplemented!()
     }
 
@@ -250,7 +246,6 @@ where
         &self,
         req: GetObjectLambdaRequest,
     ) -> Result<GetObjectLambdaResponse, E> {
-
         let (_obj, stream) = self
             .engine()
             .get_object(
@@ -272,7 +267,6 @@ where
     }
 
     async fn get_object(&self, req: GetObjectRequest) -> Result<GetObjectResponse, E> {
-
         let (obj, stream) = self
             .engine()
             .get_object(
@@ -400,7 +394,6 @@ where
     }
 
     async fn delete_object(&self, req: DeleteObjectRequest) -> Result<DeleteObjectResponse, E> {
-
         let _ = self
             .engine()
             .delete_object(
@@ -541,4 +534,3 @@ fn insert_opt_header(
     headers.insert(header_name, header_value);
     Ok(())
 }
-

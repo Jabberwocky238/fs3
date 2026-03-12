@@ -145,18 +145,33 @@ impl S3Action {
 
     /// 是否为对象级动作
     pub fn is_object_action(&self) -> bool {
-        matches!(self,
-            Self::GetObject | Self::HeadObject | Self::PutObject |
-            Self::DeleteObject | Self::CopyObject | Self::GetObjectAttributes |
-            Self::GetObjectTagging | Self::PutObjectTagging | Self::DeleteObjectTagging |
-            Self::GetObjectRetention | Self::PutObjectRetention |
-            Self::GetObjectLegalHold | Self::PutObjectLegalHold |
-            Self::GetObjectAcl | Self::PutObjectAcl |
-            Self::RestoreObject | Self::SelectObjectContent |
-            Self::ListMultipartUploadParts | Self::AbortMultipartUpload |
-            Self::DeleteObjectVersion | Self::GetObjectVersion |
-            Self::GetObjectVersionAttributes |
-            Self::ReplicateObject | Self::ReplicateDelete | Self::PutObjectFanOut
+        matches!(
+            self,
+            Self::GetObject
+                | Self::HeadObject
+                | Self::PutObject
+                | Self::DeleteObject
+                | Self::CopyObject
+                | Self::GetObjectAttributes
+                | Self::GetObjectTagging
+                | Self::PutObjectTagging
+                | Self::DeleteObjectTagging
+                | Self::GetObjectRetention
+                | Self::PutObjectRetention
+                | Self::GetObjectLegalHold
+                | Self::PutObjectLegalHold
+                | Self::GetObjectAcl
+                | Self::PutObjectAcl
+                | Self::RestoreObject
+                | Self::SelectObjectContent
+                | Self::ListMultipartUploadParts
+                | Self::AbortMultipartUpload
+                | Self::DeleteObjectVersion
+                | Self::GetObjectVersion
+                | Self::GetObjectVersionAttributes
+                | Self::ReplicateObject
+                | Self::ReplicateDelete
+                | Self::PutObjectFanOut
         )
     }
 

@@ -1,18 +1,18 @@
 use std::net::SocketAddr;
-use std::sync::Arc;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use minio::s3::Client as MinioClient;
 use minio::s3::creds::StaticProvider;
-use minio::s3::http::BaseUrl;
 use minio::s3::error::Error as MinioError;
+use minio::s3::http::BaseUrl;
 use s3_mount_gateway_rust::axum_router;
-use s3_mount_gateway_rust::components::fs3_engine::FS3Engine;
-use s3_mount_gateway_rust::components::xl_storage::XlStorage;
 use s3_mount_gateway_rust::components::erasure_server_pools::ErasureServerPools;
-use s3_mount_gateway_rust::components::storage_policy::StoragePolicyEngine;
-use s3_mount_gateway_rust::types::errors::S3EngineError;
 use s3_mount_gateway_rust::components::fs3_axum_handler::S3AxumHandler;
+use s3_mount_gateway_rust::components::fs3_engine::FS3Engine;
+use s3_mount_gateway_rust::components::storage_policy::StoragePolicyEngine;
+use s3_mount_gateway_rust::components::xl_storage::XlStorage;
+use s3_mount_gateway_rust::types::errors::S3EngineError;
 use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
 
@@ -44,5 +44,8 @@ pub fn create_minio_client(endpoint: &str) -> Result<MinioClient, MinioError> {
 }
 
 pub fn random_bucket_name() -> String {
-    format!("test-{}", uuid::Uuid::new_v4().to_string().split('-').next().unwrap())
+    format!(
+        "test-{}",
+        uuid::Uuid::new_v4().to_string().split('-').next().unwrap()
+    )
 }

@@ -1,13 +1,15 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use axum::Router;
 use axum::extract::{Query, State};
 use axum::http::Method;
 use axum::routing::{any, get};
-use axum::Router;
 
 use crate::types::FS3Error;
-use crate::types::s3::request::{ListBucketsDoubleSlashRequest, ListBucketsRequest, RootListenNotificationRequest};
+use crate::types::s3::request::{
+    ListBucketsDoubleSlashRequest, ListBucketsRequest, RootListenNotificationRequest,
+};
 use crate::types::s3::response::S3Response;
 use crate::types::traits::s3_handler::S3Handler;
 
@@ -46,12 +48,12 @@ where
     }
     if has(&q, "events") {
         let v = handler
-            .root_listen_notification(RootListenNotificationRequest { filter: event_filter(&q) })
+            .root_listen_notification(RootListenNotificationRequest {
+                filter: event_filter(&q),
+            })
             .await?;
         return Ok(S3Response::RootListenNotification(v));
     }
-    let v = handler
-        .list_buckets(ListBucketsRequest)
-        .await?;
+    let v = handler.list_buckets(ListBucketsRequest).await?;
     Ok(S3Response::ListBuckets(v))
 }

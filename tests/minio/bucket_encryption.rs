@@ -17,7 +17,11 @@ async fn test_bucket_encryption() {
     let _enc = client.get_bucket_encryption(bucket).send().await.unwrap();
 
     // DELETE
-    client.delete_bucket_encryption(bucket).send().await.unwrap();
+    client
+        .delete_bucket_encryption(bucket)
+        .send()
+        .await
+        .unwrap();
 
     client.delete_bucket(bucket).send().await.unwrap();
     handle.abort();

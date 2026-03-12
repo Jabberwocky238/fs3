@@ -33,23 +33,35 @@ impl S3IamPolicyEngine<FS3Error> for StoragePolicyEngine {
 
 #[async_trait]
 impl S3BucketPolicyEngine<FS3Error> for StoragePolicyEngine {
-    async fn is_allowed(&self, _bucket: &str, _ctx: &PolicyEvalContext) -> Result<PolicyEffect, FS3Error> {
+    async fn is_allowed(
+        &self,
+        _bucket: &str,
+        _ctx: &PolicyEvalContext,
+    ) -> Result<PolicyEffect, FS3Error> {
         Ok(PolicyEffect::Allow)
     }
 
     async fn get_bucket_policy(&self, bucket: &str) -> Result<Option<String>, FS3Error> {
-        let ctx = Context { request_id: "".to_string() };
+        let ctx = Context {
+            request_id: "".to_string(),
+        };
         self.storage.read_bucket_policy(&ctx, bucket).await
     }
 
     async fn put_bucket_policy(&self, bucket: &str, policy_json: &str) -> Result<(), FS3Error> {
         serde_json::from_str::<serde_json::Value>(policy_json)?;
-        let ctx = Context { request_id: "".to_string() };
-        self.storage.write_bucket_policy(&ctx, bucket, policy_json).await
+        let ctx = Context {
+            request_id: "".to_string(),
+        };
+        self.storage
+            .write_bucket_policy(&ctx, bucket, policy_json)
+            .await
     }
 
     async fn delete_bucket_policy(&self, bucket: &str) -> Result<(), FS3Error> {
-        let ctx = Context { request_id: "".to_string() };
+        let ctx = Context {
+            request_id: "".to_string(),
+        };
         self.storage.delete_bucket_policy(&ctx, bucket).await
     }
 }

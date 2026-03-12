@@ -17,7 +17,9 @@ async fn object_test() {
     // put object
     client
         .put_object_content(bucket, key, ObjectContent::from(data.as_ref()))
-        .send().await.unwrap();
+        .send()
+        .await
+        .unwrap();
 
     // stat object (head)
     let stat = client.stat_object(bucket, key).send().await.unwrap();
@@ -31,7 +33,12 @@ async fn object_test() {
     // copy object
     let dest_key = "hello-copy.txt";
     let src = CopySource::new(bucket, key).unwrap();
-    client.copy_object(bucket, dest_key).source(src).send().await.unwrap();
+    client
+        .copy_object(bucket, dest_key)
+        .source(src)
+        .send()
+        .await
+        .unwrap();
     let stat2 = client.stat_object(bucket, dest_key).send().await.unwrap();
     assert_eq!(stat2.size, data.len() as u64);
 

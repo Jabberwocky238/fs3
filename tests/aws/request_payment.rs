@@ -1,5 +1,5 @@
 use super::helpers::*;
-use aws_sdk_s3::types::{RequestPaymentConfiguration, Payer};
+use aws_sdk_s3::types::{Payer, RequestPaymentConfiguration};
 
 #[tokio::test]
 async fn test_put_bucket_request_payment() {
@@ -10,7 +10,14 @@ async fn test_put_bucket_request_payment() {
 
     let config = RequestPaymentConfiguration::builder()
         .payer(Payer::Requester)
-        .build().unwrap();
+        .build()
+        .unwrap();
 
-    client.put_bucket_request_payment().bucket(&bucket).request_payment_configuration(config).send().await.unwrap();
+    client
+        .put_bucket_request_payment()
+        .bucket(&bucket)
+        .request_payment_configuration(config)
+        .send()
+        .await
+        .unwrap();
 }

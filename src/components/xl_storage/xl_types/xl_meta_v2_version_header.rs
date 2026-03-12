@@ -87,9 +87,15 @@ mod tests {
 
     #[test]
     fn test_case_1() {
-        let expected = hex::decode("97c4100102030405060708090a0b0c0d0e0f10d3499602d200000000c404786c322001000402").unwrap();
+        let expected = hex::decode(
+            "97c4100102030405060708090a0b0c0d0e0f10d3499602d200000000c404786c322001000402",
+        )
+        .unwrap();
         let decoded: XlMetaV2VersionHeader = expected.clone().into();
-        assert_eq!(decoded.version_id, [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]);
+        assert_eq!(
+            decoded.version_id,
+            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+        );
         assert_eq!(decoded.mod_time, 1234567890);
         assert_eq!(decoded.version_type, 1);
         assert_eq!(decoded.ec_n, 4);

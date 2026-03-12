@@ -1,5 +1,5 @@
-use aws_sdk_s3::primitives::ByteStream;
 use super::helpers::{create_aws_client, create_test_server};
+use aws_sdk_s3::primitives::ByteStream;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn list_objects_test() {
@@ -10,10 +10,38 @@ async fn list_objects_test() {
     client.create_bucket().bucket(bucket).send().await.unwrap();
 
     // create test objects
-    client.put_object().bucket(bucket).key("a/1.txt").body(ByteStream::from_static(b"test")).send().await.unwrap();
-    client.put_object().bucket(bucket).key("a/2.txt").body(ByteStream::from_static(b"test")).send().await.unwrap();
-    client.put_object().bucket(bucket).key("b/1.txt").body(ByteStream::from_static(b"test")).send().await.unwrap();
-    client.put_object().bucket(bucket).key("c.txt").body(ByteStream::from_static(b"test")).send().await.unwrap();
+    client
+        .put_object()
+        .bucket(bucket)
+        .key("a/1.txt")
+        .body(ByteStream::from_static(b"test"))
+        .send()
+        .await
+        .unwrap();
+    client
+        .put_object()
+        .bucket(bucket)
+        .key("a/2.txt")
+        .body(ByteStream::from_static(b"test"))
+        .send()
+        .await
+        .unwrap();
+    client
+        .put_object()
+        .bucket(bucket)
+        .key("b/1.txt")
+        .body(ByteStream::from_static(b"test"))
+        .send()
+        .await
+        .unwrap();
+    client
+        .put_object()
+        .bucket(bucket)
+        .key("c.txt")
+        .body(ByteStream::from_static(b"test"))
+        .send()
+        .await
+        .unwrap();
 
     // list all objects
     let mut count = 0;
@@ -33,10 +61,34 @@ async fn list_objects_test() {
     assert_eq!(count, 4);
 
     // cleanup
-    client.delete_object().bucket(bucket).key("a/1.txt").send().await.unwrap();
-    client.delete_object().bucket(bucket).key("a/2.txt").send().await.unwrap();
-    client.delete_object().bucket(bucket).key("b/1.txt").send().await.unwrap();
-    client.delete_object().bucket(bucket).key("c.txt").send().await.unwrap();
+    client
+        .delete_object()
+        .bucket(bucket)
+        .key("a/1.txt")
+        .send()
+        .await
+        .unwrap();
+    client
+        .delete_object()
+        .bucket(bucket)
+        .key("a/2.txt")
+        .send()
+        .await
+        .unwrap();
+    client
+        .delete_object()
+        .bucket(bucket)
+        .key("b/1.txt")
+        .send()
+        .await
+        .unwrap();
+    client
+        .delete_object()
+        .bucket(bucket)
+        .key("c.txt")
+        .send()
+        .await
+        .unwrap();
     client.delete_bucket().bucket(bucket).send().await.unwrap();
 
     handle.abort();

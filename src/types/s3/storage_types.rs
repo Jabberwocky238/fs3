@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use crate::types::s3::core::BoxByteStream;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VolInfo {
@@ -28,7 +28,9 @@ pub struct FileInfo {
     pub erasure_n: i32,
 }
 
-fn default_one() -> i32 { 1 }
+fn default_one() -> i32 {
+    1
+}
 
 pub struct PutObjReader {
     pub reader: BoxByteStream,

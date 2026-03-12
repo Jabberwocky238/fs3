@@ -28,7 +28,12 @@ async fn policy_advanced_test() {
             }
         ]
     }"#;
-    client.put_bucket_policy(bucket).config(deny_policy.to_string()).send().await.unwrap();
+    client
+        .put_bucket_policy(bucket)
+        .config(deny_policy.to_string())
+        .send()
+        .await
+        .unwrap();
 
     // 测试资源通配符
     let wildcard_policy = r#"{
@@ -40,7 +45,12 @@ async fn policy_advanced_test() {
             "Resource": ["arn:aws:s3:::policy-adv-bucket/public/*"]
         }]
     }"#;
-    client.put_bucket_policy(bucket).config(wildcard_policy.to_string()).send().await.unwrap();
+    client
+        .put_bucket_policy(bucket)
+        .config(wildcard_policy.to_string())
+        .send()
+        .await
+        .unwrap();
 
     // 验证策略存在
     let policy = client.get_bucket_policy(bucket).send().await.unwrap();

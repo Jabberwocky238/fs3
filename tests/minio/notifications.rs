@@ -9,7 +9,15 @@ async fn test_event_notification_webhook() {
 
     client.create_bucket(&bucket).send().await.unwrap();
 
-    client.put_bucket_notification(&bucket).send().await.unwrap();
+    client
+        .put_bucket_notification(&bucket)
+        .send()
+        .await
+        .unwrap();
 
-    let _result = client.get_bucket_notification(&bucket).send().await.unwrap();
+    let _result = client
+        .get_bucket_notification(&bucket)
+        .send()
+        .await
+        .unwrap();
 }

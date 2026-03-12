@@ -52,8 +52,7 @@ where
 }
 
 #[async_trait]
-pub trait S3PolicyEngine<E>:
-    Send + Sync + S3IamPolicyEngine<E> + S3BucketPolicyEngine<E>
+pub trait S3PolicyEngine<E>: Send + Sync + S3IamPolicyEngine<E> + S3BucketPolicyEngine<E>
 where
     E: StdError,
 {

@@ -17,7 +17,5 @@ pub use chunked::{
 pub use sse::{
     ParsedServerSideEncryption, SseCustomerHeaders, SseKmsHeaders, validate_sse_headers,
 };
-pub use stream::{
-    RequestValidationPlan, RequestValidationResult, ValidatingRequestStream,
-};
+pub use stream::{RequestValidationPlan, RequestValidationResult, ValidatingRequestStream};
 pub use trailer::{DeclaredTrailerNames, ParsedTrailerHeaders, parse_declared_trailer_names};

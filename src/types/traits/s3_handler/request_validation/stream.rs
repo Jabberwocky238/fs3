@@ -97,10 +97,7 @@ impl ValidatingRequestStream {
 impl Stream for ValidatingRequestStream {
     type Item = Result<Bytes, io::Error>;
 
-    fn poll_next(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<Self::Item>> {
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         match self.inner.as_mut().poll_next(cx) {
             Poll::Ready(Some(Ok(chunk))) => {
                 self.update_digests(&chunk);
@@ -150,10 +147,7 @@ impl ChecksumState {
                 expected,
                 hasher: Crc32Hasher::new(),
             },
-            ChecksumAlgorithm::Crc32c => Self::Crc32c {
-                expected,
-                state: 0,
-            },
+            ChecksumAlgorithm::Crc32c => Self::Crc32c { expected, state: 0 },
         }
     }
 
@@ -175,17 +169,18 @@ impl ChecksumState {
 
     fn finalize(self) -> (ChecksumExpectation, String) {
         match self {
-            Self::Sha256 { expected, hasher } => (expected, STANDARD.encode({
-                use sha2::Digest as _;
-                hasher.finalize()
-            })),
+            Self::Sha256 { expected, hasher } => (
+                expected,
+                STANDARD.encode({
+                    use sha2::Digest as _;
+                    hasher.finalize()
+                }),
+            ),
             Self::Sha1 { expected, hasher } => (expected, STANDARD.encode(hasher.finalize())),
             Self::Crc32 { expected, hasher } => {
                 (expected, STANDARD.encode(hasher.finalize().to_be_bytes()))
             }
-            Self::Crc32c { expected, state } => {
-                (expected, STANDARD.encode(state.to_be_bytes()))
-            }
+            Self::Crc32c { expected, state } => (expected, STANDARD.encode(state.to_be_bytes())),
         }
     }
 

@@ -1,16 +1,16 @@
-﻿use chrono::SecondsFormat;
-use thiserror::Error;
- use crate::types::traits::s3_policyengine::{PolicyEffect, PolicyEvalContext};
 use crate::types::FS3Error;
 use crate::types::s3::core::{
-    BucketFeatures, CompleteMultipartInput, DeleteObjectOptions, ListOptions,
-    ObjectWriteOptions, StorageClass, UploadedPart, VersioningState,
+    BucketFeatures, CompleteMultipartInput, DeleteObjectOptions, ListOptions, ObjectWriteOptions,
+    StorageClass, UploadedPart, VersioningState,
 };
-use crate::types::traits::StdError;
 use crate::types::s3::policy::S3Action;
 use crate::types::s3::request::*;
 use crate::types::s3::response::*;
+use crate::types::traits::StdError;
 use crate::types::traits::s3_policyengine::S3PolicyEngine;
+use crate::types::traits::s3_policyengine::{PolicyEffect, PolicyEvalContext};
+use chrono::SecondsFormat;
+use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum S3HandlerBridgeError {
@@ -106,7 +106,11 @@ pub fn to_list_opt(query: &ListQuery, include_metadata: bool) -> ListOptions {
     }
 }
 
-pub fn to_write_opt(content_type: Option<String>, size: u64, user_metadata: std::collections::HashMap<String, String>) -> ObjectWriteOptions {
+pub fn to_write_opt(
+    content_type: Option<String>,
+    size: u64,
+    user_metadata: std::collections::HashMap<String, String>,
+) -> ObjectWriteOptions {
     ObjectWriteOptions {
         content_type,
         content_encoding: None,
@@ -119,6 +123,9 @@ pub fn to_write_opt(content_type: Option<String>, size: u64, user_metadata: std:
         legal_hold: None,
         sse_algorithm: None,
         size,
+        copy_source_version_id: None,
+        metadata_directive: None,
+        tagging_directive: None,
     }
 }
 
@@ -136,7 +143,6 @@ pub fn bucket_features_for_create() -> BucketFeatures {
         object_lock_enabled: false,
     }
 }
-
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CopySourceRef {
@@ -255,7 +261,13 @@ pub fn extract_tag(src: &str, name: &str) -> Option<String> {
     let close = format!("</{name}>");
     let s = src.find(&open)? + open.len();
     let e = src[s..].find(&close)? + s;
-    Some(src[s..e].trim().trim_matches('"').trim_matches('\'').to_string())
+    Some(
+        src[s..e]
+            .trim()
+            .trim_matches('"')
+            .trim_matches('\'')
+            .to_string(),
+    )
 }
 
 pub fn parse_delete_keys(xml: &str) -> Vec<String> {
@@ -311,6 +323,9 @@ mod tests {
         assert_eq!(opt.copy_source_version_id.as_deref(), Some("ver-1"));
         assert_eq!(opt.content_type.as_deref(), Some("text/plain"));
         assert_eq!(opt.content_encoding.as_deref(), Some("gzip"));
-        assert_eq!(opt.user_metadata.get("color").map(String::as_str), Some("blue"));
+        assert_eq!(
+            opt.user_metadata.get("color").map(String::as_str),
+            Some("blue")
+        );
     }
 }

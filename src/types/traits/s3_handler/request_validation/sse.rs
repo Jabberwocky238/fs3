@@ -28,8 +28,7 @@ pub fn validate_sse_headers(
     let sse = header_value(headers, "x-amz-server-side-encryption")?;
     let sse_customer_algorithm =
         header_value(headers, "x-amz-server-side-encryption-customer-algorithm")?;
-    let sse_customer_key =
-        header_value(headers, "x-amz-server-side-encryption-customer-key")?;
+    let sse_customer_key = header_value(headers, "x-amz-server-side-encryption-customer-key")?;
     let sse_customer_key_md5 =
         header_value(headers, "x-amz-server-side-encryption-customer-key-md5")?;
     let kms_key_id = header_value(headers, "x-amz-server-side-encryption-aws-kms-key-id")?;
@@ -53,8 +52,8 @@ pub fn validate_sse_headers(
         }
         let key_base64 =
             sse_customer_key.ok_or_else(|| FS3Error::bad_request("Missing SSE-C key"))?;
-        let key_md5_base64 = sse_customer_key_md5
-            .ok_or_else(|| FS3Error::bad_request("Missing SSE-C key MD5"))?;
+        let key_md5_base64 =
+            sse_customer_key_md5.ok_or_else(|| FS3Error::bad_request("Missing SSE-C key MD5"))?;
         return Ok(Some(ParsedServerSideEncryption::Customer(
             SseCustomerHeaders {
                 algorithm,

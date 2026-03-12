@@ -1,4 +1,3 @@
-
 use async_trait::async_trait;
 
 use crate::types::FS3Error;
@@ -28,7 +27,6 @@ pub trait BucketS3Handler: Send + Sync {
         &self,
         req: GetBucketLocationRequest,
     ) -> Result<GetBucketLocationResponse, FS3Error> {
-
         let location = self
             .engine()
             .get_bucket_location(&req.bucket.bucket)
@@ -43,11 +41,7 @@ pub trait BucketS3Handler: Send + Sync {
         &self,
         req: GetBucketPolicyRequest,
     ) -> Result<GetBucketPolicyResponse, FS3Error> {
-
-        let p = self
-            .policy()
-            .get_bucket_policy(&req.bucket.bucket)
-            .await?;
+        let p = self.policy().get_bucket_policy(&req.bucket.bucket).await?;
         Ok(GetBucketPolicyResponse {
             config: p.unwrap_or_default(),
             ..Default::default()
@@ -58,7 +52,6 @@ pub trait BucketS3Handler: Send + Sync {
         &self,
         req: PutBucketPolicyRequest,
     ) -> Result<PutBucketPolicyResponse, FS3Error> {
-
         self.policy()
             .put_bucket_policy(&req.bucket.bucket, &req.json)
             .await?;
@@ -69,7 +62,6 @@ pub trait BucketS3Handler: Send + Sync {
         &self,
         req: DeleteBucketPolicyRequest,
     ) -> Result<DeleteBucketPolicyResponse, FS3Error> {
-
         self.policy()
             .delete_bucket_policy(&req.bucket.bucket)
             .await?;
@@ -80,11 +72,7 @@ pub trait BucketS3Handler: Send + Sync {
         &self,
         req: GetBucketPolicyStatusRequest,
     ) -> Result<GetBucketPolicyStatusResponse, FS3Error> {
-
-        let p = self
-            .policy()
-            .get_bucket_policy(&req.bucket.bucket)
-            .await?;
+        let p = self.policy().get_bucket_policy(&req.bucket.bucket).await?;
         let is_public = p
             .as_ref()
             .map(|d| d.to_ascii_lowercase().contains("\"effect\":\"allow\""))
@@ -99,7 +87,6 @@ pub trait BucketS3Handler: Send + Sync {
         &self,
         req: ListMultipartUploadsRequest,
     ) -> Result<ListMultipartUploadsResponse, FS3Error> {
-
         let uploads = self
             .engine()
             .list_multipart_uploads(&req.bucket.bucket, to_list_opt(&req.query, false))
@@ -121,7 +108,6 @@ pub trait BucketS3Handler: Send + Sync {
         &self,
         req: ListObjectsV2MRequest,
     ) -> Result<ListObjectsV2MResponse, FS3Error> {
-
         let p = self
             .engine()
             .list_objects_v2(&req.bucket.bucket, to_list_opt(&req.query, req.metadata))
@@ -136,7 +122,6 @@ pub trait BucketS3Handler: Send + Sync {
         &self,
         req: ListObjectsV2Request,
     ) -> Result<ListObjectsV2Response, FS3Error> {
-
         let p = self
             .engine()
             .list_objects_v2(&req.bucket.bucket, to_list_opt(&req.query, false))
@@ -151,7 +136,6 @@ pub trait BucketS3Handler: Send + Sync {
         &self,
         req: ListObjectVersionsMRequest,
     ) -> Result<ListObjectVersionsMResponse, FS3Error> {
-
         let p = self
             .engine()
             .list_object_versions(&req.bucket.bucket, to_list_opt(&req.query, req.metadata))
@@ -166,7 +150,6 @@ pub trait BucketS3Handler: Send + Sync {
         &self,
         req: ListObjectVersionsRequest,
     ) -> Result<ListObjectVersionsResponse, FS3Error> {
-
         let p = self
             .engine()
             .list_object_versions(&req.bucket.bucket, to_list_opt(&req.query, false))
@@ -181,7 +164,6 @@ pub trait BucketS3Handler: Send + Sync {
         &self,
         req: ListObjectsV1Request,
     ) -> Result<ListObjectsV1Response, FS3Error> {
-
         let p = self
             .engine()
             .list_objects_v1(&req.bucket.bucket, to_list_opt(&req.query, false))
@@ -193,7 +175,6 @@ pub trait BucketS3Handler: Send + Sync {
     }
 
     async fn put_bucket(&self, req: PutBucketRequest) -> Result<PutBucketResponse, FS3Error> {
-
         let _ = self
             .engine()
             .make_bucket(
@@ -206,7 +187,6 @@ pub trait BucketS3Handler: Send + Sync {
     }
 
     async fn head_bucket(&self, req: HeadBucketRequest) -> Result<HeadBucketResponse, FS3Error> {
-
         let _ = self.engine().head_bucket(&req.bucket.bucket).await?;
         Ok(Default::default())
     }
@@ -215,7 +195,6 @@ pub trait BucketS3Handler: Send + Sync {
         &self,
         req: DeleteMultipleObjectsRequest,
     ) -> Result<DeleteMultipleObjectsResponse, FS3Error> {
-
         if req.payload.keys.is_empty() {
             return Err(S3HandlerBridgeError::InvalidRequest(
                 "DeleteMultipleObjects payload has no <Key>".to_string(),
@@ -245,7 +224,6 @@ pub trait BucketS3Handler: Send + Sync {
         &self,
         req: DeleteBucketRequest,
     ) -> Result<DeleteBucketResponse, FS3Error> {
-
         self.engine()
             .delete_bucket(&req.bucket.bucket, false)
             .await?;

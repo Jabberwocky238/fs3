@@ -1,7 +1,7 @@
-use axum::http::StatusCode;
-use axum::response::{IntoResponse, Response};
 use super::response::S3Response;
 use super::response_to_xml_impl::XMLResponse;
+use axum::http::StatusCode;
+use axum::response::{IntoResponse, Response};
 
 impl IntoResponse for S3Response {
     fn into_response(self) -> Response {
@@ -44,7 +44,9 @@ impl IntoResponse for S3Response {
                         }
                     }
                     for (k, v) in &obj.user_defined {
-                        if let Ok(header_name) = format!("x-amz-meta-{}", k).parse::<axum::http::HeaderName>() {
+                        if let Ok(header_name) =
+                            format!("x-amz-meta-{}", k).parse::<axum::http::HeaderName>()
+                        {
                             if let Ok(val) = v.parse::<axum::http::HeaderValue>() {
                                 headers.insert(header_name, val);
                             }
@@ -102,14 +104,22 @@ impl IntoResponse for S3Response {
             S3Response::SelectObjectContent(r) => (StatusCode::OK, r.payload).into_response(),
 
             // JSON response
-            S3Response::GetBucketPolicy(r) => {
-                (StatusCode::OK, [("content-type", "application/json")], r.config.clone()).into_response()
-            }
+            S3Response::GetBucketPolicy(r) => (
+                StatusCode::OK,
+                [("content-type", "application/json")],
+                r.config.clone(),
+            )
+                .into_response(),
 
             // XML responses
             _ => {
                 if let Some(xml_resp) = Option::<XMLResponse>::from(&self) {
-                    (StatusCode::OK, [("content-type", "application/xml")], xml_resp.body).into_response()
+                    (
+                        StatusCode::OK,
+                        [("content-type", "application/xml")],
+                        xml_resp.body,
+                    )
+                        .into_response()
                 } else {
                     StatusCode::OK.into_response()
                 }

@@ -1,7 +1,7 @@
 use super::msgpack_compat::{MsgpackReader, MsgpackWriter};
 use super::xl_meta_v2_shallow_version::XlMetaV2ShallowVersion;
 use super::xl_meta_v2_version_header::XlMetaV2VersionHeader;
-use rmpv::{decode::read_value, Value};
+use rmpv::{Value, decode::read_value};
 use std::io::Cursor;
 
 pub type XlMetaInlineData = Vec<u8>;
@@ -143,7 +143,7 @@ impl From<XlMetaV2> for Vec<u8> {
 
         // Update bin32 size
         let data_size = (result.len() - data_offset) as u32;
-        result[data_offset-4..data_offset].copy_from_slice(&data_size.to_be_bytes());
+        result[data_offset - 4..data_offset].copy_from_slice(&data_size.to_be_bytes());
 
         // Add CRC (muint32)
         let crc = xxhash_rust::xxh64::xxh64(&result[data_offset..], 0) as u32;
@@ -158,10 +158,3 @@ impl From<XlMetaV2> for Vec<u8> {
         result
     }
 }
-
-
-
-
-
-
-

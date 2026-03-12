@@ -17,7 +17,11 @@ async fn test_bucket_replication() {
     let _rep = client.get_bucket_replication(bucket).send().await.unwrap();
 
     // DELETE
-    client.delete_bucket_replication(bucket).send().await.unwrap();
+    client
+        .delete_bucket_replication(bucket)
+        .send()
+        .await
+        .unwrap();
 
     client.delete_bucket(bucket).send().await.unwrap();
     handle.abort();

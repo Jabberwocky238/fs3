@@ -4,9 +4,9 @@ use chrono::{DateTime, Utc};
 use serde::Deserialize;
 
 use crate::types::s3::core::{
-    BucketEncryption, BucketObjectLockConfig, BucketReplication, BucketVersioning,
-    BucketWebsite, CompleteMultipartInput, CorsConfiguration, ObjectLegalHold, ObjectLockMode,
-    ObjectRetention, UploadedPart,
+    BucketEncryption, BucketObjectLockConfig, BucketReplication, BucketVersioning, BucketWebsite,
+    CompleteMultipartInput, CorsConfiguration, ObjectLegalHold, ObjectLockMode, ObjectRetention,
+    UploadedPart,
 };
 
 use crate::types::traits::s3_handler::S3HandlerBridgeError;
@@ -60,7 +60,9 @@ pub struct RestoreObjectInput {
     pub tier: Option<String>,
 }
 
-pub fn parse_access_control_policy(xml: &str) -> Result<AccessControlPolicyInput, S3HandlerBridgeError> {
+pub fn parse_access_control_policy(
+    xml: &str,
+) -> Result<AccessControlPolicyInput, S3HandlerBridgeError> {
     #[derive(Deserialize)]
     struct AccessControlPolicyXml {
         #[serde(rename = "Owner")]
@@ -115,8 +117,14 @@ pub fn parse_access_control_policy(xml: &str) -> Result<AccessControlPolicyInput
                     .into_iter()
                     .map(|grant| AccessControlGrantInput {
                         permission: grant.permission,
-                        grantee_uri: grant.grantee.as_ref().and_then(|grantee| grantee.uri.clone()),
-                        grantee_id: grant.grantee.as_ref().and_then(|grantee| grantee.id.clone()),
+                        grantee_uri: grant
+                            .grantee
+                            .as_ref()
+                            .and_then(|grantee| grantee.uri.clone()),
+                        grantee_id: grant
+                            .grantee
+                            .as_ref()
+                            .and_then(|grantee| grantee.id.clone()),
                         grantee_display_name: grant
                             .grantee
                             .as_ref()
@@ -180,7 +188,11 @@ pub fn parse_delete_objects(xml: &str) -> Result<DeleteObjectsInputXml, S3Handle
         quick_xml::de::from_str(xml).map_err(|e| S3HandlerBridgeError::XmlParse(e.to_string()))?;
     Ok(DeleteObjectsInputXml {
         quiet: parsed.quiet.unwrap_or(false),
-        keys: parsed.objects.into_iter().map(|object| object.key).collect(),
+        keys: parsed
+            .objects
+            .into_iter()
+            .map(|object| object.key)
+            .collect(),
     })
 }
 
@@ -236,7 +248,9 @@ pub fn parse_retention(xml: &str) -> Result<ObjectRetention, S3HandlerBridgeErro
         }
     };
     let retain_until = DateTime::parse_from_rfc3339(&parsed.retain_until_date)
-        .map_err(|e| S3HandlerBridgeError::InvalidRequest(format!("invalid retain-until date: {e}")))?
+        .map_err(|e| {
+            S3HandlerBridgeError::InvalidRequest(format!("invalid retain-until date: {e}"))
+        })?
         .with_timezone(&Utc);
     Ok(ObjectRetention { mode, retain_until })
 }
@@ -288,7 +302,9 @@ pub fn parse_lifecycle(xml: &str) -> Result<Vec<LifecycleRuleInput>, S3HandlerBr
         .map(|rule| LifecycleRuleInput {
             id: rule.id,
             status: rule.status,
-            prefix: rule.prefix.or_else(|| rule.filter.and_then(|filter| filter.prefix)),
+            prefix: rule
+                .prefix
+                .or_else(|| rule.filter.and_then(|filter| filter.prefix)),
         })
         .collect())
 }
@@ -379,9 +395,9 @@ pub fn parse_versioning(xml: &str) -> Result<BucketVersioning, S3HandlerBridgeEr
     let parsed: VersioningConfigurationXml =
         quick_xml::de::from_str(xml).map_err(|e| S3HandlerBridgeError::XmlParse(e.to_string()))?;
     Ok(BucketVersioning {
-        status: parsed
-            .status
-            .ok_or_else(|| S3HandlerBridgeError::InvalidVersioningStatus("missing status".to_string()))?,
+        status: parsed.status.ok_or_else(|| {
+            S3HandlerBridgeError::InvalidVersioningStatus("missing status".to_string())
+        })?,
         mfa_delete: parsed.mfa_delete,
     })
 }
@@ -460,7 +476,11 @@ pub fn parse_notification(xml: &str) -> Result<Vec<NotificationConfigInput>, S3H
         .chain(parsed.queues)
         .chain(parsed.functions)
         .map(|item| NotificationConfigInput {
-            target_arn: item.topic.or(item.queue).or(item.cloud_function).unwrap_or_default(),
+            target_arn: item
+                .topic
+                .or(item.queue)
+                .or(item.cloud_function)
+                .unwrap_or_default(),
             events: item.events,
         })
         .collect())
@@ -492,7 +512,9 @@ pub fn parse_website(xml: &str) -> Result<BucketWebsite, S3HandlerBridgeError> {
     Ok(BucketWebsite {
         index_document: parsed
             .index_document
-            .ok_or_else(|| S3HandlerBridgeError::InvalidRequest("missing index document".to_string()))?
+            .ok_or_else(|| {
+                S3HandlerBridgeError::InvalidRequest("missing index document".to_string())
+            })?
             .suffix,
         error_document: parsed.error_document.map(|item| item.key),
     })

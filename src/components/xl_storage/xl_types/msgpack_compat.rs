@@ -1,5 +1,5 @@
 use rmp::encode::*;
-use rmpv::{decode::read_value, Value};
+use rmpv::{Value, decode::read_value};
 use std::io::Cursor;
 
 pub struct MsgpackWriter {
@@ -182,7 +182,8 @@ impl MsgpackReader {
     }
 
     pub fn get_str(&self, key: &str) -> Option<String> {
-        self.map.iter()
+        self.map
+            .iter()
             .find(|(k, _)| k.as_str() == Some(key))
             .and_then(|(_, v)| v.as_str())
             .filter(|s| !s.is_empty())
@@ -190,31 +191,37 @@ impl MsgpackReader {
     }
 
     pub fn get_i64(&self, key: &str) -> Option<i64> {
-        self.map.iter()
+        self.map
+            .iter()
             .find(|(k, _)| k.as_str() == Some(key))
             .and_then(|(_, v)| v.as_i64())
     }
 
     pub fn get_u8(&self, key: &str) -> Option<u8> {
-        self.map.iter()
+        self.map
+            .iter()
             .find(|(k, _)| k.as_str() == Some(key))
             .and_then(|(_, v)| v.as_u64())
             .map(|v| v as u8)
     }
 
     pub fn get_bytes(&self, key: &str) -> Option<Vec<u8>> {
-        self.map.iter()
+        self.map
+            .iter()
             .find(|(k, _)| k.as_str() == Some(key))
             .and_then(|(_, v)| v.as_slice())
             .map(|s| s.to_vec())
     }
 
     pub fn get_go_time(&self, key: &str) -> Option<i64> {
-        self.map.iter()
+        self.map
+            .iter()
             .find(|(k, _)| k.as_str() == Some(key))
             .and_then(|(_, v)| {
                 if let Value::Ext(_, data) = v {
-                    Some(i64::from_be_bytes(data[data.len()-8..].try_into().unwrap()))
+                    Some(i64::from_be_bytes(
+                        data[data.len() - 8..].try_into().unwrap(),
+                    ))
                 } else {
                     None
                 }
@@ -222,11 +229,16 @@ impl MsgpackReader {
     }
 
     pub fn get_i32_array(&self, key: &str) -> Option<Vec<i32>> {
-        self.map.iter()
+        self.map
+            .iter()
             .find(|(k, _)| k.as_str() == Some(key))
             .and_then(|(_, v)| {
                 if let Value::Array(arr) = v {
-                    Some(arr.iter().filter_map(|v| v.as_i64().map(|i| i as i32)).collect())
+                    Some(
+                        arr.iter()
+                            .filter_map(|v| v.as_i64().map(|i| i as i32))
+                            .collect(),
+                    )
                 } else {
                     None
                 }
@@ -234,7 +246,8 @@ impl MsgpackReader {
     }
 
     pub fn get_i64_array(&self, key: &str) -> Option<Vec<i64>> {
-        self.map.iter()
+        self.map
+            .iter()
             .find(|(k, _)| k.as_str() == Some(key))
             .and_then(|(_, v)| {
                 if let Value::Array(arr) = v {
@@ -246,11 +259,16 @@ impl MsgpackReader {
     }
 
     pub fn get_str_array(&self, key: &str) -> Option<Vec<String>> {
-        self.map.iter()
+        self.map
+            .iter()
             .find(|(k, _)| k.as_str() == Some(key))
             .and_then(|(_, v)| {
                 if let Value::Array(arr) = v {
-                    Some(arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
+                    Some(
+                        arr.iter()
+                            .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                            .collect(),
+                    )
                 } else {
                     None
                 }
@@ -258,11 +276,16 @@ impl MsgpackReader {
     }
 
     pub fn get_u8_array(&self, key: &str) -> Option<Vec<u8>> {
-        self.map.iter()
+        self.map
+            .iter()
             .find(|(k, _)| k.as_str() == Some(key))
             .and_then(|(_, v)| {
                 if let Value::Array(arr) = v {
-                    Some(arr.iter().filter_map(|v| v.as_u64().map(|i| i as u8)).collect())
+                    Some(
+                        arr.iter()
+                            .filter_map(|v| v.as_u64().map(|i| i as u8))
+                            .collect(),
+                    )
                 } else {
                     None
                 }
@@ -270,15 +293,18 @@ impl MsgpackReader {
     }
 
     pub fn get_map(&self, key: &str) -> Option<Vec<(String, String)>> {
-        self.map.iter()
+        self.map
+            .iter()
             .find(|(k, _)| k.as_str() == Some(key))
             .and_then(|(_, v)| {
                 if let Value::Map(m) = v {
-                    Some(m.iter()
-                        .filter_map(|(k, v)| {
-                            Some((k.as_str()?.to_string(), v.as_str()?.to_string()))
-                        })
-                        .collect())
+                    Some(
+                        m.iter()
+                            .filter_map(|(k, v)| {
+                                Some((k.as_str()?.to_string(), v.as_str()?.to_string()))
+                            })
+                            .collect(),
+                    )
                 } else {
                     None
                 }
@@ -286,15 +312,18 @@ impl MsgpackReader {
     }
 
     pub fn get_bytes_map(&self, key: &str) -> Option<Vec<(String, Vec<u8>)>> {
-        self.map.iter()
+        self.map
+            .iter()
             .find(|(k, _)| k.as_str() == Some(key))
             .and_then(|(_, v)| {
                 if let Value::Map(m) = v {
-                    Some(m.iter()
-                        .filter_map(|(k, v)| {
-                            Some((k.as_str()?.to_string(), v.as_slice()?.to_vec()))
-                        })
-                        .collect())
+                    Some(
+                        m.iter()
+                            .filter_map(|(k, v)| {
+                                Some((k.as_str()?.to_string(), v.as_slice()?.to_vec()))
+                            })
+                            .collect(),
+                    )
                 } else {
                     None
                 }

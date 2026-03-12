@@ -18,7 +18,9 @@ pub struct ParsedTrailerHeaders {
     pub headers: HashMap<String, String>,
 }
 
-pub fn parse_declared_trailer_names(value: Option<&str>) -> Result<Option<DeclaredTrailerNames>, FS3Error> {
+pub fn parse_declared_trailer_names(
+    value: Option<&str>,
+) -> Result<Option<DeclaredTrailerNames>, FS3Error> {
     let Some(value) = value else {
         return Ok(None);
     };
@@ -38,7 +40,8 @@ pub fn parse_trailer_block(
     block: &[u8],
     declared: Option<&DeclaredTrailerNames>,
 ) -> Result<ParsedTrailerHeaders, FS3Error> {
-    let text = std::str::from_utf8(block).map_err(|_| FS3Error::bad_request("Invalid trailer block"))?;
+    let text =
+        std::str::from_utf8(block).map_err(|_| FS3Error::bad_request("Invalid trailer block"))?;
     let mut headers = HashMap::new();
     for line in text.split("\r\n").filter(|line| !line.is_empty()) {
         let Some((name, value)) = line.split_once(':') else {

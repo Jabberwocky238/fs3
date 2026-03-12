@@ -1,9 +1,10 @@
+use crate::types::traits::StdError;
 use crate::types::traits::storage_api::{
     StorageBucketConfig, StorageFile, StorageMetadata, StorageObjectConfig, StorageVolume,
 };
-use crate::types::traits::StdError;
 
-pub trait StorageDataAPI<E>: StorageVolume<E> + StorageMetadata<E> + StorageFile<E> + Send + Sync
+pub trait StorageDataAPI<E>:
+    StorageVolume<E> + StorageMetadata<E> + StorageFile<E> + Send + Sync
 where
     E: StdError,
 {
@@ -16,7 +17,8 @@ where
 {
 }
 
-pub trait StorageConfigAPI<E>: StorageBucketConfig<E> + StorageObjectConfig<E> + Send + Sync
+pub trait StorageConfigAPI<E>:
+    StorageBucketConfig<E> + StorageObjectConfig<E> + Send + Sync
 where
     E: StdError,
 {

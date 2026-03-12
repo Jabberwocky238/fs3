@@ -8,8 +8,8 @@ fn main() {
         return;
     }
 
-    let go_src_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap())
-        .join("k8s-configmap-lib");
+    let go_src_dir =
+        PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap()).join("k8s-configmap-lib");
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
 
     if cfg!(target_os = "windows") {

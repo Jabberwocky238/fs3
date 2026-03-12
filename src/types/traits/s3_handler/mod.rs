@@ -18,9 +18,9 @@ mod utils;
 // mod object_retention;
 // mod object_legal_hold;
 
+use crate::types::FS3Error;
 use crate::types::s3::request::*;
 use crate::types::s3::response::*;
-use crate::types::FS3Error;
 use crate::types::traits::s3_engine::S3BucketEngine;
 use crate::types::traits::s3_policyengine::S3PolicyEngine;
 pub use utils::S3HandlerBridgeError;
@@ -59,8 +59,7 @@ pub trait S3Handler:
     + RejectedS3Handler
 {
 }
-impl<T> S3Handler for T
-where
+impl<T> S3Handler for T where
     T: ObjectS3Handler<FS3Error>
         + BucketS3Handler
         // + BucketLifecycleS3Handler
@@ -76,7 +75,7 @@ where
         // + ObjectRetentionS3Handler
         // + ObjectLegalHoldS3Handler
         + RootS3Handler
-        + RejectedS3Handler,
+        + RejectedS3Handler
 {
 }
 
@@ -89,28 +88,51 @@ pub trait RootS3Handler: Send + Sync {
     fn engine(&self) -> &Self::Engine;
     fn policy(&self) -> &Self::Policy;
 
-    async fn root_listen_notification(&self, _req: RootListenNotificationRequest) -> Result<RootListenNotificationResponse, FS3Error> {
+    async fn root_listen_notification(
+        &self,
+        _req: RootListenNotificationRequest,
+    ) -> Result<RootListenNotificationResponse, FS3Error> {
         utils::unsupported("RootListenNotification")
     }
 
-    async fn list_buckets(&self, _req: ListBucketsRequest) -> Result<ListBucketsResponse, FS3Error> {
+    async fn list_buckets(
+        &self,
+        _req: ListBucketsRequest,
+    ) -> Result<ListBucketsResponse, FS3Error> {
         let list = self.engine().list_buckets().await?;
         Ok(ListBucketsResponse {
-            buckets: list.into_iter().map(|b| BucketInfo {
-                name: b.identity.name,
-                creation_date: Some(b.identity.created_at.to_rfc3339_opts(SecondsFormat::Secs, true)),
-            }).collect(),
+            buckets: list
+                .into_iter()
+                .map(|b| BucketInfo {
+                    name: b.identity.name,
+                    creation_date: Some(
+                        b.identity
+                            .created_at
+                            .to_rfc3339_opts(SecondsFormat::Secs, true),
+                    ),
+                })
+                .collect(),
             ..Default::default()
         })
     }
 
-    async fn list_buckets_double_slash(&self, _req: ListBucketsDoubleSlashRequest) -> Result<ListBucketsDoubleSlashResponse, FS3Error> {
+    async fn list_buckets_double_slash(
+        &self,
+        _req: ListBucketsDoubleSlashRequest,
+    ) -> Result<ListBucketsDoubleSlashResponse, FS3Error> {
         let list = self.engine().list_buckets().await?;
         Ok(ListBucketsDoubleSlashResponse {
-            buckets: list.into_iter().map(|b| BucketInfo {
-                name: b.identity.name,
-                creation_date: Some(b.identity.created_at.to_rfc3339_opts(SecondsFormat::Secs, true)),
-            }).collect(),
+            buckets: list
+                .into_iter()
+                .map(|b| BucketInfo {
+                    name: b.identity.name,
+                    creation_date: Some(
+                        b.identity
+                            .created_at
+                            .to_rfc3339_opts(SecondsFormat::Secs, true),
+                    ),
+                })
+                .collect(),
             ..Default::default()
         })
     }
@@ -118,17 +140,26 @@ pub trait RootS3Handler: Send + Sync {
 
 #[async_trait]
 pub trait RejectedS3Handler: Send + Sync {
-    async fn rejected_object_torrent(&self, req: RejectedObjectTorrentRequest) -> Result<RejectedApiResponse, FS3Error> {
+    async fn rejected_object_torrent(
+        &self,
+        req: RejectedObjectTorrentRequest,
+    ) -> Result<RejectedApiResponse, FS3Error> {
         Ok(RejectedApiResponse {
             error: ErrorBody {
                 code: "NotImplemented".to_string(),
                 message: "Object torrent API is not implemented".to_string(),
-                resource: Some(format!("{}/{} {}", req.object.bucket, req.object.object, req.method)),
+                resource: Some(format!(
+                    "{}/{} {}",
+                    req.object.bucket, req.object.object, req.method
+                )),
             },
             ..Default::default()
         })
     }
-    async fn rejected_object_acl_delete(&self, req: RejectedObjectAclDeleteRequest) -> Result<RejectedApiResponse, FS3Error> {
+    async fn rejected_object_acl_delete(
+        &self,
+        req: RejectedObjectAclDeleteRequest,
+    ) -> Result<RejectedApiResponse, FS3Error> {
         Ok(RejectedApiResponse {
             error: ErrorBody {
                 code: "NotImplemented".to_string(),
@@ -138,7 +169,10 @@ pub trait RejectedS3Handler: Send + Sync {
             ..Default::default()
         })
     }
-    async fn rejected_bucket_api(&self, req: RejectedBucketApiRequest) -> Result<RejectedApiResponse, FS3Error> {
+    async fn rejected_bucket_api(
+        &self,
+        req: RejectedBucketApiRequest,
+    ) -> Result<RejectedApiResponse, FS3Error> {
         Ok(RejectedApiResponse {
             error: ErrorBody {
                 code: "NotImplemented".to_string(),

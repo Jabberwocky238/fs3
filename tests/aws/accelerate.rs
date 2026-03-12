@@ -12,5 +12,11 @@ async fn test_put_bucket_accelerate() {
         .status(BucketAccelerateStatus::Enabled)
         .build();
 
-    client.put_bucket_accelerate_configuration().bucket(&bucket).accelerate_configuration(config).send().await.unwrap();
+    client
+        .put_bucket_accelerate_configuration()
+        .bucket(&bucket)
+        .accelerate_configuration(config)
+        .send()
+        .await
+        .unwrap();
 }

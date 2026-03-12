@@ -1,4 +1,4 @@
-﻿use chrono::{DateTime, Utc};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::io;
@@ -6,7 +6,8 @@ use std::pin::Pin;
 
 pub type UserMetadata = HashMap<String, String>;
 pub type TagMap = HashMap<String, String>;
-pub type BoxByteStream = Pin<Box<dyn futures::Stream<Item = Result<bytes::Bytes, io::Error>> + Send>>;
+pub type BoxByteStream =
+    Pin<Box<dyn futures::Stream<Item = Result<bytes::Bytes, io::Error>> + Send>>;
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum VersioningState {
@@ -32,7 +33,6 @@ pub enum ReplicationState {
     Replica,
 }
 
-
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum StorageClass {
     #[default]
@@ -45,7 +45,6 @@ pub enum StorageClass {
     ReducedRedundancy,
     Custom(String),
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct BucketFeatures {
@@ -163,9 +162,6 @@ pub struct UploadedPart {
     pub part_number: u32,
     pub etag: String,
     pub size: u64,
-    pub copy_source_version_id: Option<String>,
-    pub metadata_directive: Option<String>,
-    pub tagging_directive: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -243,7 +239,9 @@ impl From<&crate::types::s3::request::HeadObjectRequest> for ObjectReadOptions {
         fn parse_range(s: &str) -> Option<(u64, u64)> {
             let s = s.strip_prefix("bytes=")?;
             let parts: Vec<&str> = s.split('-').collect();
-            if parts.len() != 2 { return None; }
+            if parts.len() != 2 {
+                return None;
+            }
             Some((parts[0].parse().ok()?, parts[1].parse().ok()?))
         }
         Self {
@@ -266,7 +264,9 @@ impl From<&crate::types::s3::request::GetObjectRequest> for ObjectReadOptions {
         fn parse_range(s: &str) -> Option<(u64, u64)> {
             let s = s.strip_prefix("bytes=")?;
             let parts: Vec<&str> = s.split('-').collect();
-            if parts.len() != 2 { return None; }
+            if parts.len() != 2 {
+                return None;
+            }
             Some((parts[0].parse().ok()?, parts[1].parse().ok()?))
         }
         Self {
@@ -289,7 +289,9 @@ impl From<&crate::types::s3::request::GetObjectLambdaRequest> for ObjectReadOpti
         fn parse_range(s: &str) -> Option<(u64, u64)> {
             let s = s.strip_prefix("bytes=")?;
             let parts: Vec<&str> = s.split('-').collect();
-            if parts.len() != 2 { return None; }
+            if parts.len() != 2 {
+                return None;
+            }
             Some((parts[0].parse().ok()?, parts[1].parse().ok()?))
         }
         Self {
@@ -431,5 +433,3 @@ pub struct BucketWebsite {
     pub index_document: String,
     pub error_document: Option<String>,
 }
-
-

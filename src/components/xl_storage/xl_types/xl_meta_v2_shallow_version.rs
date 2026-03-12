@@ -1,5 +1,5 @@
-use super::xl_meta_v2_version_header::XlMetaV2VersionHeader;
 use super::msgpack_compat::{MsgpackReader, MsgpackWriter};
+use super::xl_meta_v2_version_header::XlMetaV2VersionHeader;
 
 #[derive(Debug, Clone)]
 pub struct XlMetaV2ShallowVersion {

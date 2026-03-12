@@ -1,18 +1,17 @@
-mod util;
+mod handler;
 mod http_bucket;
 mod http_object;
 mod http_root;
-mod handler;
+mod util;
 
 use std::fmt::{Display, Formatter};
 use std::sync::Arc;
 
+use axum::Router;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use axum::Router;
 
 pub use handler::S3AxumHandler;
-
 
 use crate::types::traits::s3_handler::S3Handler;
 

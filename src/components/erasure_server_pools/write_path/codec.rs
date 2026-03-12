@@ -40,7 +40,10 @@ pub fn encode_object_into_shards(data: &[u8]) -> Result<ErasureWriteResultWithFr
         .encode(&mut shards)
         .map_err(|err| FS3Error::internal(err.to_string()))?;
 
-    let shard_frames = shards.iter().map(|shard| encode_bitrot_frames(shard)).collect();
+    let shard_frames = shards
+        .iter()
+        .map(|shard| encode_bitrot_frames(shard))
+        .collect();
     let shard_sizes = shards.iter().map(|shard| shard.len() as u64).collect();
 
     Ok(ErasureWriteResultWithFrames {

@@ -348,7 +348,13 @@ mod tests {
 
         let decoded = rmpv::decode::read_value(&mut Cursor::new(&encoded)).unwrap();
         let map = decoded.as_map().unwrap();
-        assert!(map.iter().any(|(k, v)| k.as_str() == Some("id") && v.as_str() == Some("disk-1")));
-        assert!(map.iter().any(|(k, v)| k.as_str() == Some("b") && v.as_slice() == Some(&[1, 2, 3][..])));
+        assert!(
+            map.iter()
+                .any(|(k, v)| k.as_str() == Some("id") && v.as_str() == Some("disk-1"))
+        );
+        assert!(
+            map.iter()
+                .any(|(k, v)| k.as_str() == Some("b") && v.as_slice() == Some(&[1, 2, 3][..]))
+        );
     }
 }

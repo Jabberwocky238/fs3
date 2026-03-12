@@ -10,7 +10,15 @@ async fn test_put_bucket_metrics() {
 
     let config = MetricsConfiguration::builder()
         .id("metrics1")
-        .build().unwrap();
+        .build()
+        .unwrap();
 
-    client.put_bucket_metrics_configuration().bucket(&bucket).id("metrics1").metrics_configuration(config).send().await.unwrap();
+    client
+        .put_bucket_metrics_configuration()
+        .bucket(&bucket)
+        .id("metrics1")
+        .metrics_configuration(config)
+        .send()
+        .await
+        .unwrap();
 }

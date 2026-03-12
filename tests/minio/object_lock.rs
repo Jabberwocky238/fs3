@@ -1,5 +1,5 @@
-use minio::s3::types::S3Api;
 use minio::s3::builders::ObjectContent;
+use minio::s3::types::S3Api;
 
 use super::helpers::{create_minio_client, create_minio_server};
 
@@ -11,7 +11,11 @@ async fn object_lock_test() {
     let key = "locked.txt";
 
     client.create_bucket(bucket).send().await.unwrap();
-    client.put_object_content(bucket, key, ObjectContent::from(b"data".as_ref())).send().await.unwrap();
+    client
+        .put_object_content(bucket, key, ObjectContent::from(b"data".as_ref()))
+        .send()
+        .await
+        .unwrap();
 
     // Legal Hold - 只测试设置，不验证返回
     let _ = client.put_object_legal_hold(bucket, key, true).send().await;

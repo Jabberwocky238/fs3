@@ -1,6 +1,6 @@
 use super::helpers::*;
-use minio::s3::types::S3Api;
 use minio::s3::builders::VersioningStatus;
+use minio::s3::types::S3Api;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn test_bucket_versioning() {
@@ -10,7 +10,12 @@ async fn test_bucket_versioning() {
 
     client.create_bucket(&bucket).send().await.unwrap();
 
-    client.put_bucket_versioning(&bucket).versioning_status(VersioningStatus::Enabled).send().await.unwrap();
+    client
+        .put_bucket_versioning(&bucket)
+        .versioning_status(VersioningStatus::Enabled)
+        .send()
+        .await
+        .unwrap();
 
     let _result = client.get_bucket_versioning(&bucket).send().await.unwrap();
 }

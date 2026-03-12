@@ -1,6 +1,6 @@
 use super::helpers::*;
-use aws_sdk_s3::types::{BucketVersioningStatus, VersioningConfiguration};
 use aws_sdk_s3::primitives::ByteStream;
+use aws_sdk_s3::types::{BucketVersioningStatus, VersioningConfiguration};
 
 #[tokio::test]
 async fn test_versioning_keeps_history() {
@@ -13,17 +13,59 @@ async fn test_versioning_keeps_history() {
         .status(BucketVersioningStatus::Enabled)
         .build();
 
-    client.put_bucket_versioning().bucket(&bucket).versioning_configuration(versioning).send().await.unwrap();
+    client
+        .put_bucket_versioning()
+        .bucket(&bucket)
+        .versioning_configuration(versioning)
+        .send()
+        .await
+        .unwrap();
 
     let key = "versioned-object";
-    client.put_object().bucket(&bucket).key(key).body(ByteStream::from_static(b"v1")).send().await.unwrap();
-    client.put_object().bucket(&bucket).key(key).body(ByteStream::from_static(b"v2")).send().await.unwrap();
-    client.put_object().bucket(&bucket).key(key).body(ByteStream::from_static(b"v3")).send().await.unwrap();
+    client
+        .put_object()
+        .bucket(&bucket)
+        .key(key)
+        .body(ByteStream::from_static(b"v1"))
+        .send()
+        .await
+        .unwrap();
+    client
+        .put_object()
+        .bucket(&bucket)
+        .key(key)
+        .body(ByteStream::from_static(b"v2"))
+        .send()
+        .await
+        .unwrap();
+    client
+        .put_object()
+        .bucket(&bucket)
+        .key(key)
+        .body(ByteStream::from_static(b"v3"))
+        .send()
+        .await
+        .unwrap();
 
-    let versions = client.list_object_versions().bucket(&bucket).send().await.unwrap();
+    let versions = client
+        .list_object_versions()
+        .bucket(&bucket)
+        .send()
+        .await
+        .unwrap();
     assert!(versions.versions().len() >= 3, "Must keep all 3 versions");
 
-    let latest = client.get_object().bucket(&bucket).key(key).send().await.unwrap();
+    let latest = client
+        .get_object()
+        .bucket(&bucket)
+        .key(key)
+        .send()
+        .await
+        .unwrap();
     let data = latest.body.collect().await.unwrap().to_vec();
-    assert_eq!(String::from_utf8(data).unwrap(), "v3", "Latest version must be v3");
+    assert_eq!(
+        String::from_utf8(data).unwrap(),
+        "v3",
+        "Latest version must be v3"
+    );
 }

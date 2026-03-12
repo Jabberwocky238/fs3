@@ -2,13 +2,16 @@ use async_trait::async_trait;
 
 use crate::types::FS3Error;
 use crate::types::traits::s3_engine::S3Engine;
-use crate::types::traits::s3_policyengine::S3PolicyEngine;
 use crate::types::traits::s3_handler::{
-    BucketS3Handler, ObjectS3Handler, RejectedS3Handler, RootS3Handler,
+    BucketS3Handler,
+    ObjectS3Handler,
+    RejectedS3Handler,
+    RootS3Handler,
     // BucketLifecycleS3Handler, BucketEncryptionS3Handler, BucketObjectLockS3Handler,
     // BucketVersioningS3Handler, BucketNotificationS3Handler, BucketReplicationS3Handler,
     // BucketTaggingS3Handler, BucketWebsiteS3Handler, BucketCorsS3Handler, ObjectTaggingS3Handler, ObjectRetentionS3Handler, ObjectLegalHoldS3Handler,
 };
+use crate::types::traits::s3_policyengine::S3PolicyEngine;
 
 pub struct S3AxumHandler<Engine: S3Engine<FS3Error>, Policy: S3PolicyEngine<FS3Error>> {
     pub engine: Engine,
@@ -29,8 +32,12 @@ where
 {
     type Engine = Engine;
     type Policy = Policy;
-    fn engine(&self) -> &Engine { &self.engine }
-    fn policy(&self) -> &Policy { &self.policy }
+    fn engine(&self) -> &Engine {
+        &self.engine
+    }
+    fn policy(&self) -> &Policy {
+        &self.policy
+    }
 }
 
 #[async_trait]
@@ -41,8 +48,12 @@ where
 {
     type Engine = Engine;
     type Policy = Policy;
-    fn engine(&self) -> &Engine { &self.engine }
-    fn policy(&self) -> &Policy { &self.policy }
+    fn engine(&self) -> &Engine {
+        &self.engine
+    }
+    fn policy(&self) -> &Policy {
+        &self.policy
+    }
 }
 
 #[async_trait]
@@ -53,8 +64,12 @@ where
 {
     type Engine = Engine;
     type Policy = Policy;
-    fn engine(&self) -> &Engine { &self.engine }
-    fn policy(&self) -> &Policy { &self.policy }
+    fn engine(&self) -> &Engine {
+        &self.engine
+    }
+    fn policy(&self) -> &Policy {
+        &self.policy
+    }
 }
 
 #[async_trait]

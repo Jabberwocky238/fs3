@@ -9,13 +9,23 @@ async fn test_cors_preflight() {
     client.create_bucket().bucket(&bucket).send().await.unwrap();
 
     let cors = CorsConfiguration::builder()
-        .cors_rules(CorsRule::builder()
-            .allowed_methods("GET")
-            .allowed_methods("OPTIONS")
-            .allowed_origins("https://example.com")
-            .allowed_headers("*")
-            .build().unwrap())
-        .build().unwrap();
+        .cors_rules(
+            CorsRule::builder()
+                .allowed_methods("GET")
+                .allowed_methods("OPTIONS")
+                .allowed_origins("https://example.com")
+                .allowed_headers("*")
+                .build()
+                .unwrap(),
+        )
+        .build()
+        .unwrap();
 
-    client.put_bucket_cors().bucket(&bucket).cors_configuration(cors).send().await.unwrap();
+    client
+        .put_bucket_cors()
+        .bucket(&bucket)
+        .cors_configuration(cors)
+        .send()
+        .await
+        .unwrap();
 }

@@ -1,6 +1,5 @@
-﻿use std::collections::HashMap;
-use crate::types::s3::core::ObjectAttribute;
 use crate::types::s3::core::BoxByteStream;
+use crate::types::s3::core::ObjectAttribute;
 use crate::types::s3::core::{
     BucketEncryption, BucketObjectLockConfig, BucketReplication, BucketVersioning, BucketWebsite,
     CompleteMultipartInput, CorsConfiguration, ObjectLegalHold, ObjectRetention,
@@ -9,6 +8,7 @@ use crate::types::s3::xml::{
     AccessControlPolicyInput, LifecycleRuleInput, NotificationConfigInput, RestoreObjectInput,
     SelectObjectContentInput,
 };
+use std::collections::HashMap;
 
 pub type HeaderMap = HashMap<String, String>;
 
@@ -573,4 +573,3 @@ pub enum S3Request {
     RejectedObjectAclDelete(RejectedObjectAclDeleteRequest),
     RejectedBucketApi(RejectedBucketApiRequest),
 }
-

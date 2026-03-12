@@ -13,12 +13,29 @@ async fn versioning_test() {
     client.create_bucket(bucket).send().await.unwrap();
 
     // 启用版本控制
-    client.put_bucket_versioning(bucket).versioning_status(VersioningStatus::Enabled).send().await.unwrap();
+    client
+        .put_bucket_versioning(bucket)
+        .versioning_status(VersioningStatus::Enabled)
+        .send()
+        .await
+        .unwrap();
 
     // 上传多个版本
-    client.put_object_content(bucket, key, ObjectContent::from(b"v1".as_ref())).send().await.unwrap();
-    client.put_object_content(bucket, key, ObjectContent::from(b"v2".as_ref())).send().await.unwrap();
-    client.put_object_content(bucket, key, ObjectContent::from(b"v3".as_ref())).send().await.unwrap();
+    client
+        .put_object_content(bucket, key, ObjectContent::from(b"v1".as_ref()))
+        .send()
+        .await
+        .unwrap();
+    client
+        .put_object_content(bucket, key, ObjectContent::from(b"v2".as_ref()))
+        .send()
+        .await
+        .unwrap();
+    client
+        .put_object_content(bucket, key, ObjectContent::from(b"v3".as_ref()))
+        .send()
+        .await
+        .unwrap();
 
     // 获取最新版本
     let resp = client.get_object(bucket, key).send().await.unwrap();

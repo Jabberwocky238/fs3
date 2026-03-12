@@ -13,14 +13,17 @@ async fn test_put_bucket_website() {
             aws_sdk_s3::types::IndexDocument::builder()
                 .suffix("index.html")
                 .build()
-                .unwrap()
+                .unwrap(),
         )
         .build();
 
-    client.put_bucket_website()
+    client
+        .put_bucket_website()
         .bucket(bucket)
         .website_configuration(website_config)
-        .send().await.unwrap();
+        .send()
+        .await
+        .unwrap();
 
     handle.abort();
 }
@@ -37,16 +40,24 @@ async fn test_get_bucket_website() {
             aws_sdk_s3::types::IndexDocument::builder()
                 .suffix("index.html")
                 .build()
-                .unwrap()
+                .unwrap(),
         )
         .build();
 
-    client.put_bucket_website()
+    client
+        .put_bucket_website()
         .bucket(bucket)
         .website_configuration(website_config)
-        .send().await.unwrap();
+        .send()
+        .await
+        .unwrap();
 
-    let result = client.get_bucket_website().bucket(bucket).send().await.unwrap();
+    let result = client
+        .get_bucket_website()
+        .bucket(bucket)
+        .send()
+        .await
+        .unwrap();
     assert_eq!(result.index_document().unwrap().suffix(), "index.html");
 
     handle.abort();

@@ -17,9 +17,7 @@ impl StreamingSignatureAlgorithm {
             "STREAMING-AWS4-HMAC-SHA256-PAYLOAD-TRAILER" => {
                 Some(Self::Aws4HmacSha256PayloadTrailer)
             }
-            "STREAMING-AWS4-ECDSA-P256-SHA256-PAYLOAD" => {
-                Some(Self::Aws4EcdsaP256Sha256Payload)
-            }
+            "STREAMING-AWS4-ECDSA-P256-SHA256-PAYLOAD" => Some(Self::Aws4EcdsaP256Sha256Payload),
             "STREAMING-AWS4-ECDSA-P256-SHA256-PAYLOAD-TRAILER" => {
                 Some(Self::Aws4EcdsaP256Sha256PayloadTrailer)
             }
@@ -35,9 +33,7 @@ pub struct AwsChunkedUpload {
     pub trailer: Option<String>,
 }
 
-pub fn parse_aws_chunked_upload(
-    headers: &HeaderMap,
-) -> Result<Option<AwsChunkedUpload>, FS3Error> {
+pub fn parse_aws_chunked_upload(headers: &HeaderMap) -> Result<Option<AwsChunkedUpload>, FS3Error> {
     let content_encoding = header_value(headers, "content-encoding")?;
     let Some(content_encoding) = content_encoding else {
         return Ok(None);

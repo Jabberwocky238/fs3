@@ -1,5 +1,5 @@
-use minio::s3::types::S3Api;
 use minio::s3::builders::ObjectContent;
+use minio::s3::types::S3Api;
 
 use super::helpers::{create_minio_client, create_minio_server};
 
@@ -12,7 +12,11 @@ async fn object_features_test() {
     let data = b"0123456789abcdefghij";
 
     client.create_bucket(bucket).send().await.unwrap();
-    client.put_object_content(bucket, key, ObjectContent::from(data.as_ref())).send().await.unwrap();
+    client
+        .put_object_content(bucket, key, ObjectContent::from(data.as_ref()))
+        .send()
+        .await
+        .unwrap();
 
     // 基本读取
     let resp = client.get_object(bucket, key).send().await.unwrap();

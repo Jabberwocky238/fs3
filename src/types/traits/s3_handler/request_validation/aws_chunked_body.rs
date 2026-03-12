@@ -42,7 +42,10 @@ impl AwsChunkedBodyDecodeResult {
     }
 
     pub fn decoded_bytes(&self) -> u64 {
-        self.inner.lock().map(|inner| inner.decoded_bytes).unwrap_or_default()
+        self.inner
+            .lock()
+            .map(|inner| inner.decoded_bytes)
+            .unwrap_or_default()
     }
 
     pub fn parsed_trailers(&self) -> Option<ParsedTrailerHeaders> {
@@ -66,7 +69,10 @@ pub struct DecodedAwsChunkedStream {
 }
 
 impl DecodedAwsChunkedStream {
-    pub fn new(inner: BoxByteStream, upload: &AwsChunkedUpload) -> Result<(Self, AwsChunkedBodyDecodeResult), FS3Error> {
+    pub fn new(
+        inner: BoxByteStream,
+        upload: &AwsChunkedUpload,
+    ) -> Result<(Self, AwsChunkedBodyDecodeResult), FS3Error> {
         let result = AwsChunkedBodyDecodeResult::new();
         let declared_trailers = parse_declared_trailer_names(upload.trailer.as_deref())?;
         Ok((
@@ -100,7 +106,9 @@ impl DecodedAwsChunkedStream {
             }
             let chunk = self.pending.split_to(self.current_chunk_remaining).freeze();
             if &self.pending[..2] != b"\r\n" {
-                return Err(FS3Error::bad_request("Invalid aws-chunked chunk terminator"));
+                return Err(FS3Error::bad_request(
+                    "Invalid aws-chunked chunk terminator",
+                ));
             }
             self.pending.advance(2);
             self.current_chunk_remaining = 0;
@@ -157,7 +165,7 @@ impl Stream for DecodedAwsChunkedStream {
                 Ok(None) if self.eof => {
                     return Poll::Ready(Some(Err(io::Error::other(
                         "Incomplete aws-chunked stream",
-                    ))))
+                    ))));
                 }
                 Ok(None) => {}
                 Err(err) => return Poll::Ready(Some(Err(io::Error::other(err.to_string())))),
@@ -174,5 +182,6 @@ impl Stream for DecodedAwsChunkedStream {
 }
 
 fn find_bytes(buf: &BytesMut, needle: &[u8]) -> Option<usize> {
-    buf.windows(needle.len()).position(|window| window == needle)
+    buf.windows(needle.len())
+        .position(|window| window == needle)
 }

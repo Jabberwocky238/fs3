@@ -24,8 +24,18 @@ mod tests {
     #[test]
     fn test_msgpack_go_compat() {
         let cases = vec![
-            (hex::decode("83a2706e01a16101a168c403010203").unwrap(), 1, BitrotAlgorithm::SHA256, vec![0x01, 0x02, 0x03]),
-            (hex::decode("83a2706e02a16102a168c404aabbccdd").unwrap(), 2, BitrotAlgorithm::HighwayHash256, vec![0xaa, 0xbb, 0xcc, 0xdd]),
+            (
+                hex::decode("83a2706e01a16101a168c403010203").unwrap(),
+                1,
+                BitrotAlgorithm::SHA256,
+                vec![0x01, 0x02, 0x03],
+            ),
+            (
+                hex::decode("83a2706e02a16102a168c404aabbccdd").unwrap(),
+                2,
+                BitrotAlgorithm::HighwayHash256,
+                vec![0xaa, 0xbb, 0xcc, 0xdd],
+            ),
         ];
 
         for (i, (bytes, pn, algo, hash)) in cases.into_iter().enumerate() {

@@ -65,7 +65,13 @@ impl From<Vec<u8>> for XlMetaV2Version {
             }
         }
 
-        Self { version_type, object_v1, object_v2, delete_marker, written_by_version }
+        Self {
+            version_type,
+            object_v1,
+            object_v2,
+            delete_marker,
+            written_by_version,
+        }
     }
 }
 

@@ -51,7 +51,9 @@ impl From<&ListBucketsResponse> for XMLResponse {
     fn from(r: &ListBucketsResponse) -> Self {
         let xml = ListBucketsXml {
             xmlns: "http://s3.amazonaws.com/doc/2006-03-01/",
-            buckets: BucketsWrapper { bucket: r.buckets.clone() },
+            buckets: BucketsWrapper {
+                bucket: r.buckets.clone(),
+            },
         };
         XMLResponse { body: to_xml(&xml) }
     }
@@ -72,7 +74,11 @@ struct ListObjectsXml {
 
 impl From<&ListObjectsV1Response> for XMLResponse {
     fn from(r: &ListObjectsV1Response) -> Self {
-        let name = r.objects.first().map(|o| o.bucket.clone()).unwrap_or_default();
+        let name = r
+            .objects
+            .first()
+            .map(|o| o.bucket.clone())
+            .unwrap_or_default();
         let xml = ListObjectsXml {
             xmlns: "http://s3.amazonaws.com/doc/2006-03-01/",
             name,
@@ -144,7 +150,9 @@ impl From<&CopyObjectResponse> for XMLResponse {
         let xml = CopyObjectXml {
             xmlns: "http://s3.amazonaws.com/doc/2006-03-01/",
             etag: obj.and_then(|o| o.etag.clone()).unwrap_or_default(),
-            last_modified: obj.and_then(|o| o.last_modified.clone()).unwrap_or_default(),
+            last_modified: obj
+                .and_then(|o| o.last_modified.clone())
+                .unwrap_or_default(),
         };
         XMLResponse { body: to_xml(&xml) }
     }
@@ -194,7 +202,14 @@ struct TagXml {
 
 impl From<&GetObjectTaggingResponse> for XMLResponse {
     fn from(r: &GetObjectTaggingResponse) -> Self {
-        let tags = r.tags.iter().map(|(k, v)| TagXml { key: k.clone(), value: v.clone() }).collect();
+        let tags = r
+            .tags
+            .iter()
+            .map(|(k, v)| TagXml {
+                key: k.clone(),
+                value: v.clone(),
+            })
+            .collect();
         let xml = TaggingXml {
             xmlns: "http://s3.amazonaws.com/doc/2006-03-01/",
             tag_set: TagSetWrapper { tags },
@@ -205,7 +220,14 @@ impl From<&GetObjectTaggingResponse> for XMLResponse {
 
 impl From<&GetBucketTaggingResponse> for XMLResponse {
     fn from(r: &GetBucketTaggingResponse) -> Self {
-        let tags = r.tags.iter().map(|(k, v)| TagXml { key: k.clone(), value: v.clone() }).collect();
+        let tags = r
+            .tags
+            .iter()
+            .map(|(k, v)| TagXml {
+                key: k.clone(),
+                value: v.clone(),
+            })
+            .collect();
         let xml = TaggingXml {
             xmlns: "http://s3.amazonaws.com/doc/2006-03-01/",
             tag_set: TagSetWrapper { tags },
@@ -297,7 +319,9 @@ impl From<&ListBucketsDoubleSlashResponse> for XMLResponse {
     fn from(r: &ListBucketsDoubleSlashResponse) -> Self {
         let xml = ListBucketsXml {
             xmlns: "http://s3.amazonaws.com/doc/2006-03-01/",
-            buckets: BucketsWrapper { bucket: r.buckets.clone() },
+            buckets: BucketsWrapper {
+                bucket: r.buckets.clone(),
+            },
         };
         XMLResponse { body: to_xml(&xml) }
     }
@@ -305,7 +329,11 @@ impl From<&ListBucketsDoubleSlashResponse> for XMLResponse {
 
 impl From<&ListObjectsV2Response> for XMLResponse {
     fn from(r: &ListObjectsV2Response) -> Self {
-        let name = r.objects.first().map(|o| o.bucket.clone()).unwrap_or_default();
+        let name = r
+            .objects
+            .first()
+            .map(|o| o.bucket.clone())
+            .unwrap_or_default();
         let xml = ListObjectsXml {
             xmlns: "http://s3.amazonaws.com/doc/2006-03-01/",
             name,
@@ -318,7 +346,11 @@ impl From<&ListObjectsV2Response> for XMLResponse {
 
 impl From<&ListObjectsV2MResponse> for XMLResponse {
     fn from(r: &ListObjectsV2MResponse) -> Self {
-        let name = r.objects.first().map(|o| o.bucket.clone()).unwrap_or_default();
+        let name = r
+            .objects
+            .first()
+            .map(|o| o.bucket.clone())
+            .unwrap_or_default();
         let xml = ListObjectsXml {
             xmlns: "http://s3.amazonaws.com/doc/2006-03-01/",
             name,
@@ -342,7 +374,11 @@ struct ListVersionsXml {
 
 impl From<&ListObjectVersionsResponse> for XMLResponse {
     fn from(r: &ListObjectVersionsResponse) -> Self {
-        let name = r.objects.first().map(|o| o.bucket.clone()).unwrap_or_default();
+        let name = r
+            .objects
+            .first()
+            .map(|o| o.bucket.clone())
+            .unwrap_or_default();
         let xml = ListVersionsXml {
             xmlns: "http://s3.amazonaws.com/doc/2006-03-01/",
             name,
@@ -354,7 +390,11 @@ impl From<&ListObjectVersionsResponse> for XMLResponse {
 
 impl From<&ListObjectVersionsMResponse> for XMLResponse {
     fn from(r: &ListObjectVersionsMResponse) -> Self {
-        let name = r.objects.first().map(|o| o.bucket.clone()).unwrap_or_default();
+        let name = r
+            .objects
+            .first()
+            .map(|o| o.bucket.clone())
+            .unwrap_or_default();
         let xml = ListVersionsXml {
             xmlns: "http://s3.amazonaws.com/doc/2006-03-01/",
             name,

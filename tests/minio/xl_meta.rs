@@ -23,7 +23,12 @@ mod tests {
             use std::process::Stdio;
             cmd.stdin(Stdio::piped()).stdout(Stdio::piped());
             let mut child = cmd.spawn().map_err(|e| e.to_string())?;
-            child.stdin.as_mut().unwrap().write_all(data).map_err(|e| e.to_string())?;
+            child
+                .stdin
+                .as_mut()
+                .unwrap()
+                .write_all(data)
+                .map_err(|e| e.to_string())?;
             let output = child.wait_with_output().map_err(|e| e.to_string())?;
             if !output.status.success() {
                 return Err(String::from_utf8_lossy(&output.stderr).to_string());
@@ -116,7 +121,11 @@ mod tests {
 
         let minio_encoded = run_decoder(&["encode-meta"], Some(minio_object_json().as_bytes()))
             .expect("minio encode-meta failed");
-        fs::write(temp_dir.join("bucket").join("object").join("xl.meta"), minio_encoded).unwrap();
+        fs::write(
+            temp_dir.join("bucket").join("object").join("xl.meta"),
+            minio_encoded,
+        )
+        .unwrap();
 
         let storage = XlStorage::new(temp_dir.clone());
         let file_info = storage

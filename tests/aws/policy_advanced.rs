@@ -26,7 +26,13 @@ async fn policy_advanced_test() {
             }
         ]
     }"#;
-    client.put_bucket_policy().bucket(bucket).policy(deny_policy).send().await.unwrap();
+    client
+        .put_bucket_policy()
+        .bucket(bucket)
+        .policy(deny_policy)
+        .send()
+        .await
+        .unwrap();
 
     // test wildcard
     let wildcard_policy = r#"{
@@ -38,12 +44,28 @@ async fn policy_advanced_test() {
             "Resource": ["arn:aws:s3:::policy-adv-bucket/public/*"]
         }]
     }"#;
-    client.put_bucket_policy().bucket(bucket).policy(wildcard_policy).send().await.unwrap();
+    client
+        .put_bucket_policy()
+        .bucket(bucket)
+        .policy(wildcard_policy)
+        .send()
+        .await
+        .unwrap();
 
-    let policy = client.get_bucket_policy().bucket(bucket).send().await.unwrap();
+    let policy = client
+        .get_bucket_policy()
+        .bucket(bucket)
+        .send()
+        .await
+        .unwrap();
     assert!(policy.policy().unwrap().contains("public"));
 
-    client.delete_bucket_policy().bucket(bucket).send().await.unwrap();
+    client
+        .delete_bucket_policy()
+        .bucket(bucket)
+        .send()
+        .await
+        .unwrap();
     client.delete_bucket().bucket(bucket).send().await.unwrap();
     handle.abort();
 }

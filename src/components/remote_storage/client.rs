@@ -2,6 +2,14 @@ use async_trait::async_trait;
 use chrono::Utc;
 use reqwest::Client;
 
+use crate::components::remote_storage::wire::{
+    MinioDeleteFileRequest, MinioStorageCall, MinioWriteAllRequest,
+    STORAGE_REST_METHOD_READ_VERSION, STORAGE_REST_PARAM_DISK_ID, STORAGE_REST_PARAM_FILE_PATH,
+    STORAGE_REST_PARAM_HEALING, STORAGE_REST_PARAM_INCLUDE_FREE_VERSIONS,
+    STORAGE_REST_PARAM_ORIG_VOLUME, STORAGE_REST_PARAM_VERSION_ID, STORAGE_REST_PARAM_VOLUME,
+    STORAGE_REST_VERSION, decode_minio_file_info, encode_minio_delete_file_request,
+    encode_minio_write_all_request,
+};
 use crate::types::FS3Error;
 use crate::types::s3::core::BoxByteStream;
 use crate::types::s3::object_layer_types::Context;
@@ -10,13 +18,6 @@ use crate::types::s3::storage_types::{
     WriteAllOptions,
 };
 use crate::types::storage_endpoint::StorageEndpoint;
-use crate::components::remote_storage::wire::{
-    MinioDeleteFileRequest, MinioStorageCall, MinioWriteAllRequest, STORAGE_REST_METHOD_READ_VERSION,
-    STORAGE_REST_PARAM_DISK_ID, STORAGE_REST_PARAM_FILE_PATH, STORAGE_REST_PARAM_HEALING,
-    STORAGE_REST_PARAM_INCLUDE_FREE_VERSIONS, STORAGE_REST_PARAM_ORIG_VOLUME,
-    STORAGE_REST_PARAM_VERSION_ID, STORAGE_REST_PARAM_VOLUME, STORAGE_REST_VERSION,
-    decode_minio_file_info, encode_minio_delete_file_request, encode_minio_write_all_request,
-};
 use crate::types::traits::storage_api::{
     StorageBucketConfig, StorageFile, StorageMetadata, StorageObjectConfig, StorageVolume,
 };
@@ -94,7 +95,12 @@ impl StorageVolume<FS3Error> for RemoteStorageClient {
         Err(self.unsupported("stat_vol"))
     }
 
-    async fn delete_vol(&self, _ctx: &Context, _volume: &str, _force: bool) -> Result<(), FS3Error> {
+    async fn delete_vol(
+        &self,
+        _ctx: &Context,
+        _volume: &str,
+        _force: bool,
+    ) -> Result<(), FS3Error> {
         Err(self.unsupported("delete_vol"))
     }
 }
@@ -133,15 +139,13 @@ impl StorageMetadata<FS3Error> for RemoteStorageClient {
                 );
         }
 
-        let response = request
-            .send()
-            .await
-            .map_err(|err| FS3Error::internal(format!("MinIO ReadVersion request failed: {err}")))?;
+        let response = request.send().await.map_err(|err| {
+            FS3Error::internal(format!("MinIO ReadVersion request failed: {err}"))
+        })?;
         let status = response.status();
-        let body = response
-            .bytes()
-            .await
-            .map_err(|err| FS3Error::internal(format!("MinIO ReadVersion response read failed: {err}")))?;
+        let body = response.bytes().await.map_err(|err| {
+            FS3Error::internal(format!("MinIO ReadVersion response read failed: {err}"))
+        })?;
 
         if !status.is_success() {
             let message = String::from_utf8_lossy(&body).trim().to_string();
@@ -173,7 +177,9 @@ impl StorageMetadata<FS3Error> for RemoteStorageClient {
             file_path: path.to_string(),
             buf: data.to_vec(),
         })
-        .map_err(|err| FS3Error::internal(format!("MinIO WriteAll payload encode failed: {err}")))?;
+        .map_err(|err| {
+            FS3Error::internal(format!("MinIO WriteAll payload encode failed: {err}"))
+        })?;
         Err(self.minio_transport_unimplemented(MinioStorageCall::WriteAll))
     }
 
@@ -236,7 +242,13 @@ impl StorageFile<FS3Error> for RemoteStorageClient {
         Err(self.unsupported("create_file"))
     }
 
-    async fn append_file(&self, _ctx: &Context, _volume: &str, _path: &str, _buf: &[u8]) -> Result<(), FS3Error> {
+    async fn append_file(
+        &self,
+        _ctx: &Context,
+        _volume: &str,
+        _path: &str,
+        _buf: &[u8],
+    ) -> Result<(), FS3Error> {
         Err(self.unsupported("append_file"))
     }
 
@@ -271,11 +283,20 @@ impl StorageFile<FS3Error> for RemoteStorageClient {
 
 #[async_trait]
 impl StorageBucketConfig<FS3Error> for RemoteStorageClient {
-    async fn read_bucket_policy(&self, _ctx: &Context, _bucket: &str) -> Result<Option<String>, FS3Error> {
+    async fn read_bucket_policy(
+        &self,
+        _ctx: &Context,
+        _bucket: &str,
+    ) -> Result<Option<String>, FS3Error> {
         Err(self.unsupported("read_bucket_policy"))
     }
 
-    async fn write_bucket_policy(&self, _ctx: &Context, _bucket: &str, _policy: &str) -> Result<(), FS3Error> {
+    async fn write_bucket_policy(
+        &self,
+        _ctx: &Context,
+        _bucket: &str,
+        _policy: &str,
+    ) -> Result<(), FS3Error> {
         Err(self.unsupported("write_bucket_policy"))
     }
 
@@ -283,11 +304,20 @@ impl StorageBucketConfig<FS3Error> for RemoteStorageClient {
         Err(self.unsupported("delete_bucket_policy"))
     }
 
-    async fn read_bucket_tags(&self, _ctx: &Context, _bucket: &str) -> Result<Option<String>, FS3Error> {
+    async fn read_bucket_tags(
+        &self,
+        _ctx: &Context,
+        _bucket: &str,
+    ) -> Result<Option<String>, FS3Error> {
         Err(self.unsupported("read_bucket_tags"))
     }
 
-    async fn write_bucket_tags(&self, _ctx: &Context, _bucket: &str, _tags: &str) -> Result<(), FS3Error> {
+    async fn write_bucket_tags(
+        &self,
+        _ctx: &Context,
+        _bucket: &str,
+        _tags: &str,
+    ) -> Result<(), FS3Error> {
         Err(self.unsupported("write_bucket_tags"))
     }
 
@@ -295,19 +325,37 @@ impl StorageBucketConfig<FS3Error> for RemoteStorageClient {
         Err(self.unsupported("delete_bucket_tags"))
     }
 
-    async fn read_bucket_versioning(&self, _ctx: &Context, _bucket: &str) -> Result<Option<String>, FS3Error> {
+    async fn read_bucket_versioning(
+        &self,
+        _ctx: &Context,
+        _bucket: &str,
+    ) -> Result<Option<String>, FS3Error> {
         Err(self.unsupported("read_bucket_versioning"))
     }
 
-    async fn write_bucket_versioning(&self, _ctx: &Context, _bucket: &str, _status: &str) -> Result<(), FS3Error> {
+    async fn write_bucket_versioning(
+        &self,
+        _ctx: &Context,
+        _bucket: &str,
+        _status: &str,
+    ) -> Result<(), FS3Error> {
         Err(self.unsupported("write_bucket_versioning"))
     }
 
-    async fn read_bucket_cors(&self, _ctx: &Context, _bucket: &str) -> Result<Option<String>, FS3Error> {
+    async fn read_bucket_cors(
+        &self,
+        _ctx: &Context,
+        _bucket: &str,
+    ) -> Result<Option<String>, FS3Error> {
         Err(self.unsupported("read_bucket_cors"))
     }
 
-    async fn write_bucket_cors(&self, _ctx: &Context, _bucket: &str, _cors: &str) -> Result<(), FS3Error> {
+    async fn write_bucket_cors(
+        &self,
+        _ctx: &Context,
+        _bucket: &str,
+        _cors: &str,
+    ) -> Result<(), FS3Error> {
         Err(self.unsupported("write_bucket_cors"))
     }
 
@@ -318,15 +366,31 @@ impl StorageBucketConfig<FS3Error> for RemoteStorageClient {
 
 #[async_trait]
 impl StorageObjectConfig<FS3Error> for RemoteStorageClient {
-    async fn read_object_tags(&self, _ctx: &Context, _bucket: &str, _key: &str) -> Result<Option<String>, FS3Error> {
+    async fn read_object_tags(
+        &self,
+        _ctx: &Context,
+        _bucket: &str,
+        _key: &str,
+    ) -> Result<Option<String>, FS3Error> {
         Err(self.unsupported("read_object_tags"))
     }
 
-    async fn write_object_tags(&self, _ctx: &Context, _bucket: &str, _key: &str, _tags: &str) -> Result<(), FS3Error> {
+    async fn write_object_tags(
+        &self,
+        _ctx: &Context,
+        _bucket: &str,
+        _key: &str,
+        _tags: &str,
+    ) -> Result<(), FS3Error> {
         Err(self.unsupported("write_object_tags"))
     }
 
-    async fn delete_object_tags(&self, _ctx: &Context, _bucket: &str, _key: &str) -> Result<(), FS3Error> {
+    async fn delete_object_tags(
+        &self,
+        _ctx: &Context,
+        _bucket: &str,
+        _key: &str,
+    ) -> Result<(), FS3Error> {
         Err(self.unsupported("delete_object_tags"))
     }
 }

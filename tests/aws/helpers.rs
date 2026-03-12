@@ -1,16 +1,16 @@
 use std::net::SocketAddr;
-use std::sync::Arc;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use aws_sdk_s3::Client as AwsClient;
 use aws_sdk_s3::config::{Credentials, Region};
 use s3_mount_gateway_rust::axum_router;
-use s3_mount_gateway_rust::components::fs3_engine::FS3Engine;
-use s3_mount_gateway_rust::components::xl_storage::XlStorage;
 use s3_mount_gateway_rust::components::erasure_server_pools::ErasureServerPools;
-use s3_mount_gateway_rust::components::storage_policy::StoragePolicyEngine;
-use s3_mount_gateway_rust::types::errors::S3EngineError;
 use s3_mount_gateway_rust::components::fs3_axum_handler::S3AxumHandler;
+use s3_mount_gateway_rust::components::fs3_engine::FS3Engine;
+use s3_mount_gateway_rust::components::storage_policy::StoragePolicyEngine;
+use s3_mount_gateway_rust::components::xl_storage::XlStorage;
+use s3_mount_gateway_rust::types::errors::S3EngineError;
 use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
 
@@ -26,11 +26,12 @@ pub async fn create_test_server() -> std::io::Result<(SocketAddr, String, JoinHa
     let listener = TcpListener::bind(("127.0.0.1", 0)).await?;
     let addr = listener.local_addr()?;
     let endpoint = format!("http://{addr}");
-    let app = axum_router::<_, S3EngineError>(handler)
-        .layer(axum::middleware::from_fn(|req: axum::http::Request<axum::body::Body>, next: axum::middleware::Next| async move {
+    let app = axum_router::<_, S3EngineError>(handler).layer(axum::middleware::from_fn(
+        |req: axum::http::Request<axum::body::Body>, next: axum::middleware::Next| async move {
             println!("Request: {} {}", req.method(), req.uri());
             next.run(req).await
-        }));
+        },
+    ));
 
     let task = tokio::spawn(async move {
         let _ = axum::serve(listener, app).await;
@@ -52,5 +53,8 @@ pub fn create_aws_client(endpoint: &str) -> AwsClient {
 }
 
 pub fn random_bucket_name() -> String {
-    format!("test-{}", uuid::Uuid::new_v4().to_string().split('-').next().unwrap())
+    format!(
+        "test-{}",
+        uuid::Uuid::new_v4().to_string().split('-').next().unwrap()
+    )
 }

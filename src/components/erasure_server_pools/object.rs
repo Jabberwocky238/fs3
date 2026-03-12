@@ -302,7 +302,9 @@ async fn read_all(
     let mut out = Vec::new();
     let mut buf = vec![0u8; 64 * 1024];
     loop {
-        let n = storage.read_file(ctx, bucket, path, offset, &mut buf).await?;
+        let n = storage
+            .read_file(ctx, bucket, path, offset, &mut buf)
+            .await?;
         if n <= 0 {
             break;
         }
@@ -434,7 +436,10 @@ mod tests {
             .await
             .unwrap();
 
-        let fi = storage.read_version(&ctx, bucket, object, "null").await.unwrap();
+        let fi = storage
+            .read_version(&ctx, bucket, object, "null")
+            .await
+            .unwrap();
         let data_dir = mount_root.join(bucket).join(object).join(&fi.data_dir);
         assert!(data_dir.join("part.1").exists());
         assert!(!data_dir.join("shards").exists());

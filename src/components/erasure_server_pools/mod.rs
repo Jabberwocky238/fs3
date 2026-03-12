@@ -1,10 +1,10 @@
-use std::sync::Arc;
 use crate::types::FS3Error;
 use crate::types::traits::storage_api::StorageAPI;
+use std::sync::Arc;
 
 mod bucket;
-mod object;
 mod multipart;
+mod object;
 mod write_path;
 
 pub struct ErasureServerPools {

@@ -15,7 +15,12 @@ async fn test_bucket_tagging() {
     let mut tags = HashMap::new();
     tags.insert("env".to_string(), "test".to_string());
     tags.insert("team".to_string(), "dev".to_string());
-    client.put_bucket_tagging(bucket).tags(tags.clone()).send().await.unwrap();
+    client
+        .put_bucket_tagging(bucket)
+        .tags(tags.clone())
+        .send()
+        .await
+        .unwrap();
 
     // GET bucket tagging
     let got_tags = client.get_bucket_tagging(bucket).send().await.unwrap();
