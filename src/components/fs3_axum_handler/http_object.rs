@@ -1,6 +1,4 @@
 use std::collections::HashMap;
-use std::io;
-use std::pin::Pin;
 use std::sync::Arc;
 
 use axum::body::Body;
@@ -8,7 +6,6 @@ use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, Method};
 use axum::routing::any;
 use axum::Router;
-use futures::StreamExt as _;
 
 use crate::types::errors::FS3Error;
 use crate::types::s3::core::ObjectAttribute;
@@ -17,8 +14,7 @@ use crate::types::s3::response::S3Response;
 use crate::types::s3::xml;
 use crate::types::traits::s3_handler::S3Handler;
 
-use super::HandlerError;
-use super::util::{get, has, header, header_eq, multipart_selector, body_stream, body_text};
+use super::util::{body_stream, body_text, get, has, header, header_eq, multipart_selector};
 
 pub fn routes<T>(state: Arc<T>) -> Router
 where
@@ -39,22 +35,6 @@ where
     T: S3Handler + Send + Sync,
 {
     let mk = || ObjectRef { bucket: bucket.clone(), object: object_path.clone() };
-    if has(&q, "torrent") && matches!(method, Method::GET | Method::PUT | Method::DELETE) {
-        let v = handler
-            .rejected_object_torrent(RejectedObjectTorrentRequest {
-                object: mk(),
-                method: method.to_string(),
-            })
-            .await?;
-        return Ok(S3Response::RejectedApi(v));
-    }
-    if has(&q, "acl") && method == Method::DELETE {
-        let v = handler
-            .rejected_object_acl_delete(RejectedObjectAclDeleteRequest { object: mk() })
-            .await
-            ?;
-        return Ok(S3Response::RejectedApi(v));
-    }
 
     let copy_source = header(&headers, "x-amz-copy-source");
     let resp = match method {
@@ -96,15 +76,6 @@ where
         ),
         Method::GET if has(&q, "acl") => S3Response::GetObjectAcl(
             handler.get_object_acl(GetObjectAclRequest { object: mk() }).await?,
-        ),
-        Method::GET if has(&q, "tagging") => S3Response::GetObjectTagging(
-            handler.get_object_tagging(GetObjectTaggingRequest { object: mk() }).await?,
-        ),
-        Method::GET if has(&q, "retention") => S3Response::GetObjectRetention(
-            handler.get_object_retention(GetObjectRetentionRequest { bucket: BucketRef { bucket: bucket.clone() }, object: mk() }).await?,
-        ),
-        Method::GET if has(&q, "legal-hold") => S3Response::GetObjectLegalHold(
-            handler.get_object_legal_hold(GetObjectLegalHoldRequest { bucket: BucketRef { bucket: bucket.clone() }, object: mk() }).await?,
         ),
         Method::GET if has(&q, "lambdaArn") => S3Response::GetObjectLambda(
             handler.get_object_lambda(GetObjectLambdaRequest {
@@ -148,43 +119,8 @@ where
         ),
         Method::PUT if has(&q, "acl") => {
             let xml = body_text(body).await?;
-            let acl = if xml.trim().is_empty() {
-                None
-            } else {
-                Some(xml::parse_access_control_policy(&xml)?)
-            };
-            S3Response::PutObjectAcl(
-                handler.put_object_acl(PutObjectAclRequest { object: mk(), acl }).await?,
-            )
-        }
-        Method::PUT if has(&q, "tagging") => {
-            let xml = body_text(body).await?;
-            let tags = xml::parse_tagging(&xml)?;
-            S3Response::PutObjectTagging(
-                handler.put_object_tagging(PutObjectTaggingRequest { object: mk(), tags }).await?,
-            )
-        }
-        Method::PUT if has(&q, "retention") => {
-            let xml = body_text(body).await?;
-            let retention = xml::parse_retention(&xml)?;
-            S3Response::PutObjectRetention(
-                handler.put_object_retention(PutObjectRetentionRequest {
-                    bucket: BucketRef { bucket: bucket.clone() },
-                    object: mk(),
-                    retention,
-                }).await?,
-            )
-        }
-        Method::PUT if has(&q, "legal-hold") => {
-            let xml = body_text(body).await?;
-            let legal_hold = xml::parse_legal_hold(&xml)?;
-            S3Response::PutObjectLegalHold(
-                handler.put_object_legal_hold(PutObjectLegalHoldRequest {
-                    bucket: BucketRef { bucket: bucket.clone() },
-                    object: mk(),
-                    legal_hold,
-                }).await?,
-            )
+            let acl = if xml.trim().is_empty() { None } else { Some(xml::parse_access_control_policy(&xml)?) };
+            S3Response::PutObjectAcl(handler.put_object_acl(PutObjectAclRequest { object: mk(), acl }).await?)
         }
         Method::PUT if header_eq(&headers, "x-amz-snowball-extract", "true") => S3Response::PutObjectExtract(
             handler.put_object_extract(PutObjectExtractRequest { object: mk(), body: body_stream(body) }).await?,
@@ -237,7 +173,7 @@ where
                     user_metadata,
                 }).await?,
             )
-        },
+        }
 
         Method::POST if has(&q, "uploadId") => {
             let xml = body_text(body).await?;
@@ -268,23 +204,18 @@ where
             let xml = body_text(body).await?;
             let restore = xml::parse_restore_object(&xml)?;
             S3Response::PostRestoreObject(
-                handler.post_restore_object(PostRestoreObjectRequest {
-                    object: mk(),
-                    restore,
-                }).await?,
+                handler.post_restore_object(PostRestoreObjectRequest { object: mk(), restore }).await?,
             )
         }
 
         Method::DELETE if has(&q, "uploadId") => S3Response::AbortMultipartUpload(
             handler.abort_multipart_upload(AbortMultipartUploadRequest { object: mk(), upload_id: get(&q, "uploadId").unwrap_or_default() }).await?,
         ),
-        Method::DELETE if has(&q, "tagging") => S3Response::DeleteObjectTagging(
-            handler.delete_object_tagging(DeleteObjectTaggingRequest { object: mk() }).await?,
-        ),
         Method::DELETE => S3Response::DeleteObject(
             handler.delete_object(DeleteObjectRequest { object: mk(), version_id: get(&q, "versionId") }).await?,
         ),
-        _ => return Err(HandlerError::method_not_allowed("unsupported object API")),
+        _ => return Err(FS3Error::method_not_allowed("unsupported object API")),
     };
+
     Ok(resp)
 }

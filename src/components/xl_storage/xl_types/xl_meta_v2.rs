@@ -17,7 +17,7 @@ impl From<Vec<u8>> for XlMetaV2 {
     fn from(bytes: Vec<u8>) -> Self {
         if bytes.len() > 13 && &bytes[0..4] == b"XL2 " && bytes[8] == 0xc6 {
             let payload_len = u32::from_be_bytes(bytes[9..13].try_into().unwrap()) as usize;
-            let payload_start = 13;
+            let payload_start: usize = 13;
             let payload_end = payload_start.saturating_add(payload_len).min(bytes.len());
             let mut cursor = Cursor::new(&bytes[payload_start..payload_end]);
 

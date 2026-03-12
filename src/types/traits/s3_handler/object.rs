@@ -108,16 +108,22 @@ where
 
     async fn put_object_part(&self, req: PutObjectPartRequest) -> Result<PutObjectPartResponse, E> {
         let validation_headers = request_headers_for_part(&req)?;
-        let _chunked = parse_aws_chunked_upload(&validation_headers)?;
+        let chunked = parse_aws_chunked_upload(&validation_headers)?;
         let checksum = parse_checksum_headers(&validation_headers)?;
         let content_md5 = req
             .content_md5
             .as_deref()
             .map(decode_content_md5)
             .transpose()?;
+        let body = if let Some(chunked) = chunked.as_ref() {
+            let (stream, _result) = DecodedAwsChunkedStream::new(req.body, chunked)?;
+            stream.into_boxed_stream()
+        } else {
+            req.body
+        };
         let body = if content_md5.is_some() || checksum.is_some() {
             ValidatingRequestStream::new(
-                req.body,
+                body,
                 RequestValidationPlan {
                     content_md5,
                     checksum,
@@ -125,7 +131,7 @@ where
             )
             .into_boxed_stream()
         } else {
-            req.body
+            body
         };
         let part = self
             .engine()
@@ -343,7 +349,7 @@ where
 
     async fn put_object(&self, req: PutObjectRequest) -> Result<PutObjectResponse, E> {
         let validation_headers = request_headers_for_put(&req)?;
-        let _chunked = parse_aws_chunked_upload(&validation_headers)?;
+        let chunked = parse_aws_chunked_upload(&validation_headers)?;
         let checksum = parse_checksum_headers(&validation_headers)?;
         let content_md5 = req
             .content_md5
@@ -351,9 +357,15 @@ where
             .map(decode_content_md5)
             .transpose()?;
         let sse = validate_sse_headers(&validation_headers)?;
+        let body = if let Some(chunked) = chunked.as_ref() {
+            let (stream, _result) = DecodedAwsChunkedStream::new(req.body, chunked)?;
+            stream.into_boxed_stream()
+        } else {
+            req.body
+        };
         let body = if content_md5.is_some() || checksum.is_some() {
             ValidatingRequestStream::new(
-                req.body,
+                body,
                 RequestValidationPlan {
                     content_md5,
                     checksum: checksum.clone(),
@@ -361,7 +373,7 @@ where
             )
             .into_boxed_stream()
         } else {
-            req.body
+            body
         };
         let mut opt = to_write_opt(
             req.content_type,
@@ -522,4 +534,6 @@ fn insert_opt_header(
     let header_name = HeaderName::from_static(name);
     let header_value =
         HeaderValue::from_str(value).map_err(|_| FS3Error::bad_request("InvalidRequest"))?;
-    headers.insert(header_name,
+    headers.insert(header_name, header_value);
+    Ok(())
+}

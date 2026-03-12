@@ -7,7 +7,7 @@ mod bucket;
 mod object;
 mod multipart;
 mod config;
-// mod website;
+mod website;
 
 pub struct FS3Engine {
     pub object_layer: Arc<dyn ObjectLayer<FS3Error>>,
@@ -19,3 +19,4 @@ impl FS3Engine {
         Self { object_layer, storage }
     }
 }
+
