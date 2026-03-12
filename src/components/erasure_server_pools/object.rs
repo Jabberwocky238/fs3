@@ -7,9 +7,7 @@ use crate::types::traits::object_layer::ObjectObjectLayer;
 use async_trait::async_trait;
 
 #[async_trait]
-impl ObjectObjectLayer for ErasureServerPools {
-    type Error = FS3Error;
-
+impl ObjectObjectLayer<FS3Error> for ErasureServerPools {
     async fn get_object_info(
         &self,
         ctx: &Context,

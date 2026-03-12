@@ -15,5 +15,5 @@ pub use sse::{
     ParsedServerSideEncryption, SseCustomerHeaders, SseKmsHeaders, validate_sse_headers,
 };
 pub use stream::{
-    PutObjectValidationPlan, PutObjectValidationResult, ValidatingPutObjectStream,
+    RequestValidationPlan, RequestValidationResult, ValidatingRequestStream,
 };

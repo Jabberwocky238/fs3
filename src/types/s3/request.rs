@@ -88,6 +88,11 @@ pub struct PutObjectPartRequest {
     pub multipart: MultipartSelector,
     pub body: crate::types::s3::core::BoxByteStream,
     pub checksum: Option<String>,
+    pub content_md5: Option<String>,
+    pub content_encoding: Option<String>,
+    pub amz_content_sha256: Option<String>,
+    pub decoded_content_length: Option<String>,
+    pub amz_trailer: Option<String>,
 }
 
 pub struct ListObjectPartsRequest {
@@ -199,7 +204,21 @@ pub struct PutObjectRequest {
     pub body: BoxByteStream,
     pub content_type: Option<String>,
     pub content_md5: Option<String>,
+    pub checksum_sha256: Option<String>,
+    pub checksum_sha1: Option<String>,
+    pub checksum_crc32: Option<String>,
+    pub checksum_crc32c: Option<String>,
     pub content_length: Option<u64>,
+    pub content_encoding: Option<String>,
+    pub amz_content_sha256: Option<String>,
+    pub decoded_content_length: Option<String>,
+    pub amz_trailer: Option<String>,
+    pub sse: Option<String>,
+    pub sse_customer_algorithm: Option<String>,
+    pub sse_customer_key: Option<String>,
+    pub sse_customer_key_md5: Option<String>,
+    pub sse_kms_key_id: Option<String>,
+    pub sse_context: Option<String>,
     pub user_metadata: std::collections::HashMap<String, String>,
 }
 

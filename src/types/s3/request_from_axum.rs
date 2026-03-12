@@ -116,6 +116,11 @@ impl<'a> From<ObjectEntryRef<'a>> for CopyObjectPartRequest {
 impl<'a> From<ObjectEntryRef<'a>> for PutObjectPartRequest {
     fn from(v: ObjectEntryRef<'a>) -> Self {
         let checksum = v.header("x-amz-checksum-sha256");
+        let content_md5 = v.header("content-md5");
+        let content_encoding = v.header("content-encoding");
+        let amz_content_sha256 = v.header("x-amz-content-sha256");
+        let decoded_content_length = v.header("x-amz-decoded-content-length");
+        let amz_trailer = v.header("x-amz-trailer");
         let object = v.object_ref();
         let multipart = v.multipart_selector();
         let body = v.into_body();
@@ -124,6 +129,11 @@ impl<'a> From<ObjectEntryRef<'a>> for PutObjectPartRequest {
             multipart,
             body,
             checksum,
+            content_md5,
+            content_encoding,
+            amz_content_sha256,
+            decoded_content_length,
+            amz_trailer,
         }
     }
 }
@@ -301,7 +311,21 @@ impl<'a> From<ObjectEntryRef<'a>> for PutObjectRequest {
         let object = v.object_ref();
         let content_type = v.header("content-type");
         let content_md5 = v.header("content-md5");
+        let checksum_sha256 = v.header("x-amz-checksum-sha256");
+        let checksum_sha1 = v.header("x-amz-checksum-sha1");
+        let checksum_crc32 = v.header("x-amz-checksum-crc32");
+        let checksum_crc32c = v.header("x-amz-checksum-crc32c");
         let content_length = v.content_length();
+        let content_encoding = v.header("content-encoding");
+        let amz_content_sha256 = v.header("x-amz-content-sha256");
+        let decoded_content_length = v.header("x-amz-decoded-content-length");
+        let amz_trailer = v.header("x-amz-trailer");
+        let sse = v.header("x-amz-server-side-encryption");
+        let sse_customer_algorithm = v.header("x-amz-server-side-encryption-customer-algorithm");
+        let sse_customer_key = v.header("x-amz-server-side-encryption-customer-key");
+        let sse_customer_key_md5 = v.header("x-amz-server-side-encryption-customer-key-md5");
+        let sse_kms_key_id = v.header("x-amz-server-side-encryption-aws-kms-key-id");
+        let sse_context = v.header("x-amz-server-side-encryption-context");
         let user_metadata = Default::default();
         let body = v.into_body();
         Self {
@@ -309,7 +333,21 @@ impl<'a> From<ObjectEntryRef<'a>> for PutObjectRequest {
             body,
             content_type,
             content_md5,
+            checksum_sha256,
+            checksum_sha1,
+            checksum_crc32,
+            checksum_crc32c,
             content_length,
+            content_encoding,
+            amz_content_sha256,
+            decoded_content_length,
+            amz_trailer,
+            sse,
+            sse_customer_algorithm,
+            sse_customer_key,
+            sse_customer_key_md5,
+            sse_kms_key_id,
+            sse_context,
             user_metadata,
         }
     }

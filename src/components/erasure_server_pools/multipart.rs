@@ -6,9 +6,7 @@ use crate::types::errors::FS3Error;
 use super::ErasureServerPools;
 
 #[async_trait]
-impl ObjectMultipartLayer for ErasureServerPools {
-    type Error = FS3Error;
-
+impl ObjectMultipartLayer<FS3Error> for ErasureServerPools {
     async fn new_multipart_upload(&self, _ctx: &Context, _bucket: &str, _object: &str, _opts: ObjectOptions) -> Result<NewMultipartUploadResult, FS3Error> {
         Ok(NewMultipartUploadResult {
             upload_id: uuid::Uuid::new_v4().to_string(),

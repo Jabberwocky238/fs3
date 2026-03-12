@@ -1,7 +1,7 @@
 use crate::types::s3::policy::S3Action;
 use crate::types::s3::request::*;
 use crate::types::s3::response::*;
-
+use crate::types::FS3Error;
 use crate::types::traits::s3_engine::S3ObjectRetentionEngine;
 use crate::types::traits::s3_policyengine::S3PolicyEngine;
 use async_trait::async_trait;
@@ -10,15 +10,15 @@ use super::utils::*;
 
 #[async_trait]
 pub trait ObjectRetentionS3Handler: Send + Sync {
-    type Engine: S3ObjectRetentionEngine + Send + Sync;
-    type Policy: S3PolicyEngine + Send + Sync;
+    type Engine: S3ObjectRetentionEngine<FS3Error> + Send + Sync;
+    type Policy: S3PolicyEngine<FS3Error> + Send + Sync;
     fn object_retention_engine_provider(&self) -> &Self::Engine;
     fn object_retention_policy_provider(&self) -> &Self::Policy;
 
     async fn get_object_retention(
         &self,
         req: GetObjectRetentionRequest,
-    ) -> Result<GetObjectRetentionResponse, BoxError> {
+    ) -> Result<GetObjectRetentionResponse, FS3Error> {
         check_access(
             self.object_retention_policy_provider(),
             S3Action::GetObjectRetention,
@@ -38,7 +38,7 @@ pub trait ObjectRetentionS3Handler: Send + Sync {
     async fn put_object_retention(
         &self,
         req: PutObjectRetentionRequest,
-    ) -> Result<PutObjectRetentionResponse, BoxError> {
+    ) -> Result<PutObjectRetentionResponse, FS3Error> {
         check_access(
             self.object_retention_policy_provider(),
             S3Action::PutObjectRetention,

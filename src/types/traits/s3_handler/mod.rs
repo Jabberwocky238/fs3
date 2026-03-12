@@ -3,6 +3,7 @@ use chrono::SecondsFormat;
 
 mod bucket;
 mod object;
+mod request_validation;
 mod utils;
 // mod bucket_lifecycle;
 // mod bucket_encryption;
@@ -41,7 +42,7 @@ pub use object::ObjectS3Handler;
 // pub use bucket_cors::BucketCorsS3Handler;
 
 pub trait S3Handler:
-    ObjectS3Handler
+    ObjectS3Handler<FS3Error>
     + BucketS3Handler
     // + BucketLifecycleS3Handler
     // + BucketEncryptionS3Handler
@@ -61,7 +62,7 @@ pub trait S3Handler:
 }
 impl<T> S3Handler for T
 where
-    T: ObjectS3Handler
+    T: ObjectS3Handler<FS3Error>
         + BucketS3Handler
         // + BucketLifecycleS3Handler
         // + BucketEncryptionS3Handler

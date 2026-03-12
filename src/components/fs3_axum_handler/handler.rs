@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 
+use crate::types::FS3Error;
 use crate::types::traits::s3_engine::S3Engine;
 use crate::types::traits::s3_policyengine::S3PolicyEngine;
 use crate::types::traits::s3_handler::{
@@ -9,22 +10,22 @@ use crate::types::traits::s3_handler::{
     // BucketTaggingS3Handler, BucketWebsiteS3Handler, BucketCorsS3Handler, ObjectTaggingS3Handler, ObjectRetentionS3Handler, ObjectLegalHoldS3Handler,
 };
 
-pub struct S3AxumHandler<Engine: S3Engine, Policy: S3PolicyEngine> {
+pub struct S3AxumHandler<Engine: S3Engine<FS3Error>, Policy: S3PolicyEngine<FS3Error>> {
     pub engine: Engine,
     pub policy: Policy,
 }
 
-impl<Engine: S3Engine, Policy: S3PolicyEngine> S3AxumHandler<Engine, Policy> {
+impl<Engine: S3Engine<FS3Error>, Policy: S3PolicyEngine<FS3Error>> S3AxumHandler<Engine, Policy> {
     pub fn new(engine: Engine, policy: Policy) -> Self {
         Self { engine, policy }
     }
 }
 
 #[async_trait]
-impl<Engine, Policy> ObjectS3Handler for S3AxumHandler<Engine, Policy>
+impl<Engine, Policy> ObjectS3Handler<FS3Error> for S3AxumHandler<Engine, Policy>
 where
-    Engine: S3Engine + Send + Sync,
-    Policy: S3PolicyEngine + Send + Sync,
+    Engine: S3Engine<FS3Error> + Send + Sync,
+    Policy: S3PolicyEngine<FS3Error> + Send + Sync,
 {
     type Engine = Engine;
     type Policy = Policy;
@@ -35,8 +36,8 @@ where
 #[async_trait]
 impl<Engine, Policy> BucketS3Handler for S3AxumHandler<Engine, Policy>
 where
-    Engine: S3Engine + Send + Sync,
-    Policy: S3PolicyEngine + Send + Sync,
+    Engine: S3Engine<FS3Error> + Send + Sync,
+    Policy: S3PolicyEngine<FS3Error> + Send + Sync,
 {
     type Engine = Engine;
     type Policy = Policy;
@@ -47,8 +48,8 @@ where
 #[async_trait]
 impl<Engine, Policy> RootS3Handler for S3AxumHandler<Engine, Policy>
 where
-    Engine: S3Engine + Send + Sync,
-    Policy: S3PolicyEngine + Send + Sync,
+    Engine: S3Engine<FS3Error> + Send + Sync,
+    Policy: S3PolicyEngine<FS3Error> + Send + Sync,
 {
     type Engine = Engine;
     type Policy = Policy;
@@ -59,8 +60,8 @@ where
 #[async_trait]
 impl<Engine, Policy> RejectedS3Handler for S3AxumHandler<Engine, Policy>
 where
-    Engine: S3Engine + Send + Sync,
-    Policy: S3PolicyEngine + Send + Sync,
+    Engine: S3Engine<FS3Error> + Send + Sync,
+    Policy: S3PolicyEngine<FS3Error> + Send + Sync,
 {
 }
 

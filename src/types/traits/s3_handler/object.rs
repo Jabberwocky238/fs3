@@ -1,23 +1,32 @@
-use crate::types::FS3Error;
 use crate::types::s3::core::*;
 use crate::types::s3::policy::S3Action;
 use crate::types::s3::request::*;
 use crate::types::s3::response::*;
+use crate::types::FS3Error;
+use crate::types::traits::StdError;
 use crate::types::traits::s3_engine::{S3MultipartEngine, S3ObjectEngine};
 use crate::types::traits::s3_policyengine::S3PolicyEngine;
 use async_trait::async_trait;
+use axum::http::{HeaderMap, HeaderName, HeaderValue};
 
+use super::request_validation::{
+    ParsedServerSideEncryption, RequestValidationPlan, ValidatingRequestStream,
+    decode_content_md5, parse_aws_chunked_upload, parse_checksum_headers, validate_sse_headers,
+};
 use super::utils::*;
 
 #[async_trait]
-pub trait ObjectS3Handler: Send + Sync {
-    type Engine: S3ObjectEngine + S3MultipartEngine + Send + Sync;
-    type Policy: S3PolicyEngine;
+pub trait ObjectS3Handler<E>: Send + Sync
+where
+    E: StdError + From<FS3Error> + From<S3HandlerBridgeError> + From<std::io::Error>
+{
+    type Engine: S3ObjectEngine<E> + S3MultipartEngine<E> + Send + Sync;
+    type Policy: S3PolicyEngine<E>;
 
     fn engine(&self) -> &Self::Engine;
     fn policy(&self) -> &Self::Policy;
 
-    async fn head_object(&self, req: HeadObjectRequest) -> Result<HeadObjectResponse, FS3Error> {
+    async fn head_object(&self, req: HeadObjectRequest) -> Result<HeadObjectResponse, E> {
         check_access(
             self.policy(),
             S3Action::HeadObject,
@@ -60,7 +69,7 @@ pub trait ObjectS3Handler: Send + Sync {
     async fn get_object_attributes(
         &self,
         req: GetObjectAttributesRequest,
-    ) -> Result<GetObjectAttributesResponse, FS3Error> {
+    ) -> Result<GetObjectAttributesResponse, E> {
         check_access(
             self.policy(),
             S3Action::GetObject,
@@ -81,7 +90,7 @@ pub trait ObjectS3Handler: Send + Sync {
     async fn copy_object_part(
         &self,
         req: CopyObjectPartRequest,
-    ) -> Result<CopyObjectPartResponse, FS3Error> {
+    ) -> Result<CopyObjectPartResponse, E> {
         check_access(
             self.policy(),
             S3Action::PutObject,
@@ -118,7 +127,7 @@ pub trait ObjectS3Handler: Send + Sync {
     async fn put_object_part(
         &self,
         req: PutObjectPartRequest,
-    ) -> Result<PutObjectPartResponse, FS3Error> {
+    ) -> Result<PutObjectPartResponse, E> {
         check_access(
             self.policy(),
             S3Action::PutObject,
@@ -126,6 +135,26 @@ pub trait ObjectS3Handler: Send + Sync {
             Some(&req.object.object),
         )
         .await?;
+        let validation_headers = request_headers_for_part(&req)?;
+        let _chunked = parse_aws_chunked_upload(&validation_headers)?;
+        let checksum = parse_checksum_headers(&validation_headers)?;
+        let content_md5 = req
+            .content_md5
+            .as_deref()
+            .map(decode_content_md5)
+            .transpose()?;
+        let body = if content_md5.is_some() || checksum.is_some() {
+            ValidatingRequestStream::new(
+                req.body,
+                RequestValidationPlan {
+                    content_md5,
+                    checksum,
+                },
+            )
+            .into_boxed_stream()
+        } else {
+            req.body
+        };
         let part = self
             .engine()
             .put_object_part(
@@ -135,7 +164,7 @@ pub trait ObjectS3Handler: Send + Sync {
                 req.multipart.part_number.ok_or_else(|| {
                     S3HandlerBridgeError::InvalidRequest("missing partNumber".to_string())
                 })?,
-                req.body,
+                body,
             )
             .await?;
         Ok(PutObjectPartResponse {
@@ -151,7 +180,7 @@ pub trait ObjectS3Handler: Send + Sync {
     async fn list_object_parts(
         &self,
         req: ListObjectPartsRequest,
-    ) -> Result<ListObjectPartsResponse, FS3Error> {
+    ) -> Result<ListObjectPartsResponse, E> {
         check_access(
             self.policy(),
             S3Action::ListMultipartUploadParts,
@@ -180,7 +209,7 @@ pub trait ObjectS3Handler: Send + Sync {
     async fn complete_multipart_upload(
         &self,
         req: CompleteMultipartUploadRequest,
-    ) -> Result<CompleteMultipartUploadResponse, FS3Error> {
+    ) -> Result<CompleteMultipartUploadResponse, E> {
         check_access(
             self.policy(),
             S3Action::PutObject,
@@ -206,7 +235,7 @@ pub trait ObjectS3Handler: Send + Sync {
     async fn new_multipart_upload(
         &self,
         req: NewMultipartUploadRequest,
-    ) -> Result<NewMultipartUploadResponse, FS3Error> {
+    ) -> Result<NewMultipartUploadResponse, E> {
         check_access(
             self.policy(),
             S3Action::PutObject,
@@ -233,7 +262,7 @@ pub trait ObjectS3Handler: Send + Sync {
     async fn abort_multipart_upload(
         &self,
         req: AbortMultipartUploadRequest,
-    ) -> Result<AbortMultipartUploadResponse, FS3Error> {
+    ) -> Result<AbortMultipartUploadResponse, E> {
         check_access(
             self.policy(),
             S3Action::AbortMultipartUpload,
@@ -253,21 +282,21 @@ pub trait ObjectS3Handler: Send + Sync {
     async fn get_object_acl(
         &self,
         _req: GetObjectAclRequest,
-    ) -> Result<GetObjectAclResponse, FS3Error> {
+    ) -> Result<GetObjectAclResponse, E> {
         Ok(Default::default())
     }
 
     async fn put_object_acl(
         &self,
         _req: PutObjectAclRequest,
-    ) -> Result<PutObjectAclResponse, FS3Error> {
+    ) -> Result<PutObjectAclResponse, E> {
         Ok(Default::default())
     }
 
     async fn select_object_content(
         &self,
         req: SelectObjectContentRequest,
-    ) -> Result<SelectObjectContentResponse, FS3Error> {
+    ) -> Result<SelectObjectContentResponse, E> {
         check_access(
             self.policy(),
             S3Action::SelectObjectContent,
@@ -282,7 +311,7 @@ pub trait ObjectS3Handler: Send + Sync {
     async fn get_object_lambda(
         &self,
         req: GetObjectLambdaRequest,
-    ) -> Result<GetObjectLambdaResponse, FS3Error> {
+    ) -> Result<GetObjectLambdaResponse, E> {
         check_access(
             self.policy(),
             S3Action::GetObject,
@@ -312,7 +341,7 @@ pub trait ObjectS3Handler: Send + Sync {
         })
     }
 
-    async fn get_object(&self, req: GetObjectRequest) -> Result<GetObjectResponse, FS3Error> {
+    async fn get_object(&self, req: GetObjectRequest) -> Result<GetObjectResponse, E> {
         check_access(
             self.policy(),
             S3Action::GetObject,
@@ -348,7 +377,7 @@ pub trait ObjectS3Handler: Send + Sync {
         })
     }
 
-    async fn copy_object(&self, req: CopyObjectRequest) -> Result<CopyObjectResponse, FS3Error> {
+    async fn copy_object(&self, req: CopyObjectRequest) -> Result<CopyObjectResponse, E> {
         check_access(
             self.policy(),
             S3Action::PutObject,
@@ -378,7 +407,7 @@ pub trait ObjectS3Handler: Send + Sync {
     async fn put_object_extract(
         &self,
         req: PutObjectExtractRequest,
-    ) -> Result<PutObjectExtractResponse, FS3Error> {
+    ) -> Result<PutObjectExtractResponse, E> {
         check_access(
             self.policy(),
             S3Action::PutObject,
@@ -404,11 +433,11 @@ pub trait ObjectS3Handler: Send + Sync {
     async fn append_object_rejected(
         &self,
         _req: AppendObjectRejectedRequest,
-    ) -> Result<AppendObjectRejectedResponse, FS3Error> {
+    ) -> Result<AppendObjectRejectedResponse, E> {
         unimplemented!()
     }
 
-    async fn put_object(&self, req: PutObjectRequest) -> Result<PutObjectResponse, FS3Error> {
+    async fn put_object(&self, req: PutObjectRequest) -> Result<PutObjectResponse, E> {
         check_access(
             self.policy(),
             S3Action::PutObject,
@@ -417,15 +446,40 @@ pub trait ObjectS3Handler: Send + Sync {
         )
         .await?;
 
-        let _content_md5 = req.content_md5;
-        let opt = to_write_opt(
+        let validation_headers = request_headers_for_put(&req)?;
+        let _chunked = parse_aws_chunked_upload(&validation_headers)?;
+        let checksum = parse_checksum_headers(&validation_headers)?;
+        let content_md5 = req
+            .content_md5
+            .as_deref()
+            .map(decode_content_md5)
+            .transpose()?;
+        let sse = validate_sse_headers(&validation_headers)?;
+        let body = if content_md5.is_some() || checksum.is_some() {
+            ValidatingRequestStream::new(
+                req.body,
+                RequestValidationPlan {
+                    content_md5,
+                    checksum: checksum.clone(),
+                },
+            )
+            .into_boxed_stream()
+        } else {
+            req.body
+        };
+        let mut opt = to_write_opt(
             req.content_type,
             req.content_length.unwrap_or(0),
             req.user_metadata,
         );
+        opt.checksum = checksum.map(|checksum| crate::types::s3::core::ObjectChecksum {
+            algorithm: checksum.header_name.to_string(),
+            value: checksum.base64_value,
+        });
+        opt.sse_algorithm = sse.map(map_sse_algorithm);
         let obj = self
             .engine()
-            .put_object(&req.object.bucket, &req.object.object, req.body, opt)
+            .put_object(&req.object.bucket, &req.object.object, body, opt)
             .await?;
         Ok(PutObjectResponse {
             object: Some(to_resp_object(&obj)),
@@ -436,7 +490,7 @@ pub trait ObjectS3Handler: Send + Sync {
     async fn delete_object(
         &self,
         req: DeleteObjectRequest,
-    ) -> Result<DeleteObjectResponse, FS3Error> {
+    ) -> Result<DeleteObjectResponse, E> {
         check_access(
             self.policy(),
             S3Action::DeleteObject,
@@ -458,7 +512,129 @@ pub trait ObjectS3Handler: Send + Sync {
     async fn post_restore_object(
         &self,
         _req: PostRestoreObjectRequest,
-    ) -> Result<PostRestoreObjectResponse, FS3Error> {
+    ) -> Result<PostRestoreObjectResponse, E> {
         unimplemented!()
     }
+}
+
+fn map_sse_algorithm(sse: ParsedServerSideEncryption) -> String {
+    match sse {
+        ParsedServerSideEncryption::S3 { algorithm } => algorithm,
+        ParsedServerSideEncryption::Customer(_) => "AES256-C".to_string(),
+        ParsedServerSideEncryption::Kms(_) => "aws:kms".to_string(),
+    }
+}
+
+fn request_headers_for_put(req: &PutObjectRequest) -> Result<HeaderMap, FS3Error> {
+    let mut headers = HeaderMap::new();
+    insert_opt_header(&mut headers, "content-md5", req.content_md5.as_deref())?;
+    insert_opt_header(
+        &mut headers,
+        "x-amz-checksum-sha256",
+        req.checksum_sha256.as_deref(),
+    )?;
+    insert_opt_header(
+        &mut headers,
+        "x-amz-checksum-sha1",
+        req.checksum_sha1.as_deref(),
+    )?;
+    insert_opt_header(
+        &mut headers,
+        "x-amz-checksum-crc32",
+        req.checksum_crc32.as_deref(),
+    )?;
+    insert_opt_header(
+        &mut headers,
+        "x-amz-checksum-crc32c",
+        req.checksum_crc32c.as_deref(),
+    )?;
+    insert_opt_header(
+        &mut headers,
+        "content-encoding",
+        req.content_encoding.as_deref(),
+    )?;
+    insert_opt_header(
+        &mut headers,
+        "x-amz-content-sha256",
+        req.amz_content_sha256.as_deref(),
+    )?;
+    insert_opt_header(
+        &mut headers,
+        "x-amz-decoded-content-length",
+        req.decoded_content_length.as_deref(),
+    )?;
+    insert_opt_header(&mut headers, "x-amz-trailer", req.amz_trailer.as_deref())?;
+    insert_opt_header(
+        &mut headers,
+        "x-amz-server-side-encryption",
+        req.sse.as_deref(),
+    )?;
+    insert_opt_header(
+        &mut headers,
+        "x-amz-server-side-encryption-customer-algorithm",
+        req.sse_customer_algorithm.as_deref(),
+    )?;
+    insert_opt_header(
+        &mut headers,
+        "x-amz-server-side-encryption-customer-key",
+        req.sse_customer_key.as_deref(),
+    )?;
+    insert_opt_header(
+        &mut headers,
+        "x-amz-server-side-encryption-customer-key-md5",
+        req.sse_customer_key_md5.as_deref(),
+    )?;
+    insert_opt_header(
+        &mut headers,
+        "x-amz-server-side-encryption-aws-kms-key-id",
+        req.sse_kms_key_id.as_deref(),
+    )?;
+    insert_opt_header(
+        &mut headers,
+        "x-amz-server-side-encryption-context",
+        req.sse_context.as_deref(),
+    )?;
+    Ok(headers)
+}
+
+fn request_headers_for_part(req: &PutObjectPartRequest) -> Result<HeaderMap, FS3Error> {
+    let mut headers = HeaderMap::new();
+    insert_opt_header(&mut headers, "content-md5", req.content_md5.as_deref())?;
+    insert_opt_header(
+        &mut headers,
+        "x-amz-checksum-sha256",
+        req.checksum.as_deref(),
+    )?;
+    insert_opt_header(
+        &mut headers,
+        "content-encoding",
+        req.content_encoding.as_deref(),
+    )?;
+    insert_opt_header(
+        &mut headers,
+        "x-amz-content-sha256",
+        req.amz_content_sha256.as_deref(),
+    )?;
+    insert_opt_header(
+        &mut headers,
+        "x-amz-decoded-content-length",
+        req.decoded_content_length.as_deref(),
+    )?;
+    insert_opt_header(&mut headers, "x-amz-trailer", req.amz_trailer.as_deref())?;
+    Ok(headers)
+}
+
+fn insert_opt_header(
+    headers: &mut HeaderMap,
+    name: &'static str,
+    value: Option<&str>,
+) -> Result<(), FS3Error> {
+    let Some(value) = value else {
+        return Ok(());
+    };
+    let header_name = HeaderName::from_static(name);
+    let header_value =
+        HeaderValue::from_str(value).map_err(|_| FS3Error::bad_request("InvalidRequest"))?;
+    headers.insert(header_name, header_value);
+    Ok(())
 }

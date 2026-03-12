@@ -1,6 +1,7 @@
 
 use async_trait::async_trait;
 
+use crate::types::FS3Error;
 use crate::types::s3::policy::S3Action;
 use crate::types::s3::request::*;
 use crate::types::s3::response::*;
@@ -13,15 +14,20 @@ use super::utils::*;
 
 #[async_trait]
 pub trait BucketS3Handler: Send + Sync {
-    type Engine: S3BucketEngine + S3MultipartEngine + S3ObjectEngine + Send + Sync;
-    type Policy: S3PolicyEngine;
+    type Engine: S3BucketEngine<FS3Error>
+        + S3MultipartEngine<FS3Error>
+        + S3ObjectEngine<FS3Error>
+        + S3BucketConfigEngine<FS3Error>
+        + Send
+        + Sync;
+    type Policy: S3PolicyEngine<FS3Error> + S3BucketPolicyEngine<FS3Error>;
     fn engine(&self) -> &Self::Engine;
     fn policy(&self) -> &Self::Policy;
 
     async fn get_bucket_location(
         &self,
         req: GetBucketLocationRequest,
-    ) -> Result<GetBucketLocationResponse, BoxError> {
+    ) -> Result<GetBucketLocationResponse, FS3Error> {
         check_access(
             self.policy(),
             S3Action::GetBucketLocation,
@@ -42,7 +48,7 @@ pub trait BucketS3Handler: Send + Sync {
     async fn get_bucket_policy(
         &self,
         req: GetBucketPolicyRequest,
-    ) -> Result<GetBucketPolicyResponse, BoxError> {
+    ) -> Result<GetBucketPolicyResponse, FS3Error> {
         check_access(
             self.policy(),
             S3Action::GetBucketPolicy,
@@ -63,7 +69,7 @@ pub trait BucketS3Handler: Send + Sync {
     async fn put_bucket_policy(
         &self,
         req: PutBucketPolicyRequest,
-    ) -> Result<PutBucketPolicyResponse, BoxError> {
+    ) -> Result<PutBucketPolicyResponse, FS3Error> {
         check_access(
             self.policy(),
             S3Action::PutBucketPolicy,
@@ -80,7 +86,7 @@ pub trait BucketS3Handler: Send + Sync {
     async fn delete_bucket_policy(
         &self,
         req: DeleteBucketPolicyRequest,
-    ) -> Result<DeleteBucketPolicyResponse, BoxError> {
+    ) -> Result<DeleteBucketPolicyResponse, FS3Error> {
         check_access(
             self.policy(),
             S3Action::DeleteBucketPolicy,
@@ -97,7 +103,7 @@ pub trait BucketS3Handler: Send + Sync {
     async fn get_bucket_policy_status(
         &self,
         req: GetBucketPolicyStatusRequest,
-    ) -> Result<GetBucketPolicyStatusResponse, BoxError> {
+    ) -> Result<GetBucketPolicyStatusResponse, FS3Error> {
         check_access(
             self.policy(),
             S3Action::GetBucketPolicyStatus,
@@ -122,7 +128,7 @@ pub trait BucketS3Handler: Send + Sync {
     async fn list_multipart_uploads(
         &self,
         req: ListMultipartUploadsRequest,
-    ) -> Result<ListMultipartUploadsResponse, BoxError> {
+    ) -> Result<ListMultipartUploadsResponse, FS3Error> {
         check_access(
             self.policy(),
             S3Action::ListBucketMultipartUploads,
@@ -150,7 +156,7 @@ pub trait BucketS3Handler: Send + Sync {
     async fn list_objects_v2m(
         &self,
         req: ListObjectsV2MRequest,
-    ) -> Result<ListObjectsV2MResponse, BoxError> {
+    ) -> Result<ListObjectsV2MResponse, FS3Error> {
         check_access(
             self.policy(),
             S3Action::ListBucket,
@@ -171,7 +177,7 @@ pub trait BucketS3Handler: Send + Sync {
     async fn list_objects_v2(
         &self,
         req: ListObjectsV2Request,
-    ) -> Result<ListObjectsV2Response, BoxError> {
+    ) -> Result<ListObjectsV2Response, FS3Error> {
         check_access(
             self.policy(),
             S3Action::ListBucket,
@@ -192,7 +198,7 @@ pub trait BucketS3Handler: Send + Sync {
     async fn list_object_versions_m(
         &self,
         req: ListObjectVersionsMRequest,
-    ) -> Result<ListObjectVersionsMResponse, BoxError> {
+    ) -> Result<ListObjectVersionsMResponse, FS3Error> {
         check_access(
             self.policy(),
             S3Action::ListBucketVersions,
@@ -213,7 +219,7 @@ pub trait BucketS3Handler: Send + Sync {
     async fn list_object_versions(
         &self,
         req: ListObjectVersionsRequest,
-    ) -> Result<ListObjectVersionsResponse, BoxError> {
+    ) -> Result<ListObjectVersionsResponse, FS3Error> {
         check_access(
             self.policy(),
             S3Action::ListBucketVersions,
@@ -234,7 +240,7 @@ pub trait BucketS3Handler: Send + Sync {
     async fn list_objects_v1(
         &self,
         req: ListObjectsV1Request,
-    ) -> Result<ListObjectsV1Response, BoxError> {
+    ) -> Result<ListObjectsV1Response, FS3Error> {
         check_access(
             self.policy(),
             S3Action::ListBucket,
@@ -252,7 +258,7 @@ pub trait BucketS3Handler: Send + Sync {
         })
     }
 
-    async fn put_bucket(&self, req: PutBucketRequest) -> Result<PutBucketResponse, BoxError> {
+    async fn put_bucket(&self, req: PutBucketRequest) -> Result<PutBucketResponse, FS3Error> {
         check_access(
             self.policy(),
             S3Action::CreateBucket,
@@ -271,7 +277,7 @@ pub trait BucketS3Handler: Send + Sync {
         Ok(Default::default())
     }
 
-    async fn head_bucket(&self, req: HeadBucketRequest) -> Result<HeadBucketResponse, BoxError> {
+    async fn head_bucket(&self, req: HeadBucketRequest) -> Result<HeadBucketResponse, FS3Error> {
         check_access(
             self.policy(),
             S3Action::HeadBucket,
@@ -286,7 +292,7 @@ pub trait BucketS3Handler: Send + Sync {
     async fn delete_multiple_objects(
         &self,
         req: DeleteMultipleObjectsRequest,
-    ) -> Result<DeleteMultipleObjectsResponse, BoxError> {
+    ) -> Result<DeleteMultipleObjectsResponse, FS3Error> {
         check_access(
             self.policy(),
             S3Action::DeleteObject,
@@ -322,7 +328,7 @@ pub trait BucketS3Handler: Send + Sync {
     async fn delete_bucket(
         &self,
         req: DeleteBucketRequest,
-    ) -> Result<DeleteBucketResponse, BoxError> {
+    ) -> Result<DeleteBucketResponse, FS3Error> {
         check_access(
             self.policy(),
             S3Action::DeleteBucket,

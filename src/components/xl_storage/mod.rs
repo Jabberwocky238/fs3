@@ -174,8 +174,7 @@ impl XlStorage {
 }
 
 #[async_trait]
-impl StorageVolume for XlStorage {
-    type Error = StorageError;
+impl StorageVolume<StorageError> for XlStorage {
 
     async fn make_vol(&self, _ctx: &Context, volume: &str) -> Result<(), StorageError> {
         tokio::fs::create_dir_all(self.path.join(volume)).await
@@ -210,8 +209,7 @@ impl StorageVolume for XlStorage {
 }
 
 #[async_trait]
-impl StorageMetadata for XlStorage {
-    type Error = StorageError;
+impl StorageMetadata<StorageError> for XlStorage {
 
     async fn read_version(&self, _ctx: &Context, volume: &str, path: &str, version_id: &str) -> Result<FileInfo, StorageError> {
         let xl_meta = self.read_xl_meta(volume, path).await?
@@ -335,8 +333,7 @@ impl StorageMetadata for XlStorage {
 }
 
 #[async_trait]
-impl StorageFile for XlStorage {
-    type Error = StorageError;
+impl StorageFile<StorageError> for XlStorage {
 
     async fn read_file(&self, _ctx: &Context, volume: &str, path: &str, offset: i64, buf: &mut [u8]) -> Result<i64, StorageError> {
         // Check if data is inline in xl.meta
@@ -425,8 +422,7 @@ impl StorageFile for XlStorage {
 }
 
 #[async_trait]
-impl StorageBucketConfig for XlStorage {
-    type Error = StorageError;
+impl StorageBucketConfig<StorageError> for XlStorage {
 
     async fn read_bucket_policy(&self, _ctx: &Context, bucket: &str) -> Result<Option<String>, StorageError> {
         match tokio::fs::read_to_string(self.bucket_policy_path(bucket)).await {
@@ -526,8 +522,7 @@ impl StorageBucketConfig for XlStorage {
 }
 
 #[async_trait]
-impl StorageObjectConfig for XlStorage {
-    type Error = StorageError;
+impl StorageObjectConfig<StorageError> for XlStorage {
 
     async fn read_object_tags(&self, _ctx: &Context, bucket: &str, key: &str) -> Result<Option<String>, StorageError> {
         match tokio::fs::read_to_string(self.object_tags_path(bucket, key)).await {

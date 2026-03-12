@@ -9,6 +9,12 @@ pub struct FS3Error {
     message: String,
 }
 
+impl Into<dyn std::error::Error> for FS3Error {
+    fn into(self) -> Box<dyn std::error::Error> {
+        Box::new(self)
+    }
+}
+
 pub type S3Error = FS3Error;
 pub type S3EngineError = FS3Error;
 pub type StorageError = FS3Error;

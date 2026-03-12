@@ -1,11 +1,12 @@
 use chrono::SecondsFormat;
 use thiserror::Error;
-
+ use crate::types::traits::s3_policyengine::{PolicyEffect, PolicyEvalContext};
 use crate::types::FS3Error;
 use crate::types::s3::core::{
     BucketFeatures, CompleteMultipartInput, DeleteObjectOptions, ListOptions,
     ObjectWriteOptions, StorageClass, UploadedPart, VersioningState,
 };
+use crate::types::traits::StdError;
 use crate::types::s3::policy::S3Action;
 use crate::types::s3::request::*;
 use crate::types::s3::response::*;
@@ -47,12 +48,11 @@ impl From<S3HandlerBridgeError> for FS3Error {
     }
 }
 
-pub async fn check_access<P>(policy: &P, action: S3Action, bucket: Option<&str>, key: Option<&str>) -> Result<(), FS3Error>
+pub async fn check_access<P, E>(policy: &P, action: S3Action, bucket: Option<&str>, key: Option<&str>) -> Result<(), E>
 where
-    P: S3PolicyEngine<FS3Error> + ?Sized,
+    P: S3PolicyEngine<E> + ?Sized,
+    E: StdError,
 {
-    use crate::types::traits::s3_policyengine::{PolicyEffect, PolicyEvalContext};
-
     let ctx = PolicyEvalContext {
         action,
         bucket: bucket.map(|s| s.to_string()),
@@ -65,8 +65,8 @@ where
 
     match policy.check_access(&ctx).await {
         Ok(PolicyEffect::Allow) => Ok(()),
-        Ok(PolicyEffect::Deny) => Err(S3HandlerBridgeError::AccessDenied(format!("{action}")).into()),
-        Err(err) => Err(FS3Error::from(err.to_string())),
+        Ok(PolicyEffect::Deny) => Err(FS3Error::forbidden("AccessDenied").into()),
+        Err(err) => Err(err),
     }
 }
 
