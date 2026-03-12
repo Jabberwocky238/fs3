@@ -1,4 +1,4 @@
-use chrono::SecondsFormat;
+﻿use chrono::SecondsFormat;
 use thiserror::Error;
  use crate::types::traits::s3_policyengine::{PolicyEffect, PolicyEvalContext};
 use crate::types::FS3Error;
@@ -137,6 +137,87 @@ pub fn bucket_features_for_create() -> BucketFeatures {
     }
 }
 
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CopySourceRef {
+    pub bucket: String,
+    pub key: String,
+    pub version_id: Option<String>,
+}
+
+pub fn parse_copy_source(s: &str) -> Option<CopySourceRef> {
+    let trimmed = s.trim();
+    let raw = trimmed.strip_prefix('/').unwrap_or(trimmed);
+    let (path_part, query_part) = match raw.split_once('?') {
+        Some((path, query)) => (path, Some(query)),
+        None => (raw, None),
+    };
+    let mut it = path_part.splitn(2, '/');
+    let bucket = it.next()?.to_string();
+    let key = it.next()?.to_string();
+    let version_id = query_part.and_then(|query| {
+        query.split('&').find_map(|pair| {
+            let (name, value) = pair.split_once('=')?;
+            if name == "versionId" {
+                Some(value.to_string())
+            } else {
+                None
+            }
+        })
+    });
+    Some(CopySourceRef {
+        bucket,
+        key,
+        version_id,
+    })
+}
+
+pub fn copy_to_write_opt(req: &CopyObjectRequest) -> ObjectWriteOptions {
+    let replace_metadata = req
+        .metadata_directive
+        .as_deref()
+        .map(|value| value.eq_ignore_ascii_case("REPLACE"))
+        .unwrap_or(false);
+    let storage_class = match req.storage_class.as_deref() {
+        Some("STANDARD_IA") => StorageClass::StandardIa,
+        Some("ONEZONE_IA") => StorageClass::OneZoneIa,
+        Some("GLACIER") => StorageClass::Glacier,
+        Some("DEEP_ARCHIVE") => StorageClass::DeepArchive,
+        Some("INTELLIGENT_TIERING") => StorageClass::IntelligentTiering,
+        Some("REDUCED_REDUNDANCY") => StorageClass::ReducedRedundancy,
+        Some(other) => StorageClass::Custom(other.to_string()),
+        None => StorageClass::Standard,
+    };
+
+    ObjectWriteOptions {
+        content_type: if replace_metadata {
+            req.content_type.clone()
+        } else {
+            None
+        },
+        content_encoding: if replace_metadata {
+            req.content_encoding.clone()
+        } else {
+            None
+        },
+        storage_class,
+        user_metadata: if replace_metadata {
+            req.user_metadata.clone()
+        } else {
+            std::collections::HashMap::new()
+        },
+        user_tags: std::collections::HashMap::new(),
+        checksum: None,
+        versioning: VersioningState::Off,
+        retention: None,
+        legal_hold: None,
+        sse_algorithm: None,
+        size: 0,
+        copy_source_version_id: req.copy_source_version_id.clone(),
+        metadata_directive: req.metadata_directive.clone(),
+        tagging_directive: req.tagging_directive.clone(),
+    }
+}
 pub fn split_copy_source(s: &str) -> Option<(String, String)> {
     let raw = s.trim_start_matches('/');
     let mut it = raw.splitn(2, '/');
@@ -190,4 +271,46 @@ pub fn parse_delete_keys(xml: &str) -> Vec<String> {
         pos = e + "</Key>".len();
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{copy_to_write_opt, parse_copy_source};
+    use crate::types::s3::request::{CopyObjectRequest, ObjectRef};
+    use std::collections::HashMap;
+
+    #[test]
+    fn parse_copy_source_extracts_version_id() {
+        let parsed = parse_copy_source("/src-bucket/path/to.txt?versionId=v123&ignored=1")
+            .expect("copy source should parse");
+        assert_eq!(parsed.bucket, "src-bucket");
+        assert_eq!(parsed.key, "path/to.txt");
+        assert_eq!(parsed.version_id.as_deref(), Some("v123"));
+    }
+
+    #[test]
+    fn copy_to_write_opt_only_applies_replace_metadata() {
+        let mut user_metadata = HashMap::new();
+        user_metadata.insert("color".to_string(), "blue".to_string());
+        let req = CopyObjectRequest {
+            object: ObjectRef {
+                bucket: "dst".to_string(),
+                object: "obj".to_string(),
+            },
+            copy_source: "/src/key".to_string(),
+            copy_source_version_id: Some("ver-1".to_string()),
+            metadata_directive: Some("REPLACE".to_string()),
+            tagging_directive: Some("COPY".to_string()),
+            content_type: Some("text/plain".to_string()),
+            content_encoding: Some("gzip".to_string()),
+            storage_class: Some("STANDARD_IA".to_string()),
+            user_metadata,
+        };
+
+        let opt = copy_to_write_opt(&req);
+        assert_eq!(opt.copy_source_version_id.as_deref(), Some("ver-1"));
+        assert_eq!(opt.content_type.as_deref(), Some("text/plain"));
+        assert_eq!(opt.content_encoding.as_deref(), Some("gzip"));
+        assert_eq!(opt.user_metadata.get("color").map(String::as_str), Some("blue"));
+    }
 }

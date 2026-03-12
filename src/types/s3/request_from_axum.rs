@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+﻿use std::collections::HashMap;
 
 use axum::http::{HeaderMap, Method};
 
@@ -259,10 +259,24 @@ impl<'a> From<ObjectEntryRef<'a>> for GetObjectRequest {
 
 impl<'a> From<ObjectEntryRef<'a>> for CopyObjectRequest {
     fn from(v: ObjectEntryRef<'a>) -> Self {
+        let mut user_metadata = std::collections::HashMap::new();
+        for (key, value) in v.headers.iter() {
+            if let Some(meta_key) = key.as_str().strip_prefix("x-amz-meta-") {
+                if let Ok(meta_value) = value.to_str() {
+                    user_metadata.insert(meta_key.to_string(), meta_value.to_string());
+                }
+            }
+        }
         Self {
             object: v.object_ref(),
             copy_source: v.header("x-amz-copy-source").unwrap_or_default(),
+            copy_source_version_id: None,
             metadata_directive: v.header("x-amz-metadata-directive"),
+            tagging_directive: v.header("x-amz-tagging-directive"),
+            content_type: v.header("content-type"),
+            content_encoding: v.header("content-encoding"),
+            storage_class: v.header("x-amz-storage-class"),
+            user_metadata,
         }
     }
 }
@@ -384,3 +398,4 @@ impl<'a> From<ObjectEntryRef<'a>> for RejectedObjectAclDeleteRequest {
         Self { object: v.object_ref() }
     }
 }
+

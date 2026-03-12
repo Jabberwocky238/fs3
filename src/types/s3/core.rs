@@ -163,6 +163,9 @@ pub struct UploadedPart {
     pub part_number: u32,
     pub etag: String,
     pub size: u64,
+    pub copy_source_version_id: Option<String>,
+    pub metadata_directive: Option<String>,
+    pub tagging_directive: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -317,6 +320,9 @@ pub struct ObjectWriteOptions {
     pub legal_hold: Option<ObjectLegalHold>,
     pub sse_algorithm: Option<String>,
     pub size: u64,
+    pub copy_source_version_id: Option<String>,
+    pub metadata_directive: Option<String>,
+    pub tagging_directive: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -425,4 +431,5 @@ pub struct BucketWebsite {
     pub index_document: String,
     pub error_document: Option<String>,
 }
+
 

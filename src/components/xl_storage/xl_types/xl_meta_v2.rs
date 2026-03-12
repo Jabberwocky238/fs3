@@ -97,10 +97,10 @@ impl From<XlMetaV2> for Vec<u8> {
         result.extend_from_slice(&[0u8, 0u8, 0u8, 0u8]);
         let data_offset = result.len();
 
-        // xlHeaderVersion (1)
-        result.push(0x01);
-        // xlMetaVersion (1)
-        result.push(0x01);
+        // xlHeaderVersion (3)
+        result.push(0x03);
+        // xlMetaVersion (3)
+        result.push(0x03);
         // versions count
         if val.versions.len() <= 127 {
             result.push(val.versions.len() as u8);
@@ -158,6 +158,8 @@ impl From<XlMetaV2> for Vec<u8> {
         result
     }
 }
+
+
 
 
 

@@ -1,4 +1,4 @@
-use crate::types::FS3Error;
+﻿use crate::types::FS3Error;
 use crate::types::s3::core::*;
 use crate::types::s3::policy::S3Action;
 use crate::types::s3::request::*;
@@ -302,17 +302,21 @@ where
     }
 
     async fn copy_object(&self, req: CopyObjectRequest) -> Result<CopyObjectResponse, E> {
-        let (src_bucket, src_key) = split_copy_source(&req.copy_source).ok_or_else(|| {
+        let src = parse_copy_source(&req.copy_source).ok_or_else(|| {
             S3HandlerBridgeError::InvalidRequest("missing/invalid x-amz-copy-source".to_string())
         })?;
+        let mut write_options = copy_to_write_opt(&req);
+        if write_options.copy_source_version_id.is_none() {
+            write_options.copy_source_version_id = src.version_id.clone();
+        }
         let obj = self
             .engine()
             .copy_object(
-                &src_bucket,
-                &src_key,
+                &src.bucket,
+                &src.key,
                 &req.object.bucket,
                 &req.object.object,
-                to_write_opt(None, 0, Default::default()),
+                write_options,
             )
             .await?;
         Ok(CopyObjectResponse {
@@ -537,3 +541,4 @@ fn insert_opt_header(
     headers.insert(header_name, header_value);
     Ok(())
 }
+

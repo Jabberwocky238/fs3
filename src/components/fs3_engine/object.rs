@@ -1,4 +1,4 @@
-use async_trait::async_trait;
+﻿use async_trait::async_trait;
 
 use crate::types::errors::S3EngineError;
 use crate::types::s3::core::*;
@@ -18,7 +18,7 @@ impl S3ObjectEngine<S3EngineError> for FS3Engine {
         let ctx = crate::types::s3::object_layer_types::Context { request_id: "".to_string() };
         let data = crate::types::s3::storage_types::PutObjReader { reader: body, size: options.size as i64 };
         let opts = crate::types::s3::object_layer_types::ObjectOptions {
-            version_id: None,
+            version_id: options.copy_source_version_id.clone(),
             content_type: options.content_type.clone(),
             etag: None,
             content_md5: None,
@@ -126,7 +126,7 @@ impl S3ObjectEngine<S3EngineError> for FS3Engine {
     async fn copy_object(&self, src_bucket: &str, src_key: &str, dst_bucket: &str, dst_key: &str, options: ObjectWriteOptions) -> Result<S3Object, S3EngineError> {
         let ctx = crate::types::s3::object_layer_types::Context { request_id: "".to_string() };
         let src_opts = crate::types::s3::object_layer_types::ObjectOptions {
-            version_id: None,
+            version_id: options.copy_source_version_id.clone(),
             content_type: None,
             etag: None,
             content_md5: None,
@@ -135,7 +135,7 @@ impl S3ObjectEngine<S3EngineError> for FS3Engine {
             range: None,
         };
         let dst_opts = crate::types::s3::object_layer_types::ObjectOptions {
-            version_id: None,
+            version_id: options.copy_source_version_id.clone(),
             content_type: options.content_type.clone(),
             etag: None,
             content_md5: None,
@@ -196,7 +196,7 @@ impl S3ObjectEngine<S3EngineError> for FS3Engine {
                     key: Some(key.clone()),
                     code: "InternalError".to_string(),
                     message: e.to_string(),
-                    version_id: None,
+                    version_id: options.copy_source_version_id.clone(),
                 }),
             }
         }
@@ -250,4 +250,5 @@ impl S3ObjectLegalHoldEngine<S3EngineError> for FS3Engine {
         Ok(())
     }
 }
+
 

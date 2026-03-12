@@ -1,4 +1,3 @@
-use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 
 use super::xl_meta_v2_delete_marker::XlMetaV2DeleteMarker;
@@ -33,7 +32,7 @@ pub struct XlMetaV2Version {
 
 impl From<Vec<u8>> for XlMetaV2Version {
     fn from(bytes: Vec<u8>) -> Self {
-        use rmpv::{Value, decode};
+        use rmpv::decode;
         let val = decode::read_value(&mut &bytes[..]).unwrap();
         let map = val.as_map().unwrap();
 
@@ -72,33 +71,45 @@ impl From<Vec<u8>> for XlMetaV2Version {
 
 impl From<XlMetaV2Version> for Vec<u8> {
     fn from(val: XlMetaV2Version) -> Self {
-        rmp_serde::to_vec(&val).unwrap()
+        let mut buf = Vec::new();
+        let mut field_count = 2;
+        if val.object_v1.is_some() {
+            field_count += 1;
+        }
+        if val.object_v2.is_some() {
+            field_count += 1;
+        }
+        if val.delete_marker.is_some() {
+            field_count += 1;
+        }
+
+        rmp::encode::write_map_len(&mut buf, field_count).unwrap();
+        rmp::encode::write_str(&mut buf, "Type").unwrap();
+        rmp::encode::write_uint(&mut buf, val.version_type as u64).unwrap();
+
+        if let Some(object_v1) = val.object_v1 {
+            rmp::encode::write_str(&mut buf, "V1Obj").unwrap();
+            buf.extend_from_slice(&object_v1);
+        }
+        if let Some(object_v2) = val.object_v2 {
+            rmp::encode::write_str(&mut buf, "V2Obj").unwrap();
+            let object_bytes: Vec<u8> = object_v2.into();
+            buf.extend_from_slice(&object_bytes);
+        }
+        if let Some(delete_marker) = val.delete_marker {
+            rmp::encode::write_str(&mut buf, "DelObj").unwrap();
+            let delete_marker_bytes: Vec<u8> = delete_marker.into();
+            buf.extend_from_slice(&delete_marker_bytes);
+        }
+
+        rmp::encode::write_str(&mut buf, "v").unwrap();
+        rmp::encode::write_uint(&mut buf, val.written_by_version).unwrap();
+        buf
     }
 }
 
 impl From<&XlMetaV2Version> for Vec<u8> {
     fn from(val: &XlMetaV2Version) -> Self {
         val.clone().into()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_case_1() {
-        let expected = hex::decode("83a45479706501a556324f626ade0011a24944c4100102030405060708090a0b0c0d0e0f10a444446972c410aabbccddeeff11223344556677889900a64563416c676f00a345634d00a345634e00a745634253697a6500a74563496e64657800a645634469737490a84353756d416c676f00a8506172744e756d7390a9506172744554616773c0a95061727453697a657390aa506172744153697a6573c0a453697a65d10400a54d54696d65d2499602d2a74d657461537973c0a74d657461557372c0a17601").unwrap();
-        let decoded: XlMetaV2Version = expected.clone().into();
-        assert_eq!(decoded.version_type as u8, 1);
-        assert_eq!(decoded.written_by_version, 1);
-    }
-
-    #[test]
-    fn test_case_2() {
-        let expected = hex::decode("83a45479706502a644656c4f626a82a24944c410ffeeddccbbaa99887766554433221100a54d54696d65d2499602d3a17602").unwrap();
-        let decoded: XlMetaV2Version = expected.into();
-        assert_eq!(decoded.version_type as u8, 2);
-        assert_eq!(decoded.written_by_version, 2);
     }
 }

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+﻿use std::collections::HashMap;
 use std::sync::Arc;
 
 use axum::body::Body;
@@ -132,13 +132,27 @@ where
                 body: body_stream(body),
             }).await?,
         ),
-        Method::PUT if copy_source.is_some() => S3Response::CopyObject(
+        Method::PUT if copy_source.is_some() => S3Response::CopyObject({
+            let mut user_metadata = HashMap::new();
+            for (k, v) in headers.iter() {
+                if let Some(key) = k.as_str().strip_prefix("x-amz-meta-") {
+                    if let Ok(val) = v.to_str() {
+                        user_metadata.insert(key.to_string(), val.to_string());
+                    }
+                }
+            }
             handler.copy_object(CopyObjectRequest {
                 object: mk(),
                 copy_source: copy_source.unwrap_or_default(),
+                copy_source_version_id: None,
                 metadata_directive: header(&headers, "x-amz-metadata-directive"),
-            }).await?,
-        ),
+                tagging_directive: header(&headers, "x-amz-tagging-directive"),
+                content_type: header(&headers, "content-type"),
+                content_encoding: header(&headers, "content-encoding"),
+                storage_class: header(&headers, "x-amz-storage-class"),
+                user_metadata,
+            }).await?
+        }),
         Method::PUT => {
             let content_length = header(&headers, "content-length").and_then(|v| v.parse::<u64>().ok());
             let mut user_metadata = HashMap::new();
@@ -219,3 +233,4 @@ where
 
     Ok(resp)
 }
+

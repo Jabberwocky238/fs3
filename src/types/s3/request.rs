@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+﻿use std::collections::HashMap;
 use crate::types::s3::core::ObjectAttribute;
 use crate::types::s3::core::BoxByteStream;
 use crate::types::s3::core::{
@@ -173,7 +173,13 @@ pub struct GetObjectRequest {
 pub struct CopyObjectRequest {
     pub object: ObjectRef,
     pub copy_source: String,
+    pub copy_source_version_id: Option<String>,
     pub metadata_directive: Option<String>,
+    pub tagging_directive: Option<String>,
+    pub content_type: Option<String>,
+    pub content_encoding: Option<String>,
+    pub storage_class: Option<String>,
+    pub user_metadata: std::collections::HashMap<String, String>,
 }
 
 pub struct PutObjectRetentionRequest {
@@ -567,3 +573,4 @@ pub enum S3Request {
     RejectedObjectAclDelete(RejectedObjectAclDeleteRequest),
     RejectedBucketApi(RejectedBucketApiRequest),
 }
+
