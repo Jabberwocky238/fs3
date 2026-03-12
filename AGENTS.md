@@ -30,6 +30,12 @@ minio.exe server --address 127.0.0.1:9000 --console-address 127.0.0.1:9001 .debu
 fs3.exe server --address 127.0.0.1:9100 .debug/fs3
 # 无需sleep等待服务器启动，服务器会瞬间启动
 
+# $p = Start-Process -FilePath 'D:\1-code\__trash__\fs3\minio.exe' -ArgumentList
+#   │ 'server','--address','127.0.0.1:9000','--console-address','127.0.0.1:9001','.debug/2tier-minio' -WorkingDirectory 'D:\1-code\__trash__\fs3' -PassThru; Start-Sleep    
+#   │ -Seconds 1; if (Get-Process -Id $p.Id -ErrorAction SilentlyContinue) { $p.Id }
+# $p = Start-Process -FilePath 'D:\1-code\__trash__\fs3\fs3.exe' -ArgumentList 'server','--address','127.0.0.1:9100','.debug/2tier-fs3' -WorkingDirectory 'D:
+#   │ \1-code\__trash__\fs3' -PassThru; Start-Sleep -Seconds 1; if (Get-Process -Id $p.Id -ErrorAction SilentlyContinue) { $p.Id }
+
 # 2. 执行Phase 1 - MinIO和fs3都写入数据
 python test_xxx.py http://127.0.0.1:9000 1
 python test_xxx.py http://127.0.0.1:9100 1
