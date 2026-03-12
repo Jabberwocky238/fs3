@@ -1,25 +1,24 @@
+use crate::types::errors::FS3Error;
 use crate::types::s3::request::*;
 use crate::types::s3::response::*;
-use crate::types::errors::S3EngineError;
 use crate::types::traits::s3_handler::utils;
-use crate::types::traits::s3_handler::S3HandlerBridgeError;
 use crate::types::traits::s3_engine::{S3BucketEngine, S3BucketConfigEngine, S3BucketWebsiteEngine};
 use crate::types::traits::s3_policyengine::S3PolicyEngine;
 use crate::types::s3::policy::S3Action;
 use async_trait::async_trait;
-use std::error::Error;
+use crate::types::traits::BoxError;
 
 #[async_trait]
-pub trait BucketCorsS3Handler<E: Error + Send + Sync + 'static>: Send + Sync {
+pub trait BucketCorsS3Handler: Send + Sync {
     type Engine: S3BucketEngine + S3BucketConfigEngine + S3BucketWebsiteEngine;
     type Policy: S3PolicyEngine;
     fn engine(&self) -> &Self::Engine;
     fn policy(&self) -> &Self::Policy;
 
-    async fn get_bucket_cors(&self, req: GetBucketCorsRequest) -> Result<GetBucketCorsResponse, E> {
+    async fn get_bucket_cors(&self, req: GetBucketCorsRequest) -> Result<GetBucketCorsResponse , BoxError> {
         utils::check_access(self.policy(), S3Action::GetBucketCors, Some(&req.bucket.bucket), None).await?;
         let meta = self.engine().get_bucket_metadata(&req.bucket.bucket).await?;
-        let cors = meta.cors.ok_or_else(|| S3EngineError::NoSuchCORSConfiguration)?;
+        let cors = meta.cors.ok_or_else(|| FS3Error::from("No such CORS configuration"))?;
         Ok(GetBucketCorsResponse {
             meta: Default::default(),
             cors_rules: cors.rules.iter().map(|rule| {
@@ -33,15 +32,16 @@ pub trait BucketCorsS3Handler<E: Error + Send + Sync + 'static>: Send + Sync {
         })
     }
 
-    async fn put_bucket_cors(&self, req: PutBucketCorsRequest) -> Result<PutBucketCorsResponse, E> {
+    async fn put_bucket_cors(&self, req: PutBucketCorsRequest) -> Result<PutBucketCorsResponse , BoxError> {
         utils::check_access(self.policy(), S3Action::PutBucketCors, Some(&req.bucket.bucket), None).await?;
         self.engine().set_bucket_cors(&req.bucket.bucket, Some(req.cors)).await?;
         Ok(PutBucketCorsResponse { meta: Default::default() })
     }
 
-    async fn delete_bucket_cors(&self, req: DeleteBucketCorsRequest) -> Result<DeleteBucketCorsResponse, E> {
+    async fn delete_bucket_cors(&self, req: DeleteBucketCorsRequest) -> Result<DeleteBucketCorsResponse , BoxError> {
         utils::check_access(self.policy(), S3Action::DeleteBucketCors, Some(&req.bucket.bucket), None).await?;
         self.engine().set_bucket_cors(&req.bucket.bucket, None).await?;
         Ok(DeleteBucketCorsResponse { meta: Default::default() })
     }
 }
+

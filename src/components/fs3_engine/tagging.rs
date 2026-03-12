@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use std::collections::HashMap;
 use crate::types::traits::s3_engine::S3ObjectTaggingEngine;
-use crate::types::errors::S3EngineError;
+
 use super::FS3Engine;
 
 #[async_trait]

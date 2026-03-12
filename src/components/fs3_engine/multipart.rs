@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use crate::types::traits::s3_engine::*;
 use crate::types::s3::core::*;
-use crate::types::errors::S3EngineError;
+
 use super::FS3Engine;
 
 #[async_trait]
@@ -9,7 +9,7 @@ impl S3MultipartEngine for FS3Engine {
     async fn new_multipart_upload(&self, bucket: &str, key: &str, _options: ObjectWriteOptions) -> Result<MultipartUpload, S3EngineError> {
         let ctx = crate::types::s3::object_layer_types::Context { request_id: "".to_string() };
         let result = self.object_layer.new_multipart_upload(&ctx, bucket, key, Default::default()).await
-            .map_err(|e| S3EngineError::Storage(e.to_string()))?;
+            .map_err(|e| S3EngineError::from(e.to_string()))?;
         Ok(MultipartUpload {
             bucket: bucket.to_string(),
             key: key.to_string(),
@@ -26,7 +26,7 @@ impl S3MultipartEngine for FS3Engine {
         let size = body.size_hint().0 as i64;
         let data = crate::types::s3::storage_types::PutObjReader { reader: body, size };
         let result = self.object_layer.put_object_part(&ctx, bucket, key, upload_id, part_number, data, Default::default()).await
-            .map_err(|e| S3EngineError::Storage(e.to_string()))?;
+            .map_err(|e| S3EngineError::from(e.to_string()))?;
         Ok(UploadedPart {
             part_number,
             etag: result.etag,
@@ -35,7 +35,7 @@ impl S3MultipartEngine for FS3Engine {
     }
 
     async fn copy_object_part(&self, _src_bucket: &str, _src_key: &str, _dst_bucket: &str, _dst_key: &str, _upload_id: &str, _part_number: u32) -> Result<UploadedPart, S3EngineError> {
-        Err(S3EngineError::Storage("not implemented".to_string()))
+        Err(S3EngineError::from("not implemented"))
     }
 
     async fn list_object_parts(&self, _bucket: &str, _key: &str, _upload_id: &str) -> Result<Vec<UploadedPart>, S3EngineError> {
@@ -49,7 +49,7 @@ impl S3MultipartEngine for FS3Engine {
             etag: p.etag,
         }).collect();
         let result = self.object_layer.complete_multipart_upload(&ctx, bucket, key, upload_id, parts, Default::default()).await
-            .map_err(|e| S3EngineError::Storage(e.to_string()))?;
+            .map_err(|e| S3EngineError::from(e.to_string()))?;
         Ok(S3Object {
             bucket: bucket.to_string(),
             key: key.to_string(),
@@ -80,3 +80,4 @@ impl S3MultipartEngine for FS3Engine {
         Ok(Vec::new())
     }
 }
+

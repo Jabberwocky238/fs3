@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use crate::types::traits::s3_engine::*;
-use crate::types::errors::S3EngineError;
+
 use crate::types::s3::core::CorsConfiguration;
 use super::FS3Engine;
 
@@ -24,7 +24,7 @@ impl S3BucketWebsiteEngine for FS3Engine {
         let stream = futures::stream::once(async move { Ok::<bytes::Bytes, std::io::Error>(bytes::Bytes::from(data)) });
         self.storage.create_file(&ctx, bucket, path, len, Box::pin(stream)).await
             .map(|_| ())
-            .map_err(|e| S3EngineError::Storage(e.to_string()))
+            .map_err(|e| S3EngineError::from(e.to_string()))
     }
 
     async fn delete_bucket_website(&self, _bucket: &str) -> Result<(), S3EngineError> {
@@ -35,10 +35,11 @@ impl S3BucketWebsiteEngine for FS3Engine {
         let ctx = crate::types::s3::object_layer_types::Context { request_id: "".to_string() };
         match cors {
             Some(c) => {
-                let json = serde_json::to_string(&c).map_err(|e| S3EngineError::Storage(e.to_string()))?;
-                self.storage.write_bucket_cors(&ctx, bucket, &json).await.map_err(|e| S3EngineError::Storage(e.to_string()))
+                let json = serde_json::to_string(&c).map_err(|e| S3EngineError::from(e.to_string()))?;
+                self.storage.write_bucket_cors(&ctx, bucket, &json).await.map_err(|e| S3EngineError::from(e.to_string()))
             }
-            None => self.storage.delete_bucket_cors(&ctx, bucket).await.map_err(|e| S3EngineError::Storage(e.to_string()))
+            None => self.storage.delete_bucket_cors(&ctx, bucket).await.map_err(|e| S3EngineError::from(e.to_string()))
         }
     }
 }
+

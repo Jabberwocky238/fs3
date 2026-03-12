@@ -1,21 +1,21 @@
 use async_trait::async_trait;
-use std::error::Error;
+use crate::types::traits::BoxError;
 use crate::types::s3::request::*;
 use crate::types::s3::response::*;
 use crate::types::traits::s3_engine::S3BucketWebsiteEngine;
 use crate::types::traits::s3_policyengine::S3PolicyEngine;
 use crate::types::s3::policy::S3Action;
-use crate::types::errors::S3EngineError;
+
 use super::utils::*;
 
 #[async_trait]
-pub trait BucketWebsiteS3Handler<E: Error + Send + Sync + 'static>: Send + Sync {
+pub trait BucketWebsiteS3Handler: Send + Sync {
     type Engine: S3BucketWebsiteEngine + Send + Sync;
     type Policy: S3PolicyEngine + Send + Sync;
     fn bucket_website_engine_provider(&self) -> &Self::Engine;
     fn bucket_website_policy_provider(&self) -> &Self::Policy;
 
-    async fn get_bucket_website(&self, req: GetBucketWebsiteRequest) -> Result<GetBucketWebsiteResponse, E> {
+    async fn get_bucket_website(&self, req: GetBucketWebsiteRequest) -> Result<GetBucketWebsiteResponse , BoxError> {
         check_access(self.bucket_website_policy_provider(), S3Action::GetBucketWebsite, Some(&req.bucket.bucket), None).await?;
         let config = self.bucket_website_engine_provider().get_bucket_website(&req.bucket.bucket).await?;
 
@@ -40,7 +40,7 @@ pub trait BucketWebsiteS3Handler<E: Error + Send + Sync + 'static>: Send + Sync 
         })
     }
 
-    async fn put_bucket_website(&self, req: PutBucketWebsiteRequest) -> Result<PutBucketWebsiteResponse, E> {
+    async fn put_bucket_website(&self, req: PutBucketWebsiteRequest) -> Result<PutBucketWebsiteResponse , BoxError> {
         check_access(self.bucket_website_policy_provider(), S3Action::PutBucketWebsite, Some(&req.bucket.bucket), None).await?;
         let mut website = format!(
             "<WebsiteConfiguration><IndexDocument><Suffix>{}</Suffix></IndexDocument>",
@@ -54,3 +54,4 @@ pub trait BucketWebsiteS3Handler<E: Error + Send + Sync + 'static>: Send + Sync 
         Ok(PutBucketWebsiteResponse { meta: Default::default() })
     }
 }
+

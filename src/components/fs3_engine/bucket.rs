@@ -5,11 +5,7 @@ use crate::types::errors::{S3EngineError, S3Error};
 use super::FS3Engine;
 
 fn map_s3_error(e: S3Error) -> S3EngineError {
-    match e {
-        S3Error::NoSuchBucket(msg) => S3EngineError::BucketNotFound(msg),
-        S3Error::NoSuchKey(msg) => S3EngineError::Storage(msg),
-        S3Error::Storage(e) => S3EngineError::Storage(e.to_string()),
-    }
+    e.to_string().into()
 }
 
 #[async_trait]
@@ -144,3 +140,4 @@ impl S3BucketEngine for FS3Engine {
         Ok(ObjectListPage::default())
     }
 }
+

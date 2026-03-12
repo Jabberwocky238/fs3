@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use crate::types::traits::s3_engine::*;
 use crate::types::s3::core::*;
-use crate::types::errors::S3EngineError;
+
 use super::FS3Engine;
 
 #[async_trait]
@@ -48,7 +48,7 @@ impl S3BucketVersionEngine for FS3Engine {
     async fn get_bucket_versioning(&self, bucket: &str) -> Result<Option<BucketVersioning>, S3EngineError> {
         let ctx = crate::types::s3::object_layer_types::Context { request_id: "".to_string() };
         let status = self.storage.read_bucket_versioning(&ctx, bucket).await
-            .map_err(|e| S3EngineError::Storage(e.to_string()))?;
+            .map_err(|e| S3EngineError::from(e.to_string()))?;
 
         if let Some(s) = status {
             Ok(Some(BucketVersioning { status: s, mfa_delete: None }))
@@ -60,7 +60,7 @@ impl S3BucketVersionEngine for FS3Engine {
     async fn put_bucket_versioning(&self, bucket: &str, status: String, _mfa_delete: Option<String>) -> Result<(), S3EngineError> {
         let ctx = crate::types::s3::object_layer_types::Context { request_id: "".to_string() };
         self.storage.write_bucket_versioning(&ctx, bucket, &status).await
-            .map_err(|e| S3EngineError::Storage(e.to_string()))
+            .map_err(|e| S3EngineError::from(e.to_string()))
     }
 }
 
@@ -98,11 +98,11 @@ impl S3BucketTaggingEngine for FS3Engine {
     async fn get_bucket_tagging(&self, bucket: &str) -> Result<Option<std::collections::HashMap<String, String>>, S3EngineError> {
         let ctx = crate::types::s3::object_layer_types::Context { request_id: "".to_string() };
         let tags_json = self.storage.read_bucket_tags(&ctx, bucket).await
-            .map_err(|e| S3EngineError::Storage(e.to_string()))?;
+            .map_err(|e| S3EngineError::from(e.to_string()))?;
 
         if let Some(json) = tags_json {
             let tags: std::collections::HashMap<String, String> = serde_json::from_str(&json)
-                .map_err(|e| S3EngineError::Storage(e.to_string()))?;
+                .map_err(|e| S3EngineError::from(e.to_string()))?;
             Ok(Some(tags))
         } else {
             Ok(None)
@@ -112,15 +112,15 @@ impl S3BucketTaggingEngine for FS3Engine {
     async fn put_bucket_tagging(&self, bucket: &str, tags: std::collections::HashMap<String, String>) -> Result<(), S3EngineError> {
         let ctx = crate::types::s3::object_layer_types::Context { request_id: "".to_string() };
         let json = serde_json::to_string(&tags)
-            .map_err(|e| S3EngineError::Storage(e.to_string()))?;
+            .map_err(|e| S3EngineError::from(e.to_string()))?;
         self.storage.write_bucket_tags(&ctx, bucket, &json).await
-            .map_err(|e| S3EngineError::Storage(e.to_string()))
+            .map_err(|e| S3EngineError::from(e.to_string()))
     }
 
     async fn delete_bucket_tagging(&self, bucket: &str) -> Result<(), S3EngineError> {
         let ctx = crate::types::s3::object_layer_types::Context { request_id: "".to_string() };
         self.storage.delete_bucket_tags(&ctx, bucket).await
-            .map_err(|e| S3EngineError::Storage(e.to_string()))
+            .map_err(|e| S3EngineError::from(e.to_string()))
     }
 }
 
@@ -132,7 +132,7 @@ impl S3BucketConfigEngine for FS3Engine {
     async fn get_bucket_metadata(&self, bucket: &str) -> Result<BucketMetadataBundle, S3EngineError> {
         let ctx = crate::types::s3::object_layer_types::Context { request_id: "".to_string() };
         let cors_json = self.storage.read_bucket_cors(&ctx, bucket).await
-            .map_err(|e| S3EngineError::Storage(e.to_string()))?;
+            .map_err(|e| S3EngineError::from(e.to_string()))?;
         let cors = if let Some(json) = cors_json {
             serde_json::from_str(&json).ok()
         } else {
@@ -144,3 +144,4 @@ impl S3BucketConfigEngine for FS3Engine {
         Ok(())
     }
 }
+

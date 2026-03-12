@@ -6,7 +6,6 @@ use crate::components::xl_storage::XlStorage;
 use crate::components::erasure_server_pools::ErasureServerPools;
 use crate::components::storage_policy::StoragePolicyEngine;
 use crate::components::fs3_axum_handler::S3AxumHandler;
-use crate::types::errors::S3EngineError;
 
 #[derive(Args)]
 pub struct ServerArgs {
@@ -38,7 +37,7 @@ pub async fn run_server(args: ServerArgs) -> anyhow::Result<()> {
         println!("Paths: {:?}", args.paths);
     }
 
-    let app = crate::axum_router::<_, S3EngineError>(handler);
+    let app = crate::axum_router(handler);
     axum::serve(listener, app).await?;
 
     Ok(())

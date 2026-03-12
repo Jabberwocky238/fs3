@@ -14,7 +14,6 @@ use crate::types::s3::core::ObjectAttribute;
 use crate::types::s3::request::*;
 use crate::types::s3::response::S3Response;
 use crate::types::s3::xml;
-use crate::types::errors::S3EngineError;
 use crate::types::traits::s3_handler::{S3Handler, S3HandlerBridgeError};
 
 use super::util::{get, has, header, header_eq, multipart_selector};
@@ -35,12 +34,11 @@ fn object_err(e: impl std::fmt::Display) -> HandlerError {
     })
 }
 
-pub fn routes<T, E>(state: Arc<T>) -> Router
+pub fn routes<T>(state: Arc<T>) -> Router
 where
-    T: S3Handler<E> + Send + Sync + 'static,
-    E: std::fmt::Display + From<S3HandlerBridgeError> + From<S3EngineError> + 'static,
+    T: S3Handler + Send + Sync + 'static,
 {
-    Router::new().route("/{bucket}/{*object}", any(object_entry::<T, E>)).with_state(state)
+    Router::new().route("/{bucket}/{*object}", any(object_entry::<T>)).with_state(state)
 }
 
 fn body_stream(body: Body) -> crate::types::s3::core::BoxByteStream {
@@ -50,11 +48,19 @@ fn body_stream(body: Body) -> crate::types::s3::core::BoxByteStream {
 }
 
 async fn body_text(body: Body) -> Result<String, S3HandlerBridgeError> {
-    let stream = body_stream(body);
-    crate::types::traits::s3_handler::utils::stream_to_string(stream).await
+    let chunks = body_stream(body)
+        .collect::<Vec<_>>()
+        .await;
+    let mut buf = Vec::new();
+    for chunk in chunks {
+        let bytes = chunk.map_err(|e| S3HandlerBridgeError::InvalidRequest(format!("stream error: {e}")))?;
+        buf.extend_from_slice(&bytes);
+    }
+    String::from_utf8(buf)
+        .map_err(|e| S3HandlerBridgeError::InvalidRequest(format!("invalid utf-8 body: {e}")))
 }
 
-async fn object_entry<T, E>(
+async fn object_entry<T>(
     State(handler): State<Arc<T>>,
     Path((bucket, object_path)): Path<(String, String)>,
     method: Method,
@@ -63,8 +69,7 @@ async fn object_entry<T, E>(
     body: Body,
 ) -> Result<S3Response, HandlerError>
 where
-    T: S3Handler<E> + Send + Sync,
-    E: std::fmt::Display + From<S3HandlerBridgeError> + From<S3EngineError> + 'static,
+    T: S3Handler + Send + Sync,
 {
     let mk = || ObjectRef { bucket: bucket.clone(), object: object_path.clone() };
     if has(&q, "torrent") && matches!(method, Method::GET | Method::PUT | Method::DELETE) {

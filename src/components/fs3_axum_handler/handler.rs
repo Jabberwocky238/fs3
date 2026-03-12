@@ -1,10 +1,9 @@
 use async_trait::async_trait;
 
-use crate::types::errors::S3EngineError;
 use crate::types::traits::s3_engine::S3Engine;
 use crate::types::traits::s3_policyengine::S3PolicyEngine;
 use crate::types::traits::s3_handler::{
-    BucketS3Handler, ObjectS3Handler, RejectedS3Handler, RootS3Handler, S3HandlerBridgeError,
+    BucketS3Handler, ObjectS3Handler, RejectedS3Handler, RootS3Handler,
     BucketLifecycleS3Handler, BucketEncryptionS3Handler, BucketObjectLockS3Handler,
     BucketVersioningS3Handler, BucketNotificationS3Handler, BucketReplicationS3Handler,
     BucketTaggingS3Handler, BucketWebsiteS3Handler, BucketCorsS3Handler, ObjectTaggingS3Handler, ObjectRetentionS3Handler, ObjectLegalHoldS3Handler,
@@ -22,11 +21,10 @@ impl<Engine: S3Engine, Policy: S3PolicyEngine> S3AxumHandler<Engine, Policy> {
 }
 
 #[async_trait]
-impl<Engine, Policy, E> ObjectS3Handler<E> for S3AxumHandler<Engine, Policy>
+impl<Engine, Policy> ObjectS3Handler for S3AxumHandler<Engine, Policy>
 where
     Engine: S3Engine + Send + Sync,
     Policy: S3PolicyEngine + Send + Sync,
-    E: From<S3HandlerBridgeError> + From<S3EngineError> + Send + 'static,
 {
     type Engine = Engine;
     type Policy = Policy;
@@ -35,11 +33,10 @@ where
 }
 
 #[async_trait]
-impl<Engine, Policy, E> BucketS3Handler<E> for S3AxumHandler<Engine, Policy>
+impl<Engine, Policy> BucketS3Handler for S3AxumHandler<Engine, Policy>
 where
     Engine: S3Engine + Send + Sync,
     Policy: S3PolicyEngine + Send + Sync,
-    E: From<S3HandlerBridgeError> + From<S3EngineError> + Send + 'static,
 {
     type Engine = Engine;
     type Policy = Policy;
@@ -48,11 +45,10 @@ where
 }
 
 #[async_trait]
-impl<Engine, Policy, E> RootS3Handler<E> for S3AxumHandler<Engine, Policy>
+impl<Engine, Policy> RootS3Handler for S3AxumHandler<Engine, Policy>
 where
     Engine: S3Engine + Send + Sync,
     Policy: S3PolicyEngine + Send + Sync,
-    E: From<S3HandlerBridgeError> + From<S3EngineError> + Send + 'static,
 {
     type Engine = Engine;
     type Policy = Policy;
@@ -61,20 +57,18 @@ where
 }
 
 #[async_trait]
-impl<Engine, Policy, E> RejectedS3Handler<E> for S3AxumHandler<Engine, Policy>
+impl<Engine, Policy> RejectedS3Handler for S3AxumHandler<Engine, Policy>
 where
     Engine: S3Engine + Send + Sync,
     Policy: S3PolicyEngine + Send + Sync,
-    E: Send + 'static,
 {
 }
 
 #[async_trait]
-impl<Engine, Policy, E> BucketLifecycleS3Handler<E> for S3AxumHandler<Engine, Policy>
+impl<Engine, Policy> BucketLifecycleS3Handler for S3AxumHandler<Engine, Policy>
 where
     Engine: S3Engine + Send + Sync,
     Policy: S3PolicyEngine + Send + Sync,
-    E: From<S3HandlerBridgeError> + From<S3EngineError> + Send + 'static,
 {
     type Engine = Engine;
     type Policy = Policy;
@@ -83,11 +77,10 @@ where
 }
 
 #[async_trait]
-impl<Engine, Policy, E> BucketEncryptionS3Handler<E> for S3AxumHandler<Engine, Policy>
+impl<Engine, Policy> BucketEncryptionS3Handler for S3AxumHandler<Engine, Policy>
 where
     Engine: S3Engine + Send + Sync,
     Policy: S3PolicyEngine + Send + Sync,
-    E: From<S3HandlerBridgeError> + From<S3EngineError> + Send + 'static,
 {
     type Engine = Engine;
     type Policy = Policy;
@@ -96,11 +89,10 @@ where
 }
 
 #[async_trait]
-impl<Engine, Policy, E> BucketObjectLockS3Handler<E> for S3AxumHandler<Engine, Policy>
+impl<Engine, Policy> BucketObjectLockS3Handler for S3AxumHandler<Engine, Policy>
 where
     Engine: S3Engine + Send + Sync,
     Policy: S3PolicyEngine + Send + Sync,
-    E: From<S3HandlerBridgeError> + From<S3EngineError> + Send + 'static,
 {
     type Engine = Engine;
     type Policy = Policy;
@@ -109,11 +101,10 @@ where
 }
 
 #[async_trait]
-impl<Engine, Policy, E> BucketVersioningS3Handler<E> for S3AxumHandler<Engine, Policy>
+impl<Engine, Policy> BucketVersioningS3Handler for S3AxumHandler<Engine, Policy>
 where
     Engine: S3Engine + Send + Sync,
     Policy: S3PolicyEngine + Send + Sync,
-    E: From<S3HandlerBridgeError> + From<S3EngineError> + Send + 'static,
 {
     type Engine = Engine;
     type Policy = Policy;
@@ -122,11 +113,10 @@ where
 }
 
 #[async_trait]
-impl<Engine, Policy, E> BucketNotificationS3Handler<E> for S3AxumHandler<Engine, Policy>
+impl<Engine, Policy> BucketNotificationS3Handler for S3AxumHandler<Engine, Policy>
 where
     Engine: S3Engine + Send + Sync,
     Policy: S3PolicyEngine + Send + Sync,
-    E: From<S3HandlerBridgeError> + From<S3EngineError> + Send + 'static,
 {
     type Engine = Engine;
     type Policy = Policy;
@@ -135,11 +125,10 @@ where
 }
 
 #[async_trait]
-impl<Engine, Policy, E> BucketReplicationS3Handler<E> for S3AxumHandler<Engine, Policy>
+impl<Engine, Policy> BucketReplicationS3Handler for S3AxumHandler<Engine, Policy>
 where
     Engine: S3Engine + Send + Sync,
     Policy: S3PolicyEngine + Send + Sync,
-    E: From<S3HandlerBridgeError> + From<S3EngineError> + Send + 'static,
 {
     type Engine = Engine;
     type Policy = Policy;
@@ -148,11 +137,10 @@ where
 }
 
 #[async_trait]
-impl<Engine, Policy, E> BucketTaggingS3Handler<E> for S3AxumHandler<Engine, Policy>
+impl<Engine, Policy> BucketTaggingS3Handler for S3AxumHandler<Engine, Policy>
 where
     Engine: S3Engine + Send + Sync,
     Policy: S3PolicyEngine + Send + Sync,
-    E: From<S3HandlerBridgeError> + From<S3EngineError> + Send + 'static,
 {
     type Engine = Engine;
     type Policy = Policy;
@@ -161,11 +149,10 @@ where
 }
 
 #[async_trait]
-impl<Engine, Policy, E> ObjectTaggingS3Handler<E> for S3AxumHandler<Engine, Policy>
+impl<Engine, Policy> ObjectTaggingS3Handler for S3AxumHandler<Engine, Policy>
 where
     Engine: S3Engine + Send + Sync,
     Policy: S3PolicyEngine + Send + Sync,
-    E: From<S3HandlerBridgeError> + From<S3EngineError> + Send + 'static,
 {
     type Engine = Engine;
     type Policy = Policy;
@@ -174,11 +161,10 @@ where
 }
 
 #[async_trait]
-impl<Engine, Policy, E> ObjectRetentionS3Handler<E> for S3AxumHandler<Engine, Policy>
+impl<Engine, Policy> ObjectRetentionS3Handler for S3AxumHandler<Engine, Policy>
 where
     Engine: S3Engine + Send + Sync,
     Policy: S3PolicyEngine + Send + Sync,
-    E: From<S3HandlerBridgeError> + From<S3EngineError> + Send + 'static,
 {
     type Engine = Engine;
     type Policy = Policy;
@@ -187,11 +173,10 @@ where
 }
 
 #[async_trait]
-impl<Engine, Policy, E> ObjectLegalHoldS3Handler<E> for S3AxumHandler<Engine, Policy>
+impl<Engine, Policy> ObjectLegalHoldS3Handler for S3AxumHandler<Engine, Policy>
 where
     Engine: S3Engine + Send + Sync,
     Policy: S3PolicyEngine + Send + Sync,
-    E: From<S3HandlerBridgeError> + From<S3EngineError> + Send + 'static,
 {
     type Engine = Engine;
     type Policy = Policy;
@@ -200,11 +185,10 @@ where
 }
 
 #[async_trait]
-impl<Engine, Policy, E> BucketWebsiteS3Handler<E> for S3AxumHandler<Engine, Policy>
+impl<Engine, Policy> BucketWebsiteS3Handler for S3AxumHandler<Engine, Policy>
 where
     Engine: S3Engine + Send + Sync,
     Policy: S3PolicyEngine + Send + Sync,
-    E: From<S3HandlerBridgeError> + From<S3EngineError> + Send + 'static,
 {
     type Engine = Engine;
     type Policy = Policy;
@@ -213,11 +197,10 @@ where
 }
 
 #[async_trait]
-impl<Engine, Policy, E> BucketCorsS3Handler<E> for S3AxumHandler<Engine, Policy>
+impl<Engine, Policy> BucketCorsS3Handler for S3AxumHandler<Engine, Policy>
 where
     Engine: S3Engine + Send + Sync,
     Policy: S3PolicyEngine + Send + Sync,
-    E: From<S3HandlerBridgeError> + From<S3EngineError> + Send + 'static,
 {
     type Engine = Engine;
     type Policy = Policy;

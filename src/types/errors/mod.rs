@@ -1,21 +1,56 @@
-mod engine;
-mod metadata_storage;
-mod mount;
-mod layer_errors;
+use std::fmt::{Display, Formatter};
 
-pub use engine::S3EngineError;
-pub use metadata_storage::S3MetadataStorageError;
-pub use mount::S3MountError;
-pub use layer_errors::{StorageError, S3Error};
+use crate::types::traits::BoxError;
 
-impl From<S3MetadataStorageError> for S3EngineError {
-    fn from(e: S3MetadataStorageError) -> Self {
-        Self::Storage(e.to_string())
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FS3Error(pub String);
+
+impl Display for FS3Error {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
     }
 }
 
-impl From<S3MountError> for S3EngineError {
-    fn from(e: S3MountError) -> Self {
-        Self::Mount(e.to_string())
+impl std::error::Error for FS3Error {}
+
+impl From<&str> for FS3Error {
+    fn from(value: &str) -> Self {
+        Self(value.to_string())
+    }
+}
+
+impl From<String> for FS3Error {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+
+impl From<std::io::Error> for FS3Error {
+    fn from(value: std::io::Error) -> Self {
+        Self(value.to_string())
+    }
+}
+
+impl From<serde_json::Error> for FS3Error {
+    fn from(value: serde_json::Error) -> Self {
+        Self(value.to_string())
+    }
+}
+
+impl From<quick_xml::DeError> for FS3Error {
+    fn from(value: quick_xml::DeError) -> Self {
+        Self(value.to_string())
+    }
+}
+
+impl From<chrono::ParseError> for FS3Error {
+    fn from(value: chrono::ParseError) -> Self {
+        Self(value.to_string())
+    }
+}
+
+impl From<BoxError> for FS3Error {
+    fn from(value: BoxError) -> Self {
+        Self(value.to_string())
     }
 }

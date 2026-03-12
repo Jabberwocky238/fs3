@@ -12,7 +12,8 @@ use axum::Router;
 
 pub use handler::S3AxumHandler;
 
-use crate::types::errors::S3EngineError;
+
+use crate::types::traits::BoxError;
 use crate::types::traits::s3_handler::{S3Handler, S3HandlerBridgeError};
 
 #[derive(Debug)]
@@ -110,27 +111,50 @@ impl From<S3HandlerBridgeError> for HandlerError {
 
 impl From<S3EngineError> for HandlerError {
     fn from(e: S3EngineError) -> Self {
-        match e {
-            S3EngineError::BucketNotFound(m) => Self::Bucket(BucketError::NotFound(m)),
-            S3EngineError::BucketAlreadyExists(m) => Self::Bucket(BucketError::AlreadyExists(m)),
-            S3EngineError::BucketNotEmpty(m) => Self::Bucket(BucketError::NotEmpty(m)),
-            S3EngineError::ObjectNotFound { bucket, key } => Self::Object(ObjectError::NotFound(format!("{}/{}", bucket, key))),
-            S3EngineError::MultipartNotFound(m) => Self::Object(ObjectError::UploadNotFound(m)),
-            S3EngineError::NoSuchCORSConfiguration => Self::Bucket(BucketError::NotFound("NoSuchCORSConfiguration".to_string())),
-            _ => Self::Handler(HandlerOnlyError::Internal(e.to_string())),
+        let msg = e.to_string();
+        if msg.contains("bucket not found") {
+            Self::Bucket(BucketError::NotFound(msg))
+        } else if msg.contains("already exists") {
+            Self::Bucket(BucketError::AlreadyExists(msg))
+        } else if msg.contains("not empty") {
+            Self::Bucket(BucketError::NotEmpty(msg))
+        } else if msg.contains("multipart") && msg.contains("not found") {
+            Self::Object(ObjectError::UploadNotFound(msg))
+        } else if msg.contains("object not found") || msg.contains("key not found") {
+            Self::Object(ObjectError::NotFound(msg))
+        } else if msg.contains("cors") && msg.contains("not found") {
+            Self::Bucket(BucketError::NotFound(msg))
+        } else {
+            Self::Handler(HandlerOnlyError::Internal(msg))
         }
     }
 }
 
-pub fn router<T, E>(handler: T) -> Router
+impl From<BoxError> for HandlerError {
+    fn from(value: BoxError) -> Self {
+        let msg = value.to_string();
+        if msg.contains("precondition failed") {
+            Self::Object(ObjectError::PreconditionFailed(msg))
+        } else if msg.contains("not modified") {
+            Self::Object(ObjectError::NotModified(msg))
+        } else if msg.contains("not allowed") {
+            Self::Handler(HandlerOnlyError::MethodNotAllowed(msg))
+        } else if msg.contains("invalid") || msg.contains("xml") {
+            Self::Handler(HandlerOnlyError::BadRequest(msg))
+        } else {
+            Self::Handler(HandlerOnlyError::Internal(msg))
+        }
+    }
+}
+
+pub fn router<T>(handler: T) -> Router
 where
-    T: S3Handler<E> + Send + Sync + 'static,
-    E: Display + From<S3HandlerBridgeError> + From<S3EngineError> + 'static,
+    T: S3Handler + Send + Sync + 'static,
 {
     let state = Arc::new(handler);
     Router::new()
-        .merge(http_root::routes::<T, E>(state.clone()))
-        .merge(http_bucket::routes::<T, E>(state.clone()))
-        .merge(http_object::routes::<T, E>(state))
+        .merge(http_root::routes::<T>(state.clone()))
+        .merge(http_bucket::routes::<T>(state.clone()))
+        .merge(http_object::routes::<T>(state))
         .layer(axum::extract::DefaultBodyLimit::max(5 * 1024 * 1024 * 1024))
 }
