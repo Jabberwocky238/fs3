@@ -1,4 +1,4 @@
-use async_trait::async_trait;
+﻿use async_trait::async_trait;
 use crate::types::traits::s3_engine::*;
 
 use crate::types::s3::core::CorsConfiguration;
@@ -22,7 +22,20 @@ impl S3BucketWebsiteEngine for FS3Engine {
         let data = website.into_bytes();
         let len = data.len() as i64;
         let stream = futures::stream::once(async move { Ok::<bytes::Bytes, std::io::Error>(bytes::Bytes::from(data)) });
-        self.storage.create_file(&ctx, bucket, path, len, Box::pin(stream)).await
+        self.storage
+            .create_file(
+                &ctx,
+                bucket,
+                path,
+                len,
+                Box::pin(stream),
+                crate::types::s3::storage_types::CreateFileOptions {
+                    path_kind: crate::types::s3::storage_types::StoragePathKind::Config,
+                    write_kind: crate::types::s3::storage_types::StorageWriteKind::Config,
+                    fsync: false,
+                },
+            )
+            .await
             .map(|_| ())
             .map_err(|e| S3EngineError::from(e.to_string()))
     }
@@ -42,4 +55,5 @@ impl S3BucketWebsiteEngine for FS3Engine {
         }
     }
 }
+
 

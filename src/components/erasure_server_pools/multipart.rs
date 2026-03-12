@@ -2,20 +2,35 @@ use async_trait::async_trait;
 use crate::types::traits::object_layer::{ObjectMultipartLayer, ObjectObjectLayer};
 use crate::types::s3::object_layer_types::*;
 use crate::types::s3::storage_types::*;
-use crate::types::errors::S3Error;
+use crate::types::errors::FS3Error;
 use super::ErasureServerPools;
 
 #[async_trait]
 impl ObjectMultipartLayer for ErasureServerPools {
-    async fn new_multipart_upload(&self, _ctx: &Context, _bucket: &str, _object: &str, _opts: ObjectOptions) -> Result<NewMultipartUploadResult, S3Error> {
+    type Error = FS3Error;
+
+    async fn new_multipart_upload(&self, _ctx: &Context, _bucket: &str, _object: &str, _opts: ObjectOptions) -> Result<NewMultipartUploadResult, FS3Error> {
         Ok(NewMultipartUploadResult {
             upload_id: uuid::Uuid::new_v4().to_string(),
         })
     }
 
-    async fn put_object_part(&self, ctx: &Context, bucket: &str, _object: &str, upload_id: &str, part_id: u32, data: PutObjReader, _opts: ObjectOptions) -> Result<PartInfo, S3Error> {
+    async fn put_object_part(&self, ctx: &Context, bucket: &str, _object: &str, upload_id: &str, part_id: u32, data: PutObjReader, _opts: ObjectOptions) -> Result<PartInfo, FS3Error> {
         let part_path = format!("tmp/multipart/{}/part.{}", upload_id, part_id);
-        self.storage.create_file(ctx, bucket, &part_path, data.size, data.reader).await?;
+        self.storage
+            .create_file(
+                ctx,
+                bucket,
+                &part_path,
+                data.size,
+                data.reader,
+                CreateFileOptions {
+                    path_kind: StoragePathKind::Temporary,
+                    write_kind: StorageWriteKind::Data,
+                    fsync: false,
+                },
+            )
+            .await?;
 
         Ok(PartInfo {
             part_number: part_id,
@@ -24,7 +39,7 @@ impl ObjectMultipartLayer for ErasureServerPools {
         })
     }
 
-    async fn complete_multipart_upload(&self, ctx: &Context, bucket: &str, object: &str, upload_id: &str, parts: Vec<CompletePart>, _opts: ObjectOptions) -> Result<ObjectInfo, S3Error> {
+    async fn complete_multipart_upload(&self, ctx: &Context, bucket: &str, object: &str, upload_id: &str, parts: Vec<CompletePart>, _opts: ObjectOptions) -> Result<ObjectInfo, FS3Error> {
         use futures::stream::{self};
 
         let mut all_data = Vec::new();
@@ -48,7 +63,8 @@ impl ObjectMultipartLayer for ErasureServerPools {
         self.put_object(ctx, bucket, object, reader, Default::default()).await
     }
 
-    async fn abort_multipart_upload(&self, _ctx: &Context, _bucket: &str, _object: &str, _upload_id: &str, _opts: ObjectOptions) -> Result<(), S3Error> {
+    async fn abort_multipart_upload(&self, _ctx: &Context, _bucket: &str, _object: &str, _upload_id: &str, _opts: ObjectOptions) -> Result<(), FS3Error> {
         Ok(())
     }
 }
+

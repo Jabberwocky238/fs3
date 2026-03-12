@@ -7,145 +7,14 @@ mod handler;
 use std::fmt::{Display, Formatter};
 use std::sync::Arc;
 
+use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::Router;
 
 pub use handler::S3AxumHandler;
 
-
 use crate::types::traits::BoxError;
 use crate::types::traits::s3_handler::{S3Handler, S3HandlerBridgeError};
-
-#[derive(Debug)]
-pub enum HandlerError {
-    Bucket(BucketError),
-    Object(ObjectError),
-    Handler(HandlerOnlyError),
-}
-
-#[derive(Debug)]
-pub enum BucketError {
-    NotFound(String),
-    AlreadyExists(String),
-    NotEmpty(String),
-    Internal(String),
-}
-
-#[derive(Debug)]
-pub enum ObjectError {
-    NotFound(String),
-    UploadNotFound(String),
-    Internal(String),
-    PreconditionFailed(String),
-    NotModified(String),
-}
-
-#[derive(Debug)]
-pub enum HandlerOnlyError {
-    BadRequest(String),
-    MethodNotAllowed(String),
-    Internal(String),
-}
-
-impl HandlerError {
-    pub fn internal(msg: impl Into<String>) -> Self {
-        Self::Handler(HandlerOnlyError::Internal(msg.into()))
-    }
-    pub fn bad_request(msg: impl Into<String>) -> Self {
-        Self::Handler(HandlerOnlyError::BadRequest(msg.into()))
-    }
-    pub fn method_not_allowed(msg: impl Into<String>) -> Self {
-        Self::Handler(HandlerOnlyError::MethodNotAllowed(msg.into()))
-    }
-}
-
-impl Display for HandlerError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Bucket(e) => write!(f, "{e:?}"),
-            Self::Object(e) => write!(f, "{e:?}"),
-            Self::Handler(e) => write!(f, "{e:?}"),
-        }
-    }
-}
-
-impl IntoResponse for HandlerError {
-    fn into_response(self) -> Response {
-        use axum::http::StatusCode;
-        let (status, code, msg) = match self {
-            Self::Bucket(BucketError::NotFound(m)) => (StatusCode::NOT_FOUND, "NoSuchBucket", m),
-            Self::Bucket(BucketError::AlreadyExists(m)) => (StatusCode::CONFLICT, "BucketAlreadyOwnedByYou", m),
-            Self::Bucket(BucketError::NotEmpty(m)) => (StatusCode::CONFLICT, "BucketNotEmpty", m),
-            Self::Bucket(BucketError::Internal(m)) => (StatusCode::INTERNAL_SERVER_ERROR, "InternalError", m),
-            Self::Object(ObjectError::NotFound(m)) => (StatusCode::NOT_FOUND, "NoSuchKey", m),
-            Self::Object(ObjectError::UploadNotFound(m)) => (StatusCode::NOT_FOUND, "NoSuchUpload", m),
-            Self::Object(ObjectError::Internal(m)) => (StatusCode::INTERNAL_SERVER_ERROR, "InternalError", m),
-            Self::Object(ObjectError::PreconditionFailed(m)) => (StatusCode::PRECONDITION_FAILED, "PreconditionFailed", m),
-            Self::Object(ObjectError::NotModified(m)) => (StatusCode::NOT_MODIFIED, "NotModified", m),
-            Self::Handler(HandlerOnlyError::BadRequest(m)) => (StatusCode::BAD_REQUEST, "BadRequest", m),
-            Self::Handler(HandlerOnlyError::MethodNotAllowed(m)) => (StatusCode::METHOD_NOT_ALLOWED, "MethodNotAllowed", m),
-            Self::Handler(HandlerOnlyError::Internal(m)) => (StatusCode::INTERNAL_SERVER_ERROR, "InternalError", m),
-        };
-        let body = format!(
-            r#"<?xml version="1.0" encoding="UTF-8"?><Error><Code>{}</Code><Message>{}</Message></Error>"#,
-            code,
-            msg.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;")
-        );
-        (status, [("content-type", "application/xml")], body).into_response()
-    }
-}
-
-impl From<S3HandlerBridgeError> for HandlerError {
-    fn from(e: S3HandlerBridgeError) -> Self {
-        match e {
-            S3HandlerBridgeError::Unsupported(msg) => Self::Handler(HandlerOnlyError::BadRequest(msg.to_string())),
-            S3HandlerBridgeError::InvalidRequest(msg) => Self::Handler(HandlerOnlyError::BadRequest(msg)),
-            S3HandlerBridgeError::AccessDenied(msg) => Self::Handler(HandlerOnlyError::BadRequest(msg)),
-            S3HandlerBridgeError::PreconditionFailed => Self::Object(ObjectError::PreconditionFailed("precondition failed".to_string())),
-            S3HandlerBridgeError::NotModified => Self::Object(ObjectError::NotModified("not modified".to_string())),
-            S3HandlerBridgeError::InvalidVersioningStatus(msg) => Self::Handler(HandlerOnlyError::BadRequest(msg)),
-            S3HandlerBridgeError::XmlParse(msg) => Self::Handler(HandlerOnlyError::BadRequest(msg)),
-        }
-    }
-}
-
-impl From<S3EngineError> for HandlerError {
-    fn from(e: S3EngineError) -> Self {
-        let msg = e.to_string();
-        if msg.contains("bucket not found") {
-            Self::Bucket(BucketError::NotFound(msg))
-        } else if msg.contains("already exists") {
-            Self::Bucket(BucketError::AlreadyExists(msg))
-        } else if msg.contains("not empty") {
-            Self::Bucket(BucketError::NotEmpty(msg))
-        } else if msg.contains("multipart") && msg.contains("not found") {
-            Self::Object(ObjectError::UploadNotFound(msg))
-        } else if msg.contains("object not found") || msg.contains("key not found") {
-            Self::Object(ObjectError::NotFound(msg))
-        } else if msg.contains("cors") && msg.contains("not found") {
-            Self::Bucket(BucketError::NotFound(msg))
-        } else {
-            Self::Handler(HandlerOnlyError::Internal(msg))
-        }
-    }
-}
-
-impl From<BoxError> for HandlerError {
-    fn from(value: BoxError) -> Self {
-        let msg = value.to_string();
-        if msg.contains("precondition failed") {
-            Self::Object(ObjectError::PreconditionFailed(msg))
-        } else if msg.contains("not modified") {
-            Self::Object(ObjectError::NotModified(msg))
-        } else if msg.contains("not allowed") {
-            Self::Handler(HandlerOnlyError::MethodNotAllowed(msg))
-        } else if msg.contains("invalid") || msg.contains("xml") {
-            Self::Handler(HandlerOnlyError::BadRequest(msg))
-        } else {
-            Self::Handler(HandlerOnlyError::Internal(msg))
-        }
-    }
-}
 
 pub fn router<T>(handler: T) -> Router
 where
@@ -157,4 +26,79 @@ where
         .merge(http_bucket::routes::<T>(state.clone()))
         .merge(http_object::routes::<T>(state))
         .layer(axum::extract::DefaultBodyLimit::max(5 * 1024 * 1024 * 1024))
+}
+
+#[derive(Debug)]
+pub struct HandlerError {
+    status: StatusCode,
+    message: String,
+}
+
+impl HandlerError {
+    pub fn internal(message: impl Into<String>) -> Self {
+        Self {
+            status: StatusCode::INTERNAL_SERVER_ERROR,
+            message: message.into(),
+        }
+    }
+
+    pub fn bad_request(message: impl Into<String>) -> Self {
+        Self {
+            status: StatusCode::BAD_REQUEST,
+            message: message.into(),
+        }
+    }
+
+    pub fn method_not_allowed(message: impl Into<String>) -> Self {
+        Self {
+            status: StatusCode::METHOD_NOT_ALLOWED,
+            message: message.into(),
+        }
+    }
+}
+
+impl Display for HandlerError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.message)
+    }
+}
+
+impl std::error::Error for HandlerError {}
+
+impl IntoResponse for HandlerError {
+    fn into_response(self) -> Response {
+        (self.status, self.message).into_response()
+    }
+}
+
+fn bridge_handler_error(err: BoxError) -> HandlerError {
+    if let Some(bridge) = err.downcast_ref::<S3HandlerBridgeError>() {
+        return match bridge {
+            S3HandlerBridgeError::Unsupported(message) => HandlerError::bad_request(*message),
+            S3HandlerBridgeError::InvalidRequest(message) => HandlerError::bad_request(message.clone()),
+            S3HandlerBridgeError::AccessDenied(message) => HandlerError {
+                status: StatusCode::FORBIDDEN,
+                message: message.clone(),
+            },
+            S3HandlerBridgeError::PreconditionFailed => HandlerError {
+                status: StatusCode::PRECONDITION_FAILED,
+                message: bridge.to_string(),
+            },
+            S3HandlerBridgeError::NotModified => HandlerError {
+                status: StatusCode::NOT_MODIFIED,
+                message: bridge.to_string(),
+            },
+            S3HandlerBridgeError::InvalidVersioningStatus(message) => HandlerError::bad_request(message.clone()),
+            S3HandlerBridgeError::XmlParse(message) => HandlerError::bad_request(message.clone()),
+        };
+    }
+    HandlerError::internal(err.to_string())
+}
+
+pub(crate) fn bucket_err(err: BoxError) -> HandlerError {
+    bridge_handler_error(err)
+}
+
+pub(crate) fn object_err(err: BoxError) -> HandlerError {
+    bridge_handler_error(err)
 }

@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use crate::types::traits::BoxError;
+use crate::types::errors::FS3Error;
 use crate::types::s3::request::*;
 use crate::types::s3::response::*;
 use crate::types::traits::s3_engine::S3BucketEncryptionEngine;
@@ -14,7 +14,7 @@ pub trait BucketEncryptionS3Handler: Send + Sync {
     fn bucket_encryption_engine_provider(&self) -> &Self::Engine;
     fn bucket_encryption_policy_provider(&self) -> &Self::Policy;
 
-    async fn get_bucket_encryption(&self, req: GetBucketEncryptionRequest) -> Result<GetBucketEncryptionResponse , BoxError> {
+    async fn get_bucket_encryption(&self, req: GetBucketEncryptionRequest) -> Result<GetBucketEncryptionResponse , FS3Error> {
         check_access(self.bucket_encryption_policy_provider(), S3Action::GetBucketEncryption, Some(&req.bucket.bucket), None).await?;
         let enc = self.bucket_encryption_engine_provider().get_bucket_encryption(&req.bucket.bucket).await?;
         Ok(GetBucketEncryptionResponse {
@@ -24,7 +24,7 @@ pub trait BucketEncryptionS3Handler: Send + Sync {
         })
     }
 
-    async fn put_bucket_encryption(&self, req: PutBucketEncryptionRequest) -> Result<PutBucketEncryptionResponse , BoxError> {
+    async fn put_bucket_encryption(&self, req: PutBucketEncryptionRequest) -> Result<PutBucketEncryptionResponse , FS3Error> {
         check_access(self.bucket_encryption_policy_provider(), S3Action::PutBucketEncryption, Some(&req.bucket.bucket), None).await?;
         self.bucket_encryption_engine_provider()
             .put_bucket_encryption(&req.bucket.bucket, req.encryption.algorithm, req.encryption.key_id)
@@ -32,7 +32,7 @@ pub trait BucketEncryptionS3Handler: Send + Sync {
         Ok(Default::default())
     }
 
-    async fn delete_bucket_encryption(&self, req: DeleteBucketEncryptionRequest) -> Result<DeleteBucketEncryptionResponse , BoxError> {
+    async fn delete_bucket_encryption(&self, req: DeleteBucketEncryptionRequest) -> Result<DeleteBucketEncryptionResponse , FS3Error> {
         check_access(self.bucket_encryption_policy_provider(), S3Action::PutBucketEncryption, Some(&req.bucket.bucket), None).await?;
         self.bucket_encryption_engine_provider().delete_bucket_encryption(&req.bucket.bucket).await?;
         Ok(Default::default())

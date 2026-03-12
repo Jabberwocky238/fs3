@@ -1,19 +1,16 @@
-use async_trait::async_trait;
-use crate::types::traits::s3_engine::*;
-use crate::types::s3::core::*;
-use crate::types::errors::{S3EngineError, S3Error};
-use super::FS3Engine;
+﻿use async_trait::async_trait;
 
-fn map_s3_error(e: S3Error) -> S3EngineError {
-    e.to_string().into()
-}
+use crate::types::s3::core::*;
+use crate::types::traits::s3_engine::*;
+use crate::types::traits::BoxError;
+
+use super::FS3Engine;
 
 #[async_trait]
 impl S3BucketEngine for FS3Engine {
-    async fn make_bucket(&self, bucket: &str, _region: Option<&str>, _features: BucketFeatures) -> Result<S3Bucket, S3EngineError> {
+    async fn make_bucket(&self, bucket: &str, _region: Option<&str>, _features: BucketFeatures) -> Result<S3Bucket, BoxError> {
         let ctx = crate::types::s3::object_layer_types::Context { request_id: "".to_string() };
-        self.object_layer.make_bucket(&ctx, bucket, Default::default()).await
-            .map_err(map_s3_error)?;
+        self.object_layer.make_bucket(&ctx, bucket, Default::default()).await?;
         Ok(S3Bucket {
             identity: BucketIdentity {
                 name: bucket.to_string(),
@@ -26,14 +23,13 @@ impl S3BucketEngine for FS3Engine {
         })
     }
 
-    async fn head_bucket(&self, bucket: &str) -> Result<S3Bucket, S3EngineError> {
+    async fn head_bucket(&self, bucket: &str) -> Result<S3Bucket, BoxError> {
         self.get_bucket(bucket).await
     }
 
-    async fn get_bucket(&self, bucket: &str) -> Result<S3Bucket, S3EngineError> {
+    async fn get_bucket(&self, bucket: &str) -> Result<S3Bucket, BoxError> {
         let ctx = crate::types::s3::object_layer_types::Context { request_id: "".to_string() };
-        let info = self.object_layer.get_bucket_info(&ctx, bucket, Default::default()).await
-            .map_err(map_s3_error)?;
+        let info = self.object_layer.get_bucket_info(&ctx, bucket, Default::default()).await?;
         Ok(S3Bucket {
             identity: BucketIdentity {
                 name: info.name,
@@ -46,10 +42,9 @@ impl S3BucketEngine for FS3Engine {
         })
     }
 
-    async fn list_buckets(&self) -> Result<Vec<S3Bucket>, S3EngineError> {
+    async fn list_buckets(&self) -> Result<Vec<S3Bucket>, BoxError> {
         let ctx = crate::types::s3::object_layer_types::Context { request_id: "".to_string() };
-        let buckets = self.object_layer.list_buckets(&ctx, Default::default()).await
-            .map_err(map_s3_error)?;
+        let buckets = self.object_layer.list_buckets(&ctx, Default::default()).await?;
         Ok(buckets.into_iter().map(|b| S3Bucket {
             identity: BucketIdentity {
                 name: b.name,
@@ -62,60 +57,62 @@ impl S3BucketEngine for FS3Engine {
         }).collect())
     }
 
-    async fn delete_bucket(&self, bucket: &str, force: bool) -> Result<(), S3EngineError> {
+    async fn delete_bucket(&self, bucket: &str, force: bool) -> Result<(), BoxError> {
         let ctx = crate::types::s3::object_layer_types::Context { request_id: "".to_string() };
         let opts = crate::types::s3::object_layer_types::DeleteBucketOptions { force };
         self.object_layer.delete_bucket(&ctx, bucket, opts).await
-            .map_err(map_s3_error)
     }
 
-    async fn list_objects_v1(&self, _bucket: &str, _options: ListOptions) -> Result<ObjectListPage, S3EngineError> {
+    async fn list_objects_v1(&self, _bucket: &str, _options: ListOptions) -> Result<ObjectListPage, BoxError> {
         Ok(ObjectListPage::default())
     }
 
-    async fn list_objects_v2(&self, bucket: &str, options: ListOptions) -> Result<ObjectListPage, S3EngineError> {
+    async fn list_objects_v2(&self, bucket: &str, options: ListOptions) -> Result<ObjectListPage, BoxError> {
         let ctx = crate::types::s3::object_layer_types::Context { request_id: "".to_string() };
-
-        // Get storage path - need to access XlStorage's path
-        let storage_path = std::path::PathBuf::from(".debug/fs3"); // TODO: get from config
+        let storage_path = std::path::PathBuf::from(".debug/fs3");
         let bucket_path = storage_path.join(bucket);
         let mut objects = Vec::new();
 
         if let Ok(entries) = std::fs::read_dir(&bucket_path) {
             for entry in entries.flatten() {
                 let path = entry.path();
-                if path.is_dir() {
-                    let object_name = path.file_name().unwrap().to_string_lossy().to_string();
-                    if object_name.starts_with('.') {
+                if !path.is_dir() {
+                    continue;
+                }
+
+                let object_name = match path.file_name() {
+                    Some(name) => name.to_string_lossy().to_string(),
+                    None => continue,
+                };
+                if object_name.starts_with('.') {
+                    continue;
+                }
+                if let Some(ref prefix) = options.prefix {
+                    if !object_name.starts_with(prefix) {
                         continue;
                     }
-                    if let Some(ref prefix) = options.prefix {
-                        if !object_name.starts_with(prefix) {
-                            continue;
-                        }
-                    }
-                    if let Ok(info) = self.object_layer.get_object_info(&ctx, bucket, &object_name, Default::default()).await {
-                        objects.push(crate::types::s3::core::S3Object {
-                            bucket: bucket.to_string(),
-                            key: object_name,
-                            size: info.size as u64,
-                            etag: info.etag,
-                            last_modified: chrono::Utc::now(),
-                            content_type: Some(info.content_type),
-                            content_encoding: None,
-                            storage_class: Default::default(),
-                            user_metadata: Default::default(),
-                            user_tags: Default::default(),
-                            version: Default::default(),
-                            parts: Vec::new(),
-                            checksums: Vec::new(),
-                            replication_state: Default::default(),
-                            retention: None,
-                            legal_hold: None,
-                            restore_expiry: None,
-                            restore_ongoing: false,
-                        });
-                    }
+                }
+                if let Ok(info) = self.object_layer.get_object_info(&ctx, bucket, &object_name, Default::default()).await {
+                    objects.push(S3Object {
+                        bucket: bucket.to_string(),
+                        key: object_name,
+                        size: info.size,
+                        etag: info.etag,
+                        last_modified: chrono::Utc::now(),
+                        content_type: Some(info.content_type),
+                        content_encoding: None,
+                        storage_class: Default::default(),
+                        user_metadata: info.user_defined,
+                        user_tags: Default::default(),
+                        version: Default::default(),
+                        parts: Vec::new(),
+                        checksums: Vec::new(),
+                        replication_state: Default::default(),
+                        retention: None,
+                        legal_hold: None,
+                        restore_expiry: None,
+                        restore_ongoing: false,
+                    });
                 }
             }
         }
@@ -136,8 +133,7 @@ impl S3BucketEngine for FS3Engine {
         })
     }
 
-    async fn list_object_versions(&self, _bucket: &str, _options: ListOptions) -> Result<ObjectListPage, S3EngineError> {
+    async fn list_object_versions(&self, _bucket: &str, _options: ListOptions) -> Result<ObjectListPage, BoxError> {
         Ok(ObjectListPage::default())
     }
 }
-

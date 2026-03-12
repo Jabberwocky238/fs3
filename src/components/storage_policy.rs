@@ -1,21 +1,24 @@
 use async_trait::async_trait;
 use std::sync::Arc;
+use crate::types::FS3Error;
 use crate::types::traits::s3_policyengine::*;
 use crate::types::traits::storage_api::StorageAPI;
 use crate::types::s3::object_layer_types::Context;
 
 pub struct StoragePolicyEngine {
-    storage: Arc<dyn StorageAPI>,
+    storage: Arc<dyn StorageAPI<FS3Error>>,
 }
 
 impl StoragePolicyEngine {
-    pub fn new(storage: Arc<dyn StorageAPI>) -> Self {
+    pub fn new(storage: Arc<dyn StorageAPI<FS3Error>>) -> Self {
         Self { storage }
     }
 }
 
 #[async_trait]
 impl S3IamPolicyEngine for StoragePolicyEngine {
+    type Error = PolicyEngineError;
+
     async fn is_allowed(&self, _ctx: &PolicyEvalContext) -> Result<PolicyEffect, PolicyEngineError> {
         Ok(PolicyEffect::Allow)
     }
@@ -29,6 +32,8 @@ impl S3IamPolicyEngine for StoragePolicyEngine {
 
 #[async_trait]
 impl S3BucketPolicyEngine for StoragePolicyEngine {
+    type Error = PolicyEngineError;
+
     async fn is_allowed(&self, _bucket: &str, _ctx: &PolicyEvalContext) -> Result<PolicyEffect, PolicyEngineError> {
         Ok(PolicyEffect::Allow)
     }
@@ -55,7 +60,7 @@ impl S3BucketPolicyEngine for StoragePolicyEngine {
 }
 
 #[async_trait]
-impl S3PolicyEngine for StoragePolicyEngine {
+impl S3PolicyEngine<PolicyEngineError> for StoragePolicyEngine {
     async fn check_access(&self, _ctx: &PolicyEvalContext) -> Result<PolicyEffect, PolicyEngineError> {
         Ok(PolicyEffect::Allow)
     }

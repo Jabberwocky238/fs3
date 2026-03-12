@@ -1,5 +1,4 @@
 use chrono::SecondsFormat;
-use futures::TryStreamExt;
 use thiserror::Error;
 
 use crate::types::s3::core::{
@@ -15,20 +14,32 @@ use crate::types::traits::BoxError;
 
 #[derive(Debug, Error)]
 pub enum S3HandlerBridgeError {
-    #[error("unsupported by current S3 engine: {0}")]
+    #[error("{0}")]
     Unsupported(&'static str),
-    #[error("invalid request: {0}")]
+    #[error("{0}")]
     InvalidRequest(String),
-    #[error("access denied: {0}")]
+    #[error("{0}")]
     AccessDenied(String),
-    #[error("precondition failed")]
+    #[error("PreconditionFailed")]
     PreconditionFailed,
-    #[error("not modified")]
+    #[error("NotModified")]
     NotModified,
-    #[error("invalid versioning status: {0}")]
+    #[error("{0}")]
     InvalidVersioningStatus(String),
-    #[error("XML parse error: {0}")]
+    #[error("{0}")]
     XmlParse(String),
+}
+
+impl From<S3HandlerBridgeError> for BoxError {
+    fn from(value: S3HandlerBridgeError) -> Self {
+        Box::new(value)
+    }
+}
+
+impl From<S3HandlerBridgeError> for crate::types::FS3Error {
+    fn from(value: S3HandlerBridgeError) -> Self {
+        crate::types::FS3Error::from(value.to_string())
+    }
 }
 
 pub async fn check_access<P: S3PolicyEngine + ?Sized>(
@@ -54,8 +65,8 @@ pub async fn check_access<P: S3PolicyEngine + ?Sized>(
     }
 }
 
-pub fn unsupported<T>(op: &'static str) -> Result<T, BoxError> {
-    Err(Box::new(S3HandlerBridgeError::Unsupported(op)))
+pub fn unsupported<T>(name: &'static str) -> Result<T, BoxError> {
+    Err(Box::new(S3HandlerBridgeError::Unsupported(name)))
 }
 
 pub fn to_resp_object(v: &crate::types::s3::core::S3Object) -> ObjectInfo {
@@ -175,18 +186,5 @@ pub fn parse_delete_keys(xml: &str) -> Vec<String> {
         pos = e + "</Key>".len();
     }
     out
-}
-
-pub async fn stream_to_string(stream: BoxByteStream) -> Result<String, S3HandlerBridgeError> {
-    let chunks = stream
-        .try_collect::<Vec<_>>()
-        .await
-        .map_err(|e| S3HandlerBridgeError::InvalidRequest(format!("stream error: {e}")))?;
-    let mut buf = Vec::new();
-    for chunk in chunks {
-        buf.extend_from_slice(&chunk);
-    }
-    String::from_utf8(buf)
-        .map_err(|e| S3HandlerBridgeError::InvalidRequest(format!("invalid utf-8 body: {e}")))
 }
 

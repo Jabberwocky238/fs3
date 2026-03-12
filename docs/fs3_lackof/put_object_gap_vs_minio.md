@@ -339,3 +339,266 @@ fs3 当前 PutObject 主路径主要仍只做了：
 1. PutObject 主链骨架已明显向 MinIO 靠拢
 2. 提交模型已经从“直接写正式路径”升级为“临时写入后提交”
 3. 但 erasure/shard/bitrot/quorum/checksum/SSE 等关键能力仍未完成
+
+## 7. 转换成 fs3 需要补的接口和行为
+
+基于本次对 MinIO 底层存储调用栈的重新核对，下面把差异直接转换成 fs3 需要补的接口和行为。
+
+重点不是“函数名像不像 MinIO”，而是 fs3 能否表达 MinIO PutObject 的真实存储语义。
+
+## 7.1 StorageAPI 必须补齐的接口语义
+
+### 7.1.1 `create_file` 不能只等价于“写一个普通文件”
+
+当前 fs3 的 `create_file` 本质仍然是单文件顺序写入。
+
+但从 MinIO 语义来看，`CreateFile` 的真实角色是：
+
+1. 向临时对象路径写入 shard 文件
+2. 作为 writer 管道的落盘终点
+3. 为后续 `RenameData()` 提交做准备
+
+因此，fs3 至少要保证：
+
+1. `create_file` 用于临时对象路径而不是默认正式路径
+2. 上层可以明确区分“临时写入阶段”和“提交阶段”
+3. 后续如果引入 shard/bitrot，不需要推翻接口形状
+
+### 7.1.2 `rename_data` 必须被视为“提交事务”，而不是普通 rename
+
+fs3 当前已经开始引入 `rename_data`，这是对的。
+
+但如果要真正对齐 MinIO，`rename_data` 的语义必须固定为：
+
+1. 输入临时源路径 `src_volume/src_path`
+2. 输入新版本 `FileInfo`
+3. 读取目标已有 `xl.meta`
+4. 计算并返回 `old_data_dir`
+5. 先写临时 `xl.meta`
+6. 再 rename data dir
+7. 最后 rename `xl.meta`
+
+也就是说，`rename_data` 不是通用工具函数，而是 PutObject 提交阶段的核心接口。
+
+### 7.1.3 `write_all` 不是普通辅助接口，而是提交步骤的一部分
+
+MinIO 的提交顺序里，`WriteAll()` 的职责是：
+
+1. 先把新的 `xl.meta` 写回临时目录
+2. 然后才进行 data dir 和 meta 的切换
+
+因此 fs3 中的 `write_all` 不能只被理解成“方便写文件”，而应被固定在提交事务链路中使用。
+
+### 7.1.4 需要明确的递归删除接口，用于 old data dir 清理
+
+MinIO 覆盖写时，旧 `dataDir` 的删除发生在提交成功之后。
+
+所以 fs3 存储层必须明确支持：
+
+1. 按对象路径递归删除旧 data dir
+2. 该删除发生在 commit 成功之后
+3. 该删除和“新版本写入”是两个阶段
+
+如果没有这个能力，就无法真正模拟 MinIO 的覆盖写语义。
+
+### 7.1.5 后续迟早要补的存储接口
+
+如果目标继续逼近 MinIO，而不是停留在“单机简化提交模型”，后续还需要考虑：
+
+1. `check_parts` 或等价接口
+2. bitrot 校验相关接口
+3. shard 级读写接口
+4. quorum 相关提交/删除语义
+
+这些不是当前第一优先级，但属于后续不可避免的能力空缺。
+
+## 7.2 ObjectLayer 必须补齐的行为
+
+### 7.2.1 PutObject 必须固定为两阶段事务模型
+
+fs3 的 PutObject 主链必须稳定成如下模型：
+
+1. 生成 `version_id`
+2. 生成 `data_dir`
+3. 生成临时对象 ID
+4. 把数据写入临时对象路径
+5. 调用 `rename_data` 提交
+6. 根据 `old_data_dir` 清理旧数据
+
+不能退回到：
+
+- 直接写正式 data path
+- 直接写正式 `xl.meta`
+
+因为那与 MinIO 的真实存储模型不一致。
+
+### 7.2.2 CopyObject 必须迁移到和 PutObject 一样的提交链
+
+当前如果 PutObject 走新事务模型，而 CopyObject 仍然：
+
+1. 直接写目标 data path
+2. 再 `write_metadata`
+
+那么对象写入语义会分裂。
+
+因此 fs3 需要统一：
+
+- PutObject
+- CopyObject
+- 后续可能的 CompleteMultipartUpload
+
+让它们都落到同一套 `tmp -> rename_data -> cleanup old data dir` 提交模型。
+
+### 7.2.3 覆盖写必须显式处理 `old_data_dir`
+
+这是 MinIO 兼容里非常关键的一点。
+
+覆盖写不是“把 metadata 覆盖一下”这么简单，而是：
+
+1. 新版本提交成功
+2. 拿到旧 `data_dir`
+3. 再延后清理旧数据目录
+
+fs3 需要把这部分行为从“顺带处理”提升为明确语义。
+
+### 7.2.4 读路径必须真正依赖 `xl.meta`
+
+fs3 现在虽然已经开始支持按 `version_id` 查找，但读路径还没有彻底对齐 MinIO。
+
+至少需要补齐：
+
+1. 按 `version_id` 找到准确版本
+2. 从版本元数据拿到正确 `data_dir`
+3. 正确生成 `etag`
+4. 正确生成 `content_type`
+5. 正确处理 latest/null version 语义
+
+否则写入事务即使接近 MinIO，读路径仍然会暴露错误语义。
+
+## 7.3 PutObject 数据路径必须补齐的行为
+
+### 7.3.1 流式入口之后，还要补齐流式校验链
+
+fs3 入口流式化已经开始了，但还不够。
+
+还需要补：
+
+1. `Content-MD5` 流式校验
+2. checksum 流式校验
+3. 为后续 chunked signed upload 预留链路
+4. 为后续 SSE 包装预留链路
+
+MinIO 的关键不是“body 是 stream”，而是“校验、压缩、加密都围绕 stream 叠加”。
+
+### 7.3.2 需要固定“临时对象路径”规范
+
+fs3 应明确自己的临时对象写入结构，至少包括：
+
+1. 临时 volume
+2. 临时 object id
+3. 临时 `xl.meta`
+4. 临时 data dir
+
+这部分不能继续保持松散实现，否则后续 commit、恢复、清理语义都难以稳定。
+
+### 7.3.3 提交顺序必须固化，不能随意交换
+
+从 MinIO 看，提交顺序的核心是：
+
+1. `write_all(tmp xl.meta)`
+2. `rename data dir`
+3. `rename xl.meta`
+
+fs3 需要把这个顺序当成存储兼容的硬约束，而不是普通实现细节。
+
+### 7.3.4 old data dir 清理必须延后到提交之后
+
+旧 data dir 不能在新版本写入前删除，也不能与 data dir rename 混成一个动作。
+
+必须明确为：
+
+1. 新版本提交成功
+2. 再删除旧 data dir
+
+这会直接影响 crash recovery 和跨实现存储兼容性。
+
+## 7.4 未来如果继续逼近 MinIO，需要新增的接口能力
+
+这部分不是当前最小可行改造的第一步，但如果目标真的是 MinIO 存储兼容，迟早需要补。
+
+### 7.4.1 扩展 `ObjectOptions`
+
+当前 `ObjectOptions` 太薄，后续至少应承载：
+
+1. checksum 需求和结果
+2. precondition
+3. overwrite / commit 相关选项
+4. retention / legal hold
+5. encryption 参数
+6. versioning 状态
+7. 特殊 lock / no-lock 行为
+
+### 7.4.2 shard 级写入抽象
+
+如果将来要从“单文件模拟”升级到更接近 MinIO 的实现，需要支持：
+
+1. 按 shard 写入
+2. 每 shard 独立 writer
+3. 每 shard 独立元数据和校验信息
+
+### 7.4.3 bitrot 相关抽象
+
+如果目标是 MinIO 存储兼容，最终需要一种方式表达：
+
+1. 写入时附带校验块
+2. 读取时校验块可验证
+
+### 7.4.4 quorum 语义
+
+如果未来进入多盘/多副本模型，就必须把这些语义显式化：
+
+1. write quorum
+2. rename quorum
+3. delete quorum
+
+否则接口层永远不足以表达 MinIO 底层行为。
+
+## 7.5 当前最小可落地的 fs3 改造顺序
+
+如果以“先把主链对齐，再继续逼近 MinIO”为目标，建议顺序如下：
+
+### 7.5.1 第一阶段
+
+1. 固化 `PutObject = tmp write -> rename_data -> cleanup old_data_dir`
+2. 让 `rename_data` 的提交顺序稳定下来
+3. 让当前分支先编译通过并收口
+
+### 7.5.2 第二阶段
+
+1. 让 `CopyObject` 也走同一事务模型
+2. 修正 `read_version / get_object / get_object_info` 的版本与元数据语义
+3. 修正 `etag / content_type / bucket` 等明显占位实现
+
+### 7.5.3 第三阶段
+
+1. 补 `Content-MD5` / checksum 的流式校验
+2. 扩展 `ObjectOptions`
+3. 为 retention / checksum / encryption / precondition 预留稳定接口
+
+### 7.5.4 第四阶段
+
+1. 引入真正的 shard 写入
+2. 引入 bitrot
+3. 引入 quorum
+4. 继续逼近 MinIO 的底层落盘语义
+
+## 7.6 这部分转换后的核心结论
+
+把 MinIO 底层存储调用栈直接翻译成 fs3 待补项后，可以得到一个更明确的判断：
+
+fs3 当前最大的问题已经不再是“完全没有提交模型”，而是：
+
+1. 已经开始出现正确的提交骨架
+2. 但接口层还不足以稳定承载 MinIO 的真实底层存储语义
+3. 当前最重要的是把 `tmp -> rename_data -> cleanup` 这条主链先彻底做实
+4. 再在这条正确主链上继续补 checksum、SSE、shard、bitrot、quorum

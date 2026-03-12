@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use crate::types::traits::BoxError;
+use crate::types::FS3Error;
 use crate::types::s3::request::*;
 use crate::types::s3::response::*;
 use crate::types::traits::s3_engine::S3BucketNotificationEngine;
@@ -14,13 +14,13 @@ pub trait BucketNotificationS3Handler: Send + Sync {
     fn bucket_notification_engine_provider(&self) -> &Self::Engine;
     fn bucket_notification_policy_provider(&self) -> &Self::Policy;
 
-    async fn get_bucket_notification(&self, req: GetBucketNotificationRequest) -> Result<GetBucketNotificationResponse , BoxError> {
+    async fn get_bucket_notification(&self, req: GetBucketNotificationRequest) -> Result<GetBucketNotificationResponse , FS3Error> {
         check_access(self.bucket_notification_policy_provider(), S3Action::GetBucketNotification, Some(&req.bucket.bucket), None).await?;
         let _p = self.bucket_notification_engine_provider().get_bucket_notification(&req.bucket.bucket).await?;
         Ok(GetBucketNotificationResponse { ..Default::default() })
     }
 
-    async fn put_bucket_notification(&self, req: PutBucketNotificationRequest) -> Result<PutBucketNotificationResponse , BoxError> {
+    async fn put_bucket_notification(&self, req: PutBucketNotificationRequest) -> Result<PutBucketNotificationResponse , FS3Error> {
         check_access(self.bucket_notification_policy_provider(), S3Action::PutBucketNotification, Some(&req.bucket.bucket), None).await?;
         let configs = req
             .configs

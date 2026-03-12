@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use crate::types::traits::BoxError;
+use crate::types::FS3Error;
 use crate::types::s3::request::*;
 use crate::types::s3::response::*;
 use crate::types::traits::s3_engine::S3BucketVersionEngine;
@@ -15,7 +15,7 @@ pub trait BucketVersioningS3Handler: Send + Sync {
     fn bucket_versioning_engine_provider(&self) -> &Self::Engine;
     fn bucket_versioning_policy_provider(&self) -> &Self::Policy;
 
-    async fn get_bucket_versioning(&self, req: GetBucketVersioningRequest) -> Result<GetBucketVersioningResponse , BoxError> {
+    async fn get_bucket_versioning(&self, req: GetBucketVersioningRequest) -> Result<GetBucketVersioningResponse , FS3Error> {
         check_access(self.bucket_versioning_policy_provider(), S3Action::GetBucketVersioning, Some(&req.bucket.bucket), None).await?;
         let v = self.bucket_versioning_engine_provider().get_bucket_versioning(&req.bucket.bucket).await?;
         Ok(GetBucketVersioningResponse {
@@ -25,7 +25,7 @@ pub trait BucketVersioningS3Handler: Send + Sync {
         })
     }
 
-    async fn put_bucket_versioning(&self, req: PutBucketVersioningRequest) -> Result<PutBucketVersioningResponse , BoxError> {
+    async fn put_bucket_versioning(&self, req: PutBucketVersioningRequest) -> Result<PutBucketVersioningResponse , FS3Error> {
         check_access(self.bucket_versioning_policy_provider(), S3Action::PutBucketVersioning, Some(&req.bucket.bucket), None).await?;
         self.bucket_versioning_engine_provider()
             .put_bucket_versioning(&req.bucket.bucket, req.versioning.status, req.versioning.mfa_delete)

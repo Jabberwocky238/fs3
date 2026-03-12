@@ -1,11 +1,11 @@
-use async_trait::async_trait;
-use crate::types::traits::BoxError;
+use crate::types::FS3Error;
 use crate::types::s3::core::*;
 use crate::types::s3::policy::S3Action;
 use crate::types::s3::request::*;
 use crate::types::s3::response::*;
 use crate::types::traits::s3_engine::{S3MultipartEngine, S3ObjectEngine};
 use crate::types::traits::s3_policyengine::S3PolicyEngine;
+use async_trait::async_trait;
 
 use super::utils::*;
 
@@ -17,7 +17,7 @@ pub trait ObjectS3Handler: Send + Sync {
     fn engine(&self) -> &Self::Engine;
     fn policy(&self) -> &Self::Policy;
 
-    async fn head_object(&self, req: HeadObjectRequest) -> Result<HeadObjectResponse , BoxError> {
+    async fn head_object(&self, req: HeadObjectRequest) -> Result<HeadObjectResponse, FS3Error> {
         check_access(
             self.policy(),
             S3Action::HeadObject,
@@ -60,7 +60,7 @@ pub trait ObjectS3Handler: Send + Sync {
     async fn get_object_attributes(
         &self,
         req: GetObjectAttributesRequest,
-    ) -> Result<GetObjectAttributesResponse , BoxError> {
+    ) -> Result<GetObjectAttributesResponse, FS3Error> {
         check_access(
             self.policy(),
             S3Action::GetObject,
@@ -81,7 +81,7 @@ pub trait ObjectS3Handler: Send + Sync {
     async fn copy_object_part(
         &self,
         req: CopyObjectPartRequest,
-    ) -> Result<CopyObjectPartResponse , BoxError> {
+    ) -> Result<CopyObjectPartResponse, FS3Error> {
         check_access(
             self.policy(),
             S3Action::PutObject,
@@ -115,7 +115,10 @@ pub trait ObjectS3Handler: Send + Sync {
         })
     }
 
-    async fn put_object_part(&self, req: PutObjectPartRequest) -> Result<PutObjectPartResponse , BoxError> {
+    async fn put_object_part(
+        &self,
+        req: PutObjectPartRequest,
+    ) -> Result<PutObjectPartResponse, FS3Error> {
         check_access(
             self.policy(),
             S3Action::PutObject,
@@ -148,7 +151,7 @@ pub trait ObjectS3Handler: Send + Sync {
     async fn list_object_parts(
         &self,
         req: ListObjectPartsRequest,
-    ) -> Result<ListObjectPartsResponse , BoxError> {
+    ) -> Result<ListObjectPartsResponse, FS3Error> {
         check_access(
             self.policy(),
             S3Action::ListMultipartUploadParts,
@@ -177,7 +180,7 @@ pub trait ObjectS3Handler: Send + Sync {
     async fn complete_multipart_upload(
         &self,
         req: CompleteMultipartUploadRequest,
-    ) -> Result<CompleteMultipartUploadResponse , BoxError> {
+    ) -> Result<CompleteMultipartUploadResponse, FS3Error> {
         check_access(
             self.policy(),
             S3Action::PutObject,
@@ -203,7 +206,7 @@ pub trait ObjectS3Handler: Send + Sync {
     async fn new_multipart_upload(
         &self,
         req: NewMultipartUploadRequest,
-    ) -> Result<NewMultipartUploadResponse , BoxError> {
+    ) -> Result<NewMultipartUploadResponse, FS3Error> {
         check_access(
             self.policy(),
             S3Action::PutObject,
@@ -213,7 +216,11 @@ pub trait ObjectS3Handler: Send + Sync {
         .await?;
         let mp = self
             .engine()
-            .new_multipart_upload(&req.object.bucket, &req.object.object, to_write_opt(None, 0, Default::default()))
+            .new_multipart_upload(
+                &req.object.bucket,
+                &req.object.object,
+                to_write_opt(None, 0, Default::default()),
+            )
             .await?;
         Ok(NewMultipartUploadResponse {
             upload_id: Some(mp.upload_id),
@@ -226,7 +233,7 @@ pub trait ObjectS3Handler: Send + Sync {
     async fn abort_multipart_upload(
         &self,
         req: AbortMultipartUploadRequest,
-    ) -> Result<AbortMultipartUploadResponse , BoxError> {
+    ) -> Result<AbortMultipartUploadResponse, FS3Error> {
         check_access(
             self.policy(),
             S3Action::AbortMultipartUpload,
@@ -243,18 +250,24 @@ pub trait ObjectS3Handler: Send + Sync {
         })
     }
 
-    async fn get_object_acl(&self, _req: GetObjectAclRequest) -> Result<GetObjectAclResponse , BoxError> {
+    async fn get_object_acl(
+        &self,
+        _req: GetObjectAclRequest,
+    ) -> Result<GetObjectAclResponse, FS3Error> {
         Ok(Default::default())
     }
 
-    async fn put_object_acl(&self, _req: PutObjectAclRequest) -> Result<PutObjectAclResponse , BoxError> {
+    async fn put_object_acl(
+        &self,
+        _req: PutObjectAclRequest,
+    ) -> Result<PutObjectAclResponse, FS3Error> {
         Ok(Default::default())
     }
 
     async fn select_object_content(
         &self,
         req: SelectObjectContentRequest,
-    ) -> Result<SelectObjectContentResponse , BoxError> {
+    ) -> Result<SelectObjectContentResponse, FS3Error> {
         check_access(
             self.policy(),
             S3Action::SelectObjectContent,
@@ -263,13 +276,13 @@ pub trait ObjectS3Handler: Send + Sync {
         )
         .await?;
 
-        unsupported("SelectObjectContent")
+        unimplemented!()
     }
 
     async fn get_object_lambda(
         &self,
         req: GetObjectLambdaRequest,
-    ) -> Result<GetObjectLambdaResponse , BoxError> {
+    ) -> Result<GetObjectLambdaResponse, FS3Error> {
         check_access(
             self.policy(),
             S3Action::GetObject,
@@ -288,8 +301,7 @@ pub trait ObjectS3Handler: Send + Sync {
         use futures::TryStreamExt;
         let chunks: Vec<bytes::Bytes> = stream
             .try_collect()
-            .await
-            .map_err(|e| S3HandlerBridgeError::InvalidRequest(format!("stream error: {e}")))?;
+            .await?;
         let mut buf = Vec::new();
         for c in chunks {
             buf.extend_from_slice(&c);
@@ -300,7 +312,7 @@ pub trait ObjectS3Handler: Send + Sync {
         })
     }
 
-    async fn get_object(&self, req: GetObjectRequest) -> Result<GetObjectResponse , BoxError> {
+    async fn get_object(&self, req: GetObjectRequest) -> Result<GetObjectResponse, FS3Error> {
         check_access(
             self.policy(),
             S3Action::GetObject,
@@ -336,7 +348,7 @@ pub trait ObjectS3Handler: Send + Sync {
         })
     }
 
-    async fn copy_object(&self, req: CopyObjectRequest) -> Result<CopyObjectResponse , BoxError> {
+    async fn copy_object(&self, req: CopyObjectRequest) -> Result<CopyObjectResponse, FS3Error> {
         check_access(
             self.policy(),
             S3Action::PutObject,
@@ -366,7 +378,7 @@ pub trait ObjectS3Handler: Send + Sync {
     async fn put_object_extract(
         &self,
         req: PutObjectExtractRequest,
-    ) -> Result<PutObjectExtractResponse , BoxError> {
+    ) -> Result<PutObjectExtractResponse, FS3Error> {
         check_access(
             self.policy(),
             S3Action::PutObject,
@@ -392,11 +404,11 @@ pub trait ObjectS3Handler: Send + Sync {
     async fn append_object_rejected(
         &self,
         _req: AppendObjectRejectedRequest,
-    ) -> Result<AppendObjectRejectedResponse , BoxError> {
-        unsupported("AppendObjectRejected")
+    ) -> Result<AppendObjectRejectedResponse, FS3Error> {
+        unimplemented!()
     }
 
-    async fn put_object(&self, req: PutObjectRequest) -> Result<PutObjectResponse , BoxError> {
+    async fn put_object(&self, req: PutObjectRequest) -> Result<PutObjectResponse, FS3Error> {
         check_access(
             self.policy(),
             S3Action::PutObject,
@@ -406,12 +418,25 @@ pub trait ObjectS3Handler: Send + Sync {
         .await?;
 
         let _content_md5 = req.content_md5;
-        let opt = to_write_opt(req.content_type, req.content_length.unwrap_or(0), req.user_metadata);
-        let obj = self.engine().put_object(&req.object.bucket, &req.object.object, req.body, opt).await?;
-        Ok(PutObjectResponse { object: Some(to_resp_object(&obj)), ..Default::default() })
+        let opt = to_write_opt(
+            req.content_type,
+            req.content_length.unwrap_or(0),
+            req.user_metadata,
+        );
+        let obj = self
+            .engine()
+            .put_object(&req.object.bucket, &req.object.object, req.body, opt)
+            .await?;
+        Ok(PutObjectResponse {
+            object: Some(to_resp_object(&obj)),
+            ..Default::default()
+        })
     }
 
-    async fn delete_object(&self, req: DeleteObjectRequest) -> Result<DeleteObjectResponse , BoxError> {
+    async fn delete_object(
+        &self,
+        req: DeleteObjectRequest,
+    ) -> Result<DeleteObjectResponse, FS3Error> {
         check_access(
             self.policy(),
             S3Action::DeleteObject,
@@ -433,9 +458,7 @@ pub trait ObjectS3Handler: Send + Sync {
     async fn post_restore_object(
         &self,
         _req: PostRestoreObjectRequest,
-    ) -> Result<PostRestoreObjectResponse , BoxError> {
-        unsupported("PostRestoreObject")
+    ) -> Result<PostRestoreObjectResponse, FS3Error> {
+        unimplemented!()
     }
 }
-
-

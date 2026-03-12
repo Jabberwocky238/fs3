@@ -89,14 +89,14 @@ impl XlStorage {
         self.path.join(volume).join(path).join(data_dir)
     }
 
-    fn encode_shallow_version(&self, fi: &FileInfo) -> Result<XlMetaV2ShallowVersion, StorageError> {
+    fn encode_shallow_version(&self, fi: &FileInfo, has_inline_data: bool) -> Result<XlMetaV2ShallowVersion, StorageError> {
         let vid = uuid::Uuid::parse_str(&fi.version_id)
-            .map_err(|e| StorageError::Io(e.to_string()))?;
+            .map_err(|e| StorageError::from(e.to_string()))?;
         let ddir = uuid::Uuid::parse_str(&fi.data_dir)
-            .map_err(|e| StorageError::Io(e.to_string()))?;
+            .map_err(|e| StorageError::from(e.to_string()))?;
 
         let mut meta_sys = std::collections::HashMap::new();
-        if inline_data.is_some() {
+        if has_inline_data {
             meta_sys.insert("x-minio-internal-inline-data".to_string(), b"true".to_vec());
         }
 
@@ -140,7 +140,7 @@ impl XlStorage {
 
     fn encode_metadata(&self, fi: &FileInfo, inline_data: Option<Vec<u8>>) -> Result<Vec<u8>, StorageError> {
         let xl_meta = XlMetaV2 {
-            versions: vec![self.encode_shallow_version(fi)?],
+            versions: vec![self.encode_shallow_version(fi, inline_data.is_some())?],
             inline_data,
             meta_v: 1,
         };
@@ -155,6 +155,8 @@ impl XlStorage {
             version_id: uuid::Uuid::from_bytes(obj.version_id).to_string(),
             size: obj.size as u64,
             data_dir: uuid::Uuid::from_bytes(obj.data_dir).to_string(),
+            etag: String::new(),
+            content_type: "application/octet-stream".to_string(),
             user_metadata: obj.meta_user.unwrap_or_default().into_iter().collect(),
             erasure_index: obj.erasure_index,
             erasure_m: obj.erasure_m,
@@ -166,25 +168,27 @@ impl XlStorage {
         match tokio::fs::read(self.xl_meta_path(volume, path)).await {
             Ok(data) => Ok(Some(data.into())),
             Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(None),
-            Err(err) => Err(StorageError::Io(err.to_string())),
+            Err(err) => Err(StorageError::from(err.to_string())),
         }
     }
 }
 
 #[async_trait]
 impl StorageVolume for XlStorage {
+    type Error = StorageError;
+
     async fn make_vol(&self, _ctx: &Context, volume: &str) -> Result<(), StorageError> {
         tokio::fs::create_dir_all(self.path.join(volume)).await
-            .map_err(|e| StorageError::Io(e.to_string()))
+            .map_err(|e| StorageError::from(e.to_string()))
     }
 
     async fn list_vols(&self, _ctx: &Context) -> Result<Vec<VolInfo>, StorageError> {
         let mut vols = Vec::new();
         let mut entries = tokio::fs::read_dir(&self.path).await
-            .map_err(|e| StorageError::Io(e.to_string()))?;
+            .map_err(|e| StorageError::from(e.to_string()))?;
         while let Some(entry) = entries.next_entry().await
-            .map_err(|e| StorageError::Io(e.to_string()))? {
-            if entry.file_type().await.map_err(|e| StorageError::Io(e.to_string()))?.is_dir() {
+            .map_err(|e| StorageError::from(e.to_string()))? {
+            if entry.file_type().await.map_err(|e| StorageError::from(e.to_string()))?.is_dir() {
                 vols.push(VolInfo { name: entry.file_name().to_string_lossy().to_string(), created: 0 });
             }
         }
@@ -194,25 +198,27 @@ impl StorageVolume for XlStorage {
     async fn stat_vol(&self, _ctx: &Context, volume: &str) -> Result<VolInfo, StorageError> {
         let vol_path = self.path.join(volume);
         if !vol_path.exists() {
-            return Err(StorageError::VolumeNotFound(volume.to_string()));
+            return Err(StorageError::from(format!("volume not found: {volume}")));
         }
         Ok(VolInfo { name: volume.to_string(), created: 0 })
     }
 
     async fn delete_vol(&self, _ctx: &Context, volume: &str, _force: bool) -> Result<(), StorageError> {
         tokio::fs::remove_dir_all(self.path.join(volume)).await
-            .map_err(|e| StorageError::Io(e.to_string()))
+            .map_err(|e| StorageError::from(e.to_string()))
     }
 }
 
 #[async_trait]
 impl StorageMetadata for XlStorage {
+    type Error = StorageError;
+
     async fn read_version(&self, _ctx: &Context, volume: &str, path: &str, version_id: &str) -> Result<FileInfo, StorageError> {
         let xl_meta = self.read_xl_meta(volume, path).await?
-            .ok_or_else(|| StorageError::FileNotFound(path.to_string()))?;
+            .ok_or_else(|| StorageError::from(format!("file not found: {path}")))?;
 
         if xl_meta.versions.is_empty() {
-            return Err(StorageError::FileNotFound("no versions".to_string()));
+            return Err(StorageError::from("file not found: no versions"));
         }
 
         let version = if version_id == "null" {
@@ -221,19 +227,19 @@ impl StorageMetadata for XlStorage {
             xl_meta.versions.iter().find(|version| {
                 uuid::Uuid::from_bytes(version.header.version_id).to_string() == version_id
             })
-        }.ok_or_else(|| StorageError::FileNotFound(version_id.to_string()))?;
+        }.ok_or_else(|| StorageError::from(format!("file not found: {version_id}")))?;
 
         Ok(self.decode_file_info(volume, path, version))
     }
 
-    async fn write_all(&self, _ctx: &Context, volume: &str, path: &str, data: &[u8]) -> Result<(), StorageError> {
+    async fn write_all(&self, _ctx: &Context, volume: &str, path: &str, data: &[u8], _opts: WriteAllOptions) -> Result<(), StorageError> {
         let file_path = self.path.join(volume).join(path);
         if let Some(parent) = file_path.parent() {
             tokio::fs::create_dir_all(parent).await
-                .map_err(|e| StorageError::Io(e.to_string()))?;
+                .map_err(|e| StorageError::from(e.to_string()))?;
         }
         tokio::fs::write(&file_path, data).await
-            .map_err(|e| StorageError::Io(e.to_string()))
+            .map_err(|e| StorageError::from(e.to_string()))
     }
 
     async fn write_metadata(&self, _ctx: &Context, volume: &str, path: &str, fi: FileInfo) -> Result<(), StorageError> {
@@ -242,12 +248,22 @@ impl StorageMetadata for XlStorage {
             inline_data: None,
             meta_v: 1,
         });
-        xl_meta.versions.insert(0, self.encode_shallow_version(&fi)?);
+        xl_meta.versions.insert(0, self.encode_shallow_version(&fi, false)?);
         let data: Vec<u8> = xl_meta.into();
-        self.write_all(_ctx, volume, &format!("{path}/xl.meta"), &data).await
+        self.write_all(
+            _ctx,
+            volume,
+            &format!("{path}/xl.meta"),
+            &data,
+            WriteAllOptions {
+                path_kind: StoragePathKind::Final,
+                write_kind: StorageWriteKind::Metadata,
+            },
+        )
+        .await
     }
 
-    async fn rename_data(&self, ctx: &Context, src_volume: &str, src_path: &str, fi: FileInfo, dst_volume: &str, dst_path: &str) -> Result<Option<String>, StorageError> {
+    async fn rename_data(&self, ctx: &Context, src_volume: &str, src_path: &str, fi: FileInfo, dst_volume: &str, dst_path: &str, opts: RenameDataOptions) -> Result<RenameDataResult, StorageError> {
         let mut dst_meta = self.read_xl_meta(dst_volume, dst_path).await?.unwrap_or(XlMetaV2 {
             versions: Vec::new(),
             inline_data: None,
@@ -256,52 +272,72 @@ impl StorageMetadata for XlStorage {
         let old_data_dir = dst_meta.versions.first()
             .map(|version| self.decode_file_info(dst_volume, dst_path, version).data_dir);
 
-        dst_meta.versions.insert(0, self.encode_shallow_version(&fi)?);
+        dst_meta.versions.insert(0, self.encode_shallow_version(&fi, false)?);
         let meta_bytes: Vec<u8> = dst_meta.into();
-        self.write_all(ctx, src_volume, &format!("{src_path}/xl.meta"), &meta_bytes).await?;
+        self.write_all(
+            ctx,
+            src_volume,
+            &format!("{src_path}/xl.meta"),
+            &meta_bytes,
+            WriteAllOptions {
+                path_kind: opts.path_kind,
+                write_kind: StorageWriteKind::Metadata,
+            },
+        )
+        .await?;
 
         let src_data_path = self.object_data_path(src_volume, src_path, &fi.data_dir);
         let dst_data_path = self.object_data_path(dst_volume, dst_path, &fi.data_dir);
         if let Some(parent) = dst_data_path.parent() {
             tokio::fs::create_dir_all(parent).await
-                .map_err(|e| StorageError::Io(e.to_string()))?;
+                .map_err(|e| StorageError::from(e.to_string()))?;
         }
         tokio::fs::rename(&src_data_path, &dst_data_path).await
-            .map_err(|e| StorageError::Io(e.to_string()))?;
+            .map_err(|e| StorageError::from(e.to_string()))?;
 
         let src_meta_path = self.xl_meta_path(src_volume, src_path);
         let dst_meta_path = self.xl_meta_path(dst_volume, dst_path);
         if let Some(parent) = dst_meta_path.parent() {
             tokio::fs::create_dir_all(parent).await
-                .map_err(|e| StorageError::Io(e.to_string()))?;
+                .map_err(|e| StorageError::from(e.to_string()))?;
         }
         tokio::fs::rename(&src_meta_path, &dst_meta_path).await
-            .map_err(|e| StorageError::Io(e.to_string()))?;
+            .map_err(|e| StorageError::from(e.to_string()))?;
 
-        if let Some(old_data_dir) = &old_data_dir {
-            if old_data_dir != &fi.data_dir {
-                let old_path = self.object_data_path(dst_volume, dst_path, old_data_dir);
-                match tokio::fs::remove_dir_all(&old_path).await {
-                    Ok(_) => {}
-                    Err(err) if err.kind() == std::io::ErrorKind::NotFound => {}
-                    Err(err) => return Err(StorageError::Io(err.to_string())),
-                }
+        let old_data_path = old_data_dir.as_ref().and_then(|dir| {
+            if dir == &fi.data_dir {
+                None
+            } else {
+                Some(format!("{dst_path}/{dir}"))
             }
-        }
+        });
 
-        let temp_root = self.path.join(src_volume).join(src_path);
-        let _ = tokio::fs::remove_dir_all(&temp_root).await;
-        Ok(old_data_dir)
+        Ok(RenameDataResult {
+            old_data_dir,
+            old_data_path,
+            cleanup_src_volume: if opts.defer_src_path_cleanup {
+                src_volume.to_string()
+            } else {
+                String::new()
+            },
+            cleanup_src_path: if opts.defer_src_path_cleanup {
+                src_path.to_string()
+            } else {
+                String::new()
+            },
+        })
     }
 
     async fn delete_version(&self, _ctx: &Context, volume: &str, path: &str, _fi: FileInfo) -> Result<(), StorageError> {
         tokio::fs::remove_file(self.xl_meta_path(volume, path)).await
-            .map_err(|e| StorageError::Io(e.to_string()))
+            .map_err(|e| StorageError::from(e.to_string()))
     }
 }
 
 #[async_trait]
 impl StorageFile for XlStorage {
+    type Error = StorageError;
+
     async fn read_file(&self, _ctx: &Context, volume: &str, path: &str, offset: i64, buf: &mut [u8]) -> Result<i64, StorageError> {
         // Check if data is inline in xl.meta
         let parts: Vec<&str> = path.rsplitn(2, '/').collect();
@@ -326,30 +362,30 @@ impl StorageFile for XlStorage {
         // Fallback to regular file read
         let file_path = self.path.join(volume).join(path);
         let mut file = tokio::fs::File::open(&file_path).await
-            .map_err(|_| StorageError::FileNotFound(path.to_string()))?;
+            .map_err(|_| StorageError::from(format!("file not found: {path}")))?;
         use tokio::io::{AsyncReadExt, AsyncSeekExt};
         file.seek(std::io::SeekFrom::Start(offset as u64)).await
-            .map_err(|e| StorageError::Io(e.to_string()))?;
+            .map_err(|e| StorageError::from(e.to_string()))?;
         let n = file.read(buf).await
-            .map_err(|e| StorageError::Io(e.to_string()))?;
+            .map_err(|e| StorageError::from(e.to_string()))?;
         Ok(n as i64)
     }
 
-    async fn create_file(&self, _ctx: &Context, volume: &str, path: &str, _size: i64, mut reader: crate::types::s3::core::BoxByteStream) -> Result<u64, StorageError> {
+    async fn create_file(&self, _ctx: &Context, volume: &str, path: &str, _size: i64, mut reader: crate::types::s3::core::BoxByteStream, _opts: CreateFileOptions) -> Result<u64, StorageError> {
         let file_path = self.path.join(volume).join(path);
         if let Some(parent) = file_path.parent() {
             tokio::fs::create_dir_all(parent).await
-                .map_err(|e| StorageError::Io(e.to_string()))?;
+                .map_err(|e| StorageError::from(e.to_string()))?;
         }
         let mut file = tokio::fs::File::create(&file_path).await
-            .map_err(|e| StorageError::Io(e.to_string()))?;
+            .map_err(|e| StorageError::from(e.to_string()))?;
         use tokio::io::AsyncWriteExt;
         use futures::StreamExt;
         let mut total = 0u64;
         while let Some(chunk) = reader.next().await {
-            let bytes = chunk.map_err(|e| StorageError::Io(e.to_string()))?;
+            let bytes = chunk.map_err(|e| StorageError::from(e.to_string()))?;
             file.write_all(&bytes).await
-                .map_err(|e| StorageError::Io(e.to_string()))?;
+                .map_err(|e| StorageError::from(e.to_string()))?;
             total += bytes.len() as u64;
         }
         Ok(total)
@@ -361,26 +397,42 @@ impl StorageFile for XlStorage {
         let mut file = tokio::fs::OpenOptions::new()
             .append(true)
             .open(&file_path).await
-            .map_err(|e| StorageError::Io(e.to_string()))?;
+            .map_err(|e| StorageError::from(e.to_string()))?;
         file.write_all(buf).await
-            .map_err(|e| StorageError::Io(e.to_string()))
+            .map_err(|e| StorageError::from(e.to_string()))
     }
 
     async fn rename_file(&self, _ctx: &Context, src_vol: &str, src_path: &str, dst_vol: &str, dst_path: &str) -> Result<(), StorageError> {
         let src = self.path.join(src_vol).join(src_path);
         let dst = self.path.join(dst_vol).join(dst_path);
         tokio::fs::rename(&src, &dst).await
-            .map_err(|e| StorageError::Io(e.to_string()))
+            .map_err(|e| StorageError::from(e.to_string()))
+    }
+
+    async fn delete_path(&self, _ctx: &Context, volume: &str, path: &str, opts: DeletePathOptions) -> Result<(), StorageError> {
+        let target = self.path.join(volume).join(path);
+        let result = if opts.recursive {
+            tokio::fs::remove_dir_all(&target).await
+        } else {
+            tokio::fs::remove_file(&target).await
+        };
+        match result {
+            Ok(_) => Ok(()),
+            Err(err) if opts.ignore_not_found && err.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(err) => Err(StorageError::from(err.to_string())),
+        }
     }
 }
 
 #[async_trait]
 impl StorageBucketConfig for XlStorage {
+    type Error = StorageError;
+
     async fn read_bucket_policy(&self, _ctx: &Context, bucket: &str) -> Result<Option<String>, StorageError> {
         match tokio::fs::read_to_string(self.bucket_policy_path(bucket)).await {
             Ok(data) => Ok(Some(data)),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
-            Err(e) => Err(StorageError::Io(e.to_string())),
+            Err(e) => Err(StorageError::from(e.to_string())),
         }
     }
 
@@ -388,17 +440,17 @@ impl StorageBucketConfig for XlStorage {
         let path = self.bucket_policy_path(bucket);
         if let Some(parent) = path.parent() {
             tokio::fs::create_dir_all(parent).await
-                .map_err(|e| StorageError::Io(e.to_string()))?;
+                .map_err(|e| StorageError::from(e.to_string()))?;
         }
         tokio::fs::write(&path, policy).await
-            .map_err(|e| StorageError::Io(e.to_string()))
+            .map_err(|e| StorageError::from(e.to_string()))
     }
 
     async fn delete_bucket_policy(&self, _ctx: &Context, bucket: &str) -> Result<(), StorageError> {
         match tokio::fs::remove_file(self.bucket_policy_path(bucket)).await {
             Ok(_) => Ok(()),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
-            Err(e) => Err(StorageError::Io(e.to_string())),
+            Err(e) => Err(StorageError::from(e.to_string())),
         }
     }
 
@@ -406,7 +458,7 @@ impl StorageBucketConfig for XlStorage {
         match tokio::fs::read_to_string(self.bucket_tags_path(bucket)).await {
             Ok(data) => Ok(Some(data)),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
-            Err(e) => Err(StorageError::Io(e.to_string())),
+            Err(e) => Err(StorageError::from(e.to_string())),
         }
     }
 
@@ -414,17 +466,17 @@ impl StorageBucketConfig for XlStorage {
         let path = self.bucket_tags_path(bucket);
         if let Some(parent) = path.parent() {
             tokio::fs::create_dir_all(parent).await
-                .map_err(|e| StorageError::Io(e.to_string()))?;
+                .map_err(|e| StorageError::from(e.to_string()))?;
         }
         tokio::fs::write(&path, tags).await
-            .map_err(|e| StorageError::Io(e.to_string()))
+            .map_err(|e| StorageError::from(e.to_string()))
     }
 
     async fn delete_bucket_tags(&self, _ctx: &Context, bucket: &str) -> Result<(), StorageError> {
         match tokio::fs::remove_file(self.bucket_tags_path(bucket)).await {
             Ok(_) => Ok(()),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
-            Err(e) => Err(StorageError::Io(e.to_string())),
+            Err(e) => Err(StorageError::from(e.to_string())),
         }
     }
 
@@ -432,7 +484,7 @@ impl StorageBucketConfig for XlStorage {
         match tokio::fs::read_to_string(self.bucket_versioning_path(bucket)).await {
             Ok(data) => Ok(Some(data)),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
-            Err(e) => Err(StorageError::Io(e.to_string())),
+            Err(e) => Err(StorageError::from(e.to_string())),
         }
     }
 
@@ -440,17 +492,17 @@ impl StorageBucketConfig for XlStorage {
         let path = self.bucket_versioning_path(bucket);
         if let Some(parent) = path.parent() {
             tokio::fs::create_dir_all(parent).await
-                .map_err(|e| StorageError::Io(e.to_string()))?;
+                .map_err(|e| StorageError::from(e.to_string()))?;
         }
         tokio::fs::write(&path, status).await
-            .map_err(|e| StorageError::Io(e.to_string()))
+            .map_err(|e| StorageError::from(e.to_string()))
     }
 
     async fn read_bucket_cors(&self, _ctx: &Context, bucket: &str) -> Result<Option<String>, StorageError> {
         match tokio::fs::read_to_string(self.bucket_cors_path(bucket)).await {
             Ok(data) => Ok(Some(data)),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
-            Err(e) => Err(StorageError::Io(e.to_string())),
+            Err(e) => Err(StorageError::from(e.to_string())),
         }
     }
 
@@ -458,28 +510,30 @@ impl StorageBucketConfig for XlStorage {
         let path = self.bucket_cors_path(bucket);
         if let Some(parent) = path.parent() {
             tokio::fs::create_dir_all(parent).await
-                .map_err(|e| StorageError::Io(e.to_string()))?;
+                .map_err(|e| StorageError::from(e.to_string()))?;
         }
         tokio::fs::write(&path, cors).await
-            .map_err(|e| StorageError::Io(e.to_string()))
+            .map_err(|e| StorageError::from(e.to_string()))
     }
 
     async fn delete_bucket_cors(&self, _ctx: &Context, bucket: &str) -> Result<(), StorageError> {
         match tokio::fs::remove_file(self.bucket_cors_path(bucket)).await {
             Ok(_) => Ok(()),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
-            Err(e) => Err(StorageError::Io(e.to_string())),
+            Err(e) => Err(StorageError::from(e.to_string())),
         }
     }
 }
 
 #[async_trait]
 impl StorageObjectConfig for XlStorage {
+    type Error = StorageError;
+
     async fn read_object_tags(&self, _ctx: &Context, bucket: &str, key: &str) -> Result<Option<String>, StorageError> {
         match tokio::fs::read_to_string(self.object_tags_path(bucket, key)).await {
             Ok(data) => Ok(Some(data)),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
-            Err(e) => Err(StorageError::Io(e.to_string())),
+            Err(e) => Err(StorageError::from(e.to_string())),
         }
     }
 
@@ -487,17 +541,18 @@ impl StorageObjectConfig for XlStorage {
         let path = self.object_tags_path(bucket, key);
         if let Some(parent) = path.parent() {
             tokio::fs::create_dir_all(parent).await
-                .map_err(|e| StorageError::Io(e.to_string()))?;
+                .map_err(|e| StorageError::from(e.to_string()))?;
         }
         tokio::fs::write(&path, tags).await
-            .map_err(|e| StorageError::Io(e.to_string()))
+            .map_err(|e| StorageError::from(e.to_string()))
     }
 
     async fn delete_object_tags(&self, _ctx: &Context, bucket: &str, key: &str) -> Result<(), StorageError> {
         match tokio::fs::remove_file(self.object_tags_path(bucket, key)).await {
             Ok(_) => Ok(()),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
-            Err(e) => Err(StorageError::Io(e.to_string())),
+            Err(e) => Err(StorageError::from(e.to_string())),
         }
     }
 }
+
