@@ -13,3 +13,4 @@
 test_*.meta
 test_*.json
 __pycache__/
+src/bin/

@@ -2,8 +2,6 @@
 
 阅读D:\1-code\__trash__\fs3\docs\minio_actual\put_object_call_stack.md和D:\1-code\__trash__\fs3\docs\fs3_lackof\put_object_gap_vs_minio.md，使用UTF8
 
-不要为了编译通过而写dirty code，一个一个文件检查，cargo check直到通过，把所有错误类型统一为FS3Error，所有trait的错误类型统一为泛型任何实现的std Error trait的类型，删除BoxError
-
 本文档记录 MinIO 普通对象上传请求 `PUT /{bucket}/{object}` 的实际调用路径，目标是从 HTTP 请求入口一路追到最终存储层写入。
 
 范围说明：

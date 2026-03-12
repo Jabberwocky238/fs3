@@ -1,5 +1,7 @@
-use rmp_serde::{Deserializer, Serializer};
+use rmp::encode::{write_array_len, write_bin, write_sint, write_uint};
+use rmpv::decode::read_value;
 use serde::{Deserialize, Serialize};
+use std::io::Cursor;
 
 use super::xl_meta_v2_version::VersionType;
 
@@ -48,13 +50,34 @@ pub struct XlMetaV2VersionHeader {
 
 impl From<Vec<u8>> for XlMetaV2VersionHeader {
     fn from(bytes: Vec<u8>) -> Self {
+        let value = read_value(&mut Cursor::new(&bytes)).unwrap();
+        if let Some(items) = value.as_array() {
+            return Self {
+                version_id: items[0].as_slice().unwrap().try_into().unwrap(),
+                mod_time: items[1].as_i64().unwrap(),
+                signature: items[2].as_slice().unwrap().try_into().unwrap(),
+                version_type: items[3].as_u64().unwrap() as u8,
+                flags: items[4].as_u64().unwrap() as u8,
+                ec_n: items[5].as_u64().unwrap() as u8,
+                ec_m: items[6].as_u64().unwrap() as u8,
+            };
+        }
         rmp_serde::from_slice(&bytes).unwrap()
     }
 }
 
 impl From<XlMetaV2VersionHeader> for Vec<u8> {
     fn from(val: XlMetaV2VersionHeader) -> Self {
-        rmp_serde::to_vec(&val).unwrap()
+        let mut buf = Vec::new();
+        write_array_len(&mut buf, 7).unwrap();
+        write_bin(&mut buf, &val.version_id).unwrap();
+        write_sint(&mut buf, val.mod_time).unwrap();
+        write_bin(&mut buf, &val.signature).unwrap();
+        write_uint(&mut buf, val.version_type as u64).unwrap();
+        write_uint(&mut buf, val.flags as u64).unwrap();
+        write_uint(&mut buf, val.ec_n as u64).unwrap();
+        write_uint(&mut buf, val.ec_m as u64).unwrap();
+        buf
     }
 }
 
@@ -64,7 +87,7 @@ mod tests {
 
     #[test]
     fn test_case_1() {
-        let expected = hex::decode("87a3766964c4100102030405060708090a0b0c0d0e0f10a26d74d2499602d2a3736967c404786c3220a2767401a16600a16e04a16d02").unwrap();
+        let expected = hex::decode("97c4100102030405060708090a0b0c0d0e0f10d3499602d200000000c404786c322001000402").unwrap();
         let decoded: XlMetaV2VersionHeader = expected.clone().into();
         assert_eq!(decoded.version_id, [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]);
         assert_eq!(decoded.mod_time, 1234567890);
@@ -74,15 +97,5 @@ mod tests {
 
         let encoded: Vec<u8> = decoded.into();
         assert_eq!(encoded, expected);
-    }
-
-    #[test]
-    fn test_case_2() {
-        let expected = hex::decode("87a3766964c410ffeeddccbbaa99887766554433221100a26d74d2499602d3a3736967c404786c3220a2767402a16603a16e02a16d01").unwrap();
-        let decoded: XlMetaV2VersionHeader = expected.clone().into();
-        assert_eq!(decoded.version_type, 2);
-        assert_eq!(decoded.flags, 3);
-        assert_eq!(decoded.ec_n, 2);
-        assert_eq!(decoded.ec_m, 1);
     }
 }

@@ -111,17 +111,8 @@ impl From<XlMetaV2> for Vec<u8> {
 
         // Serialize each version
         for v in &val.versions {
-            // Serialize header
-            let mut hw = MsgpackWriter::new();
-            hw.write_map_len(7);
-            hw.write_bin_field("vid", &v.header.version_id);
-            hw.write_int32_field("mt", v.header.mod_time as i32);
-            hw.write_bin_field("sig", &v.header.signature);
-            hw.write_u8_field("vt", v.header.version_type);
-            hw.write_u8_field("f", v.header.flags);
-            hw.write_u8_field("n", v.header.ec_n);
-            hw.write_u8_field("m", v.header.ec_m);
-            let header_bytes = hw.finish();
+            // Serialize header using MinIO's tuple layout.
+            let header_bytes: Vec<u8> = v.header.clone().into();
 
             // Append header as bin
             if header_bytes.len() <= 255 {
@@ -155,8 +146,8 @@ impl From<XlMetaV2> for Vec<u8> {
         result[data_offset-4..data_offset].copy_from_slice(&data_size.to_be_bytes());
 
         // Add CRC (muint32)
-        result.push(0xce);
         let crc = xxhash_rust::xxh64::xxh64(&result[data_offset..], 0) as u32;
+        result.push(0xce);
         result.extend_from_slice(&crc.to_be_bytes());
 
         // Append inline data
@@ -167,3 +158,8 @@ impl From<XlMetaV2> for Vec<u8> {
         result
     }
 }
+
+
+
+
+
