@@ -23,7 +23,6 @@ use crate::types::s3::response::*;
 use crate::types::FS3Error;
 use crate::types::traits::s3_engine::S3BucketEngine;
 use crate::types::traits::s3_policyengine::S3PolicyEngine;
-use crate::types::s3::policy::S3Action;
 pub use utils::S3HandlerBridgeError;
 
 pub use bucket::BucketS3Handler;
@@ -95,7 +94,6 @@ pub trait RootS3Handler: Send + Sync {
     }
 
     async fn list_buckets(&self, _req: ListBucketsRequest) -> Result<ListBucketsResponse, FS3Error> {
-        utils::check_access(self.policy(), S3Action::ListAllMyBuckets, None, None).await?;
         let list = self.engine().list_buckets().await?;
         Ok(ListBucketsResponse {
             buckets: list.into_iter().map(|b| BucketInfo {
@@ -107,7 +105,6 @@ pub trait RootS3Handler: Send + Sync {
     }
 
     async fn list_buckets_double_slash(&self, _req: ListBucketsDoubleSlashRequest) -> Result<ListBucketsDoubleSlashResponse, FS3Error> {
-        utils::check_access(self.policy(), S3Action::ListAllMyBuckets, None, None).await?;
         let list = self.engine().list_buckets().await?;
         Ok(ListBucketsDoubleSlashResponse {
             buckets: list.into_iter().map(|b| BucketInfo {

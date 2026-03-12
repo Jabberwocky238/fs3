@@ -6,6 +6,7 @@ use axum::http::Method;
 use axum::routing::{any, get};
 use axum::Router;
 
+use crate::types::FS3Error;
 use crate::types::s3::request::{ListBucketsDoubleSlashRequest, ListBucketsRequest, RootListenNotificationRequest};
 use crate::types::s3::response::S3Response;
 use crate::types::traits::s3_handler::S3Handler;

@@ -48,10 +48,15 @@ impl From<S3HandlerBridgeError> for FS3Error {
     }
 }
 
-pub async fn check_access<P, E>(policy: &P, action: S3Action, bucket: Option<&str>, key: Option<&str>) -> Result<(), E>
+pub async fn check_access<P, E>(
+    policy: &P,
+    action: S3Action,
+    bucket: Option<&str>,
+    key: Option<&str>,
+) -> Result<(), E>
 where
     P: S3PolicyEngine<E> + ?Sized,
-    E: StdError,
+    E: StdError + From<FS3Error>,
 {
     let ctx = PolicyEvalContext {
         action,
@@ -65,7 +70,7 @@ where
 
     match policy.check_access(&ctx).await {
         Ok(PolicyEffect::Allow) => Ok(()),
-        Ok(PolicyEffect::Deny) => Err(FS3Error::forbidden("AccessDenied").into()),
+        Ok(PolicyEffect::Deny) => Err(FS3Error::forbidden(format!("{action}")).into()),
         Err(err) => Err(err),
     }
 }

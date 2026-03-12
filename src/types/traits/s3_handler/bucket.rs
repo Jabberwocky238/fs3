@@ -28,13 +28,7 @@ pub trait BucketS3Handler: Send + Sync {
         &self,
         req: GetBucketLocationRequest,
     ) -> Result<GetBucketLocationResponse, FS3Error> {
-        check_access(
-            self.policy(),
-            S3Action::GetBucketLocation,
-            Some(&req.bucket.bucket),
-            None,
-        )
-        .await?;
+
         let location = self
             .engine()
             .get_bucket_location(&req.bucket.bucket)
@@ -49,13 +43,7 @@ pub trait BucketS3Handler: Send + Sync {
         &self,
         req: GetBucketPolicyRequest,
     ) -> Result<GetBucketPolicyResponse, FS3Error> {
-        check_access(
-            self.policy(),
-            S3Action::GetBucketPolicy,
-            Some(&req.bucket.bucket),
-            None,
-        )
-        .await?;
+
         let p = self
             .policy()
             .get_bucket_policy(&req.bucket.bucket)
@@ -70,13 +58,7 @@ pub trait BucketS3Handler: Send + Sync {
         &self,
         req: PutBucketPolicyRequest,
     ) -> Result<PutBucketPolicyResponse, FS3Error> {
-        check_access(
-            self.policy(),
-            S3Action::PutBucketPolicy,
-            Some(&req.bucket.bucket),
-            None,
-        )
-        .await?;
+
         self.policy()
             .put_bucket_policy(&req.bucket.bucket, &req.json)
             .await?;
@@ -87,13 +69,7 @@ pub trait BucketS3Handler: Send + Sync {
         &self,
         req: DeleteBucketPolicyRequest,
     ) -> Result<DeleteBucketPolicyResponse, FS3Error> {
-        check_access(
-            self.policy(),
-            S3Action::DeleteBucketPolicy,
-            Some(&req.bucket.bucket),
-            None,
-        )
-        .await?;
+
         self.policy()
             .delete_bucket_policy(&req.bucket.bucket)
             .await?;
@@ -104,13 +80,7 @@ pub trait BucketS3Handler: Send + Sync {
         &self,
         req: GetBucketPolicyStatusRequest,
     ) -> Result<GetBucketPolicyStatusResponse, FS3Error> {
-        check_access(
-            self.policy(),
-            S3Action::GetBucketPolicyStatus,
-            Some(&req.bucket.bucket),
-            None,
-        )
-        .await?;
+
         let p = self
             .policy()
             .get_bucket_policy(&req.bucket.bucket)
@@ -129,13 +99,7 @@ pub trait BucketS3Handler: Send + Sync {
         &self,
         req: ListMultipartUploadsRequest,
     ) -> Result<ListMultipartUploadsResponse, FS3Error> {
-        check_access(
-            self.policy(),
-            S3Action::ListBucketMultipartUploads,
-            Some(&req.bucket.bucket),
-            None,
-        )
-        .await?;
+
         let uploads = self
             .engine()
             .list_multipart_uploads(&req.bucket.bucket, to_list_opt(&req.query, false))
@@ -157,13 +121,7 @@ pub trait BucketS3Handler: Send + Sync {
         &self,
         req: ListObjectsV2MRequest,
     ) -> Result<ListObjectsV2MResponse, FS3Error> {
-        check_access(
-            self.policy(),
-            S3Action::ListBucket,
-            Some(&req.bucket.bucket),
-            None,
-        )
-        .await?;
+
         let p = self
             .engine()
             .list_objects_v2(&req.bucket.bucket, to_list_opt(&req.query, req.metadata))
@@ -178,13 +136,7 @@ pub trait BucketS3Handler: Send + Sync {
         &self,
         req: ListObjectsV2Request,
     ) -> Result<ListObjectsV2Response, FS3Error> {
-        check_access(
-            self.policy(),
-            S3Action::ListBucket,
-            Some(&req.bucket.bucket),
-            None,
-        )
-        .await?;
+
         let p = self
             .engine()
             .list_objects_v2(&req.bucket.bucket, to_list_opt(&req.query, false))
@@ -199,13 +151,7 @@ pub trait BucketS3Handler: Send + Sync {
         &self,
         req: ListObjectVersionsMRequest,
     ) -> Result<ListObjectVersionsMResponse, FS3Error> {
-        check_access(
-            self.policy(),
-            S3Action::ListBucketVersions,
-            Some(&req.bucket.bucket),
-            None,
-        )
-        .await?;
+
         let p = self
             .engine()
             .list_object_versions(&req.bucket.bucket, to_list_opt(&req.query, req.metadata))
@@ -220,13 +166,7 @@ pub trait BucketS3Handler: Send + Sync {
         &self,
         req: ListObjectVersionsRequest,
     ) -> Result<ListObjectVersionsResponse, FS3Error> {
-        check_access(
-            self.policy(),
-            S3Action::ListBucketVersions,
-            Some(&req.bucket.bucket),
-            None,
-        )
-        .await?;
+
         let p = self
             .engine()
             .list_object_versions(&req.bucket.bucket, to_list_opt(&req.query, false))
@@ -241,13 +181,7 @@ pub trait BucketS3Handler: Send + Sync {
         &self,
         req: ListObjectsV1Request,
     ) -> Result<ListObjectsV1Response, FS3Error> {
-        check_access(
-            self.policy(),
-            S3Action::ListBucket,
-            Some(&req.bucket.bucket),
-            None,
-        )
-        .await?;
+
         let p = self
             .engine()
             .list_objects_v1(&req.bucket.bucket, to_list_opt(&req.query, false))
@@ -259,13 +193,7 @@ pub trait BucketS3Handler: Send + Sync {
     }
 
     async fn put_bucket(&self, req: PutBucketRequest) -> Result<PutBucketResponse, FS3Error> {
-        check_access(
-            self.policy(),
-            S3Action::CreateBucket,
-            Some(&req.bucket.bucket),
-            None,
-        )
-        .await?;
+
         let _ = self
             .engine()
             .make_bucket(
@@ -278,13 +206,7 @@ pub trait BucketS3Handler: Send + Sync {
     }
 
     async fn head_bucket(&self, req: HeadBucketRequest) -> Result<HeadBucketResponse, FS3Error> {
-        check_access(
-            self.policy(),
-            S3Action::HeadBucket,
-            Some(&req.bucket.bucket),
-            None,
-        )
-        .await?;
+
         let _ = self.engine().head_bucket(&req.bucket.bucket).await?;
         Ok(Default::default())
     }
@@ -293,13 +215,7 @@ pub trait BucketS3Handler: Send + Sync {
         &self,
         req: DeleteMultipleObjectsRequest,
     ) -> Result<DeleteMultipleObjectsResponse, FS3Error> {
-        check_access(
-            self.policy(),
-            S3Action::DeleteObject,
-            Some(&req.bucket.bucket),
-            None,
-        )
-        .await?;
+
         if req.payload.keys.is_empty() {
             return Err(S3HandlerBridgeError::InvalidRequest(
                 "DeleteMultipleObjects payload has no <Key>".to_string(),
@@ -329,13 +245,7 @@ pub trait BucketS3Handler: Send + Sync {
         &self,
         req: DeleteBucketRequest,
     ) -> Result<DeleteBucketResponse, FS3Error> {
-        check_access(
-            self.policy(),
-            S3Action::DeleteBucket,
-            Some(&req.bucket.bucket),
-            None,
-        )
-        .await?;
+
         self.engine()
             .delete_bucket(&req.bucket.bucket, false)
             .await?;

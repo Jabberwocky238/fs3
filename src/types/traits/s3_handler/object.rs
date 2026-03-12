@@ -1,8 +1,8 @@
+use crate::types::FS3Error;
 use crate::types::s3::core::*;
 use crate::types::s3::policy::S3Action;
 use crate::types::s3::request::*;
 use crate::types::s3::response::*;
-use crate::types::FS3Error;
 use crate::types::traits::StdError;
 use crate::types::traits::s3_engine::{S3MultipartEngine, S3ObjectEngine};
 use crate::types::traits::s3_policyengine::S3PolicyEngine;
@@ -10,15 +10,16 @@ use async_trait::async_trait;
 use axum::http::{HeaderMap, HeaderName, HeaderValue};
 
 use super::request_validation::{
-    ParsedServerSideEncryption, RequestValidationPlan, ValidatingRequestStream,
-    decode_content_md5, parse_aws_chunked_upload, parse_checksum_headers, validate_sse_headers,
+    DecodedAwsChunkedStream, ParsedServerSideEncryption, RequestValidationPlan,
+    ValidatingRequestStream, decode_content_md5, parse_aws_chunked_upload,
+    parse_checksum_headers, validate_sse_headers,
 };
 use super::utils::*;
 
 #[async_trait]
 pub trait ObjectS3Handler<E>: Send + Sync
 where
-    E: StdError + From<FS3Error> + From<S3HandlerBridgeError> + From<std::io::Error>
+    E: StdError + From<FS3Error> + From<S3HandlerBridgeError> + From<std::io::Error>,
 {
     type Engine: S3ObjectEngine<E> + S3MultipartEngine<E> + Send + Sync;
     type Policy: S3PolicyEngine<E>;
@@ -27,13 +28,7 @@ where
     fn policy(&self) -> &Self::Policy;
 
     async fn head_object(&self, req: HeadObjectRequest) -> Result<HeadObjectResponse, E> {
-        check_access(
-            self.policy(),
-            S3Action::HeadObject,
-            Some(&req.object.bucket),
-            Some(&req.object.object),
-        )
-        .await?;
+
         let obj = self
             .engine()
             .head_object(
@@ -70,13 +65,7 @@ where
         &self,
         req: GetObjectAttributesRequest,
     ) -> Result<GetObjectAttributesResponse, E> {
-        check_access(
-            self.policy(),
-            S3Action::GetObject,
-            Some(&req.object.bucket),
-            Some(&req.object.object),
-        )
-        .await?;
+
         let bucket = req.object.bucket.clone();
         let object = req.object.object.clone();
         let opts: ObjectReadOptions = req.into();
@@ -91,13 +80,6 @@ where
         &self,
         req: CopyObjectPartRequest,
     ) -> Result<CopyObjectPartResponse, E> {
-        check_access(
-            self.policy(),
-            S3Action::PutObject,
-            Some(&req.object.bucket),
-            Some(&req.object.object),
-        )
-        .await?;
         let (src_bucket, src_key) = split_copy_source(&req.copy_source).ok_or_else(|| {
             S3HandlerBridgeError::InvalidRequest("missing/invalid x-amz-copy-source".to_string())
         })?;
@@ -124,17 +106,7 @@ where
         })
     }
 
-    async fn put_object_part(
-        &self,
-        req: PutObjectPartRequest,
-    ) -> Result<PutObjectPartResponse, E> {
-        check_access(
-            self.policy(),
-            S3Action::PutObject,
-            Some(&req.object.bucket),
-            Some(&req.object.object),
-        )
-        .await?;
+    async fn put_object_part(&self, req: PutObjectPartRequest) -> Result<PutObjectPartResponse, E> {
         let validation_headers = request_headers_for_part(&req)?;
         let _chunked = parse_aws_chunked_upload(&validation_headers)?;
         let checksum = parse_checksum_headers(&validation_headers)?;
@@ -181,13 +153,7 @@ where
         &self,
         req: ListObjectPartsRequest,
     ) -> Result<ListObjectPartsResponse, E> {
-        check_access(
-            self.policy(),
-            S3Action::ListMultipartUploadParts,
-            Some(&req.object.bucket),
-            Some(&req.object.object),
-        )
-        .await?;
+
         let parts = self
             .engine()
             .list_object_parts(&req.object.bucket, &req.object.object, &req.upload_id)
@@ -210,13 +176,6 @@ where
         &self,
         req: CompleteMultipartUploadRequest,
     ) -> Result<CompleteMultipartUploadResponse, E> {
-        check_access(
-            self.policy(),
-            S3Action::PutObject,
-            Some(&req.object.bucket),
-            Some(&req.object.object),
-        )
-        .await?;
         let obj = self
             .engine()
             .complete_multipart_upload(
@@ -236,13 +195,6 @@ where
         &self,
         req: NewMultipartUploadRequest,
     ) -> Result<NewMultipartUploadResponse, E> {
-        check_access(
-            self.policy(),
-            S3Action::PutObject,
-            Some(&req.object.bucket),
-            Some(&req.object.object),
-        )
-        .await?;
         let mp = self
             .engine()
             .new_multipart_upload(
@@ -263,13 +215,6 @@ where
         &self,
         req: AbortMultipartUploadRequest,
     ) -> Result<AbortMultipartUploadResponse, E> {
-        check_access(
-            self.policy(),
-            S3Action::AbortMultipartUpload,
-            Some(&req.object.bucket),
-            Some(&req.object.object),
-        )
-        .await?;
         self.engine()
             .abort_multipart_upload(&req.object.bucket, &req.object.object, &req.upload_id)
             .await?;
@@ -279,17 +224,11 @@ where
         })
     }
 
-    async fn get_object_acl(
-        &self,
-        _req: GetObjectAclRequest,
-    ) -> Result<GetObjectAclResponse, E> {
+    async fn get_object_acl(&self, _req: GetObjectAclRequest) -> Result<GetObjectAclResponse, E> {
         Ok(Default::default())
     }
 
-    async fn put_object_acl(
-        &self,
-        _req: PutObjectAclRequest,
-    ) -> Result<PutObjectAclResponse, E> {
+    async fn put_object_acl(&self, _req: PutObjectAclRequest) -> Result<PutObjectAclResponse, E> {
         Ok(Default::default())
     }
 
@@ -297,13 +236,6 @@ where
         &self,
         req: SelectObjectContentRequest,
     ) -> Result<SelectObjectContentResponse, E> {
-        check_access(
-            self.policy(),
-            S3Action::SelectObjectContent,
-            Some(&req.object.bucket),
-            Some(&req.object.object),
-        )
-        .await?;
 
         unimplemented!()
     }
@@ -312,13 +244,7 @@ where
         &self,
         req: GetObjectLambdaRequest,
     ) -> Result<GetObjectLambdaResponse, E> {
-        check_access(
-            self.policy(),
-            S3Action::GetObject,
-            Some(&req.object.bucket),
-            Some(&req.object.object),
-        )
-        .await?;
+
         let (_obj, stream) = self
             .engine()
             .get_object(
@@ -328,9 +254,7 @@ where
             )
             .await?;
         use futures::TryStreamExt;
-        let chunks: Vec<bytes::Bytes> = stream
-            .try_collect()
-            .await?;
+        let chunks: Vec<bytes::Bytes> = stream.try_collect().await?;
         let mut buf = Vec::new();
         for c in chunks {
             buf.extend_from_slice(&c);
@@ -342,13 +266,7 @@ where
     }
 
     async fn get_object(&self, req: GetObjectRequest) -> Result<GetObjectResponse, E> {
-        check_access(
-            self.policy(),
-            S3Action::GetObject,
-            Some(&req.object.bucket),
-            Some(&req.object.object),
-        )
-        .await?;
+
         let (obj, stream) = self
             .engine()
             .get_object(
@@ -378,13 +296,6 @@ where
     }
 
     async fn copy_object(&self, req: CopyObjectRequest) -> Result<CopyObjectResponse, E> {
-        check_access(
-            self.policy(),
-            S3Action::PutObject,
-            Some(&req.object.bucket),
-            Some(&req.object.object),
-        )
-        .await?;
         let (src_bucket, src_key) = split_copy_source(&req.copy_source).ok_or_else(|| {
             S3HandlerBridgeError::InvalidRequest("missing/invalid x-amz-copy-source".to_string())
         })?;
@@ -408,13 +319,6 @@ where
         &self,
         req: PutObjectExtractRequest,
     ) -> Result<PutObjectExtractResponse, E> {
-        check_access(
-            self.policy(),
-            S3Action::PutObject,
-            Some(&req.object.bucket),
-            Some(&req.object.object),
-        )
-        .await?;
         let _ = self
             .engine()
             .put_object(
@@ -438,14 +342,6 @@ where
     }
 
     async fn put_object(&self, req: PutObjectRequest) -> Result<PutObjectResponse, E> {
-        check_access(
-            self.policy(),
-            S3Action::PutObject,
-            Some(&req.object.bucket),
-            Some(&req.object.object),
-        )
-        .await?;
-
         let validation_headers = request_headers_for_put(&req)?;
         let _chunked = parse_aws_chunked_upload(&validation_headers)?;
         let checksum = parse_checksum_headers(&validation_headers)?;
@@ -487,17 +383,8 @@ where
         })
     }
 
-    async fn delete_object(
-        &self,
-        req: DeleteObjectRequest,
-    ) -> Result<DeleteObjectResponse, E> {
-        check_access(
-            self.policy(),
-            S3Action::DeleteObject,
-            Some(&req.object.bucket),
-            Some(&req.object.object),
-        )
-        .await?;
+    async fn delete_object(&self, req: DeleteObjectRequest) -> Result<DeleteObjectResponse, E> {
+
         let _ = self
             .engine()
             .delete_object(
@@ -635,6 +522,4 @@ fn insert_opt_header(
     let header_name = HeaderName::from_static(name);
     let header_value =
         HeaderValue::from_str(value).map_err(|_| FS3Error::bad_request("InvalidRequest"))?;
-    headers.insert(header_name, header_value);
-    Ok(())
-}
+    headers.insert(header_name,

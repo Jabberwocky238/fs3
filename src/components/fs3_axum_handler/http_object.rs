@@ -17,6 +17,7 @@ use crate::types::s3::response::S3Response;
 use crate::types::s3::xml;
 use crate::types::traits::s3_handler::S3Handler;
 
+use super::HandlerError;
 use super::util::{get, has, header, header_eq, multipart_selector, body_stream, body_text};
 
 pub fn routes<T>(state: Arc<T>) -> Router
