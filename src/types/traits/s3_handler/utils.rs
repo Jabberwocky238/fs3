@@ -1,16 +1,15 @@
 use chrono::SecondsFormat;
 use thiserror::Error;
 
+use crate::types::FS3Error;
 use crate::types::s3::core::{
     BucketFeatures, CompleteMultipartInput, DeleteObjectOptions, ListOptions,
     ObjectWriteOptions, StorageClass, UploadedPart, VersioningState,
 };
-use crate::types::traits::s3_policyengine::S3PolicyEngine;
 use crate::types::s3::policy::S3Action;
 use crate::types::s3::request::*;
 use crate::types::s3::response::*;
-use crate::types::s3::core::BoxByteStream;
-use crate::types::traits::BoxError;
+use crate::types::traits::s3_policyengine::S3PolicyEngine;
 
 #[derive(Debug, Error)]
 pub enum S3HandlerBridgeError {
@@ -30,25 +29,30 @@ pub enum S3HandlerBridgeError {
     XmlParse(String),
 }
 
-impl From<S3HandlerBridgeError> for BoxError {
+impl From<S3HandlerBridgeError> for FS3Error {
     fn from(value: S3HandlerBridgeError) -> Self {
-        Box::new(value)
+        match value {
+            S3HandlerBridgeError::Unsupported(message) => FS3Error::bad_request(message),
+            S3HandlerBridgeError::InvalidRequest(message) => FS3Error::bad_request(message),
+            S3HandlerBridgeError::AccessDenied(message) => FS3Error::forbidden(message),
+            S3HandlerBridgeError::PreconditionFailed => {
+                FS3Error::precondition_failed("PreconditionFailed")
+            }
+            S3HandlerBridgeError::NotModified => FS3Error::not_modified("NotModified"),
+            S3HandlerBridgeError::InvalidVersioningStatus(message) => {
+                FS3Error::bad_request(message)
+            }
+            S3HandlerBridgeError::XmlParse(message) => FS3Error::bad_request(message),
+        }
     }
 }
 
-impl From<S3HandlerBridgeError> for crate::types::FS3Error {
-    fn from(value: S3HandlerBridgeError) -> Self {
-        crate::types::FS3Error::from(value.to_string())
-    }
-}
+pub async fn check_access<P>(policy: &P, action: S3Action, bucket: Option<&str>, key: Option<&str>) -> Result<(), FS3Error>
+where
+    P: S3PolicyEngine<FS3Error> + ?Sized,
+{
+    use crate::types::traits::s3_policyengine::{PolicyEffect, PolicyEvalContext};
 
-pub async fn check_access<P: S3PolicyEngine + ?Sized>(
-    policy: &P,
-    action: S3Action,
-    bucket: Option<&str>,
-    key: Option<&str>,
-) -> Result<(), S3HandlerBridgeError> {
-    use crate::types::traits::s3_policyengine::{PolicyEvalContext, PolicyEffect};
     let ctx = PolicyEvalContext {
         action,
         bucket: bucket.map(|s| s.to_string()),
@@ -58,15 +62,16 @@ pub async fn check_access<P: S3PolicyEngine + ?Sized>(
         is_owner: false,
         conditions: std::collections::HashMap::new(),
     };
+
     match policy.check_access(&ctx).await {
         Ok(PolicyEffect::Allow) => Ok(()),
-        Ok(PolicyEffect::Deny) => Err(S3HandlerBridgeError::AccessDenied(format!("{action}"))),
-        Err(e) => Err(S3HandlerBridgeError::AccessDenied(e.to_string())),
+        Ok(PolicyEffect::Deny) => Err(S3HandlerBridgeError::AccessDenied(format!("{action}")).into()),
+        Err(err) => Err(FS3Error::from(err.to_string())),
     }
 }
 
-pub fn unsupported<T>(name: &'static str) -> Result<T, BoxError> {
-    Err(Box::new(S3HandlerBridgeError::Unsupported(name)))
+pub fn unsupported<T>(name: &'static str) -> Result<T, FS3Error> {
+    Err(S3HandlerBridgeError::Unsupported(name).into())
 }
 
 pub fn to_resp_object(v: &crate::types::s3::core::S3Object) -> ObjectInfo {
@@ -164,13 +169,7 @@ pub fn extract_tag(src: &str, name: &str) -> Option<String> {
     let close = format!("</{name}>");
     let s = src.find(&open)? + open.len();
     let e = src[s..].find(&close)? + s;
-    Some(
-        src[s..e]
-            .trim()
-            .trim_matches('"')
-            .trim_matches('\'')
-            .to_string(),
-    )
+    Some(src[s..e].trim().trim_matches('"').trim_matches('\'').to_string())
 }
 
 pub fn parse_delete_keys(xml: &str) -> Vec<String> {
@@ -187,4 +186,3 @@ pub fn parse_delete_keys(xml: &str) -> Vec<String> {
     }
     out
 }
-

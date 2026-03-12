@@ -31,27 +31,29 @@ pub enum PolicyEngineError {
 }
 
 #[async_trait]
-pub trait S3IamPolicyEngine: Send + Sync {
-    type Error: StdError;
-
-    async fn is_allowed(&self, ctx: &PolicyEvalContext) -> Result<PolicyEffect, Self::Error>;
-    async fn get_user_policies(&self, identity: &str) -> Result<Vec<String>, Self::Error>;
-    async fn get_group_policies(&self, group: &str) -> Result<Vec<String>, Self::Error>;
+pub trait S3IamPolicyEngine<E>: Send + Sync
+where
+    E: StdError,
+{
+    async fn is_allowed(&self, ctx: &PolicyEvalContext) -> Result<PolicyEffect, E>;
+    async fn get_user_policies(&self, identity: &str) -> Result<Vec<String>, E>;
+    async fn get_group_policies(&self, group: &str) -> Result<Vec<String>, E>;
 }
 
 #[async_trait]
-pub trait S3BucketPolicyEngine: Send + Sync {
-    type Error: StdError;
-
-    async fn is_allowed(&self, bucket: &str, ctx: &PolicyEvalContext) -> Result<PolicyEffect, Self::Error>;
-    async fn get_bucket_policy(&self, bucket: &str) -> Result<Option<String>, Self::Error>;
-    async fn put_bucket_policy(&self, bucket: &str, policy_json: &str) -> Result<(), Self::Error>;
-    async fn delete_bucket_policy(&self, bucket: &str) -> Result<(), Self::Error>;
+pub trait S3BucketPolicyEngine<E>: Send + Sync
+where
+    E: StdError,
+{
+    async fn is_allowed(&self, bucket: &str, ctx: &PolicyEvalContext) -> Result<PolicyEffect, E>;
+    async fn get_bucket_policy(&self, bucket: &str) -> Result<Option<String>, E>;
+    async fn put_bucket_policy(&self, bucket: &str, policy_json: &str) -> Result<(), E>;
+    async fn delete_bucket_policy(&self, bucket: &str) -> Result<(), E>;
 }
 
 #[async_trait]
 pub trait S3PolicyEngine<E>:
-    Send + Sync + S3IamPolicyEngine<Error = E> + S3BucketPolicyEngine<Error = E>
+    Send + Sync + S3IamPolicyEngine<E> + S3BucketPolicyEngine<E>
 where
     E: StdError,
 {

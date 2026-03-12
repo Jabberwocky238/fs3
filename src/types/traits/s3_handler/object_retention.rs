@@ -1,7 +1,7 @@
 use crate::types::s3::policy::S3Action;
 use crate::types::s3::request::*;
 use crate::types::s3::response::*;
-use crate::types::traits::BoxError;
+
 use crate::types::traits::s3_engine::S3ObjectRetentionEngine;
 use crate::types::traits::s3_policyengine::S3PolicyEngine;
 use async_trait::async_trait;

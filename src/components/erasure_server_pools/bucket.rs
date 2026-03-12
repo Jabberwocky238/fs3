@@ -6,6 +6,8 @@ use super::ErasureServerPools;
 
 #[async_trait]
 impl ObjectBucketLayer for ErasureServerPools {
+    type Error = FS3Error;
+
     async fn make_bucket(&self, ctx: &Context, bucket: &str, _opts: MakeBucketOptions) -> Result<(), FS3Error> {
         self.storage.make_vol(ctx, bucket).await?;
         Ok(())

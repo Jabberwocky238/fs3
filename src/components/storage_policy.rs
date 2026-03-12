@@ -16,9 +16,7 @@ impl StoragePolicyEngine {
 }
 
 #[async_trait]
-impl S3IamPolicyEngine for StoragePolicyEngine {
-    type Error = PolicyEngineError;
-
+impl S3IamPolicyEngine<PolicyEngineError> for StoragePolicyEngine {
     async fn is_allowed(&self, _ctx: &PolicyEvalContext) -> Result<PolicyEffect, PolicyEngineError> {
         Ok(PolicyEffect::Allow)
     }
@@ -31,9 +29,7 @@ impl S3IamPolicyEngine for StoragePolicyEngine {
 }
 
 #[async_trait]
-impl S3BucketPolicyEngine for StoragePolicyEngine {
-    type Error = PolicyEngineError;
-
+impl S3BucketPolicyEngine<PolicyEngineError> for StoragePolicyEngine {
     async fn is_allowed(&self, _bucket: &str, _ctx: &PolicyEvalContext) -> Result<PolicyEffect, PolicyEngineError> {
         Ok(PolicyEffect::Allow)
     }

@@ -2,7 +2,7 @@
 
 use crate::types::s3::core::*;
 use crate::types::traits::s3_engine::*;
-use crate::types::traits::BoxError;
+
 
 use super::FS3Engine;
 
