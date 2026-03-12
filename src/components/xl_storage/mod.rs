@@ -99,6 +99,8 @@ impl XlStorage {
         if has_inline_data {
             meta_sys.insert("x-minio-internal-inline-data".to_string(), b"true".to_vec());
         }
+        let erasure_width = std::cmp::max(1, fi.erasure_m + fi.erasure_n) as u8;
+        let erasure_dist = (1..=erasure_width).collect::<Vec<_>>();
 
         let obj = XlMetaV2Object {
             version_id: *vid.as_bytes(),
@@ -108,7 +110,7 @@ impl XlStorage {
             erasure_n: fi.erasure_n,
             erasure_block_size: 1048576,
             erasure_index: fi.erasure_index,
-            erasure_dist: vec![fi.erasure_index as u8],
+            erasure_dist,
             bitrot_checksum_algo: ChecksumAlgo::HighwayHash,
             part_numbers: vec![1],
             part_etags: vec![],

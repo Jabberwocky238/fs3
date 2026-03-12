@@ -5,6 +5,7 @@ use crate::types::traits::storage_api::StorageAPI;
 mod bucket;
 mod object;
 mod multipart;
+mod write_path;
 
 pub struct ErasureServerPools {
     storage: Arc<dyn StorageAPI<FS3Error>>,

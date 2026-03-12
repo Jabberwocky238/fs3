@@ -52,6 +52,14 @@ impl FS3Error {
     pub fn method_not_allowed(message: impl Into<String>) -> Self {
         Self::new(StatusCode::METHOD_NOT_ALLOWED, message)
     }
+
+    pub fn status(&self) -> StatusCode {
+        self.status
+    }
+
+    pub fn message(&self) -> &str {
+        &self.message
+    }
 }
 
 impl From<&str> for FS3Error {

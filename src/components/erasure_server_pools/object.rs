@@ -1,4 +1,8 @@
 use super::ErasureServerPools;
+use super::write_path::{
+    collect_stream, decode_bitrot_frames, encode_bitrot_frames, part_relative_path,
+    to_single_chunk_stream,
+};
 use crate::types::errors::FS3Error;
 use crate::types::s3::core::BoxByteStream;
 use crate::types::s3::object_layer_types::*;
@@ -51,61 +55,24 @@ impl ObjectObjectLayer<FS3Error> for ErasureServerPools {
             fi.size, opts.range
         );
 
-        let file_path = format!("{}/{}", object, fi.data_dir);
-        let chunk_size = 64 * 1024;
+        let file_path = format!("{}/{}", object, part_relative_path(&fi.data_dir, 1));
+        let encoded = read_all(&*self.storage, ctx, bucket, &file_path).await?;
+        let raw = decode_bitrot_frames(&encoded, fi.size)?;
         let (start_offset, total_size) = if let Some((start, end)) = opts.range {
-            (start, end + 1)
+            (start as usize, (end + 1) as usize)
         } else {
-            (0, fi.size)
+            (0usize, fi.size as usize)
         };
-
-        eprintln!(
-            "DEBUG get_object: start_offset={}, total_size={}",
-            start_offset, total_size
-        );
-
-        use futures::stream::{self, StreamExt};
-        let storage = self.storage.clone();
-        let ctx_clone = ctx.clone();
-        let bucket = bucket.to_string();
-        let file_path = file_path.clone();
-
-        let stream = stream::unfold(
-            (
-                start_offset,
-                storage,
-                ctx_clone,
-                bucket,
-                file_path,
-                total_size,
-            ),
-            move |(offset, storage, ctx, bucket, path, total)| async move {
-                if offset >= total {
-                    return None;
-                }
-                let read_size = std::cmp::min(chunk_size, (total - offset) as usize);
-                let mut buf = vec![0u8; read_size];
-                match storage
-                    .read_file(&ctx, &bucket, &path, offset as i64, &mut buf)
-                    .await
-                {
-                    Ok(n) if n > 0 => {
-                        buf.truncate(n as usize);
-                        Some((
-                            Ok(bytes::Bytes::from(buf)),
-                            (offset + n as u64, storage, ctx, bucket, path, total),
-                        ))
-                    }
-                    _ => None,
-                }
-            },
-        )
-        .boxed();
+        let body = raw
+            .get(start_offset..std::cmp::min(total_size, raw.len()))
+            .unwrap_or(&[])
+            .to_vec();
+        let stream = to_single_chunk_stream(body);
 
         let info = ObjectInfo {
             bucket: ctx.request_id.clone(),
             name: object.to_string(),
-            size: total_size - start_offset,
+            size: (total_size.saturating_sub(start_offset)) as u64,
             etag: fi.version_id.clone(),
             content_type: "application/octet-stream".to_string(),
             user_defined: opts.user_defined,
@@ -127,15 +94,17 @@ impl ObjectObjectLayer<FS3Error> for ErasureServerPools {
         let temp_object = uuid::Uuid::new_v4().to_string();
         let temp_volume = ".minio.sys/tmp";
 
-        let temp_file_path = format!("{}/{}", temp_object, data_dir);
-        let actual_size = self
-            .storage
+        let raw = collect_stream(data.reader).await?;
+        let actual_size = raw.len() as u64;
+        let encoded = encode_bitrot_frames(&raw);
+        let data_path = format!("{}/{}", temp_object, part_relative_path(&data_dir, 1));
+        self.storage
             .create_file(
                 ctx,
                 temp_volume,
-                &temp_file_path,
-                data.size,
-                data.reader,
+                &data_path,
+                encoded.len() as i64,
+                to_single_chunk_stream(encoded),
                 CreateFileOptions {
                     path_kind: StoragePathKind::Temporary,
                     write_kind: StorageWriteKind::Data,
@@ -229,9 +198,9 @@ impl ObjectObjectLayer<FS3Error> for ErasureServerPools {
             .read_version(ctx, src_bucket, src_object, src_version)
             .await?;
 
-        let src_path = format!("{}/{}", src_object, src_fi.data_dir);
+        let src_path = format!("{}/{}", src_object, part_relative_path(&src_fi.data_dir, 1));
         let dst_data_dir = uuid::Uuid::new_v4().to_string();
-        let dst_path = format!("{}/{}", dst_object, dst_data_dir);
+        let dst_path = format!("{}/{}", dst_object, part_relative_path(&dst_data_dir, 1));
 
         let mut offset = 0i64;
         let chunk_size = 64 * 1024;
@@ -278,8 +247,8 @@ impl ObjectObjectLayer<FS3Error> for ErasureServerPools {
             content_type: "application/octet-stream".to_string(),
             user_metadata: src_fi.user_metadata.clone(),
             erasure_index: src_fi.erasure_index,
-            erasure_m: src_fi.erasure_m,
-            erasure_n: src_fi.erasure_n,
+            erasure_m: 1,
+            erasure_n: 0,
         };
         self.storage
             .write_metadata(ctx, dst_bucket, dst_object, dst_fi.clone())
@@ -321,6 +290,26 @@ impl ObjectObjectLayer<FS3Error> for ErasureServerPools {
             user_defined: opts.user_defined,
         })
     }
+}
+
+async fn read_all(
+    storage: &dyn crate::types::traits::storage_api::StorageAPI<FS3Error>,
+    ctx: &Context,
+    bucket: &str,
+    path: &str,
+) -> Result<Vec<u8>, FS3Error> {
+    let mut offset = 0i64;
+    let mut out = Vec::new();
+    let mut buf = vec![0u8; 64 * 1024];
+    loop {
+        let n = storage.read_file(ctx, bucket, path, offset, &mut buf).await?;
+        if n <= 0 {
+            break;
+        }
+        out.extend_from_slice(&buf[..n as usize]);
+        offset += n;
+    }
+    Ok(out)
 }
 
 #[cfg(test)]
@@ -409,6 +398,53 @@ mod tests {
             leftovers.is_empty(),
             "temporary upload paths were not cleaned: {leftovers:?}"
         );
+
+        let _ = std::fs::remove_dir_all(&mount_root);
+    }
+
+    #[tokio::test]
+    async fn put_object_uses_minio_part_layout_and_round_trips() {
+        let mount_root =
+            std::env::temp_dir().join(format!("fs3-put-object-layout-{}", uuid::Uuid::new_v4()));
+        let storage = Arc::new(XlStorage::new(mount_root.clone()));
+        let object_layer = ErasureServerPools::new(storage.clone());
+        let ctx = Context {
+            request_id: "put-object-layout-test".to_string(),
+        };
+        let bucket = "bucket";
+        let object = "object.txt";
+        let body = b"layout-compatible-body".to_vec();
+        let body_for_stream = body.clone();
+
+        storage.make_vol(&ctx, bucket).await.unwrap();
+
+        object_layer
+            .put_object(
+                &ctx,
+                bucket,
+                object,
+                PutObjReader {
+                    reader: Box::pin(futures::stream::once(async move {
+                        Ok(bytes::Bytes::from(body_for_stream))
+                    })),
+                    size: body.len() as i64,
+                },
+                ObjectOptions::default(),
+            )
+            .await
+            .unwrap();
+
+        let fi = storage.read_version(&ctx, bucket, object, "null").await.unwrap();
+        let data_dir = mount_root.join(bucket).join(object).join(&fi.data_dir);
+        assert!(data_dir.join("part.1").exists());
+        assert!(!data_dir.join("shards").exists());
+
+        let (_info, stream) = object_layer
+            .get_object(&ctx, bucket, object, ObjectOptions::default())
+            .await
+            .unwrap();
+        let got: Vec<bytes::Bytes> = futures::TryStreamExt::try_collect(stream).await.unwrap();
+        assert_eq!(got.concat(), b"layout-compatible-body");
 
         let _ = std::fs::remove_dir_all(&mount_root);
     }

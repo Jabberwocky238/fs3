@@ -4,6 +4,7 @@ use tokio::net::TcpListener;
 use crate::components::fs3_engine::FS3Engine;
 use crate::components::xl_storage::XlStorage;
 use crate::components::erasure_server_pools::ErasureServerPools;
+use crate::components::remote_storage::RemoteStorageServer;
 use crate::components::storage_policy::StoragePolicyEngine;
 use crate::components::fs3_axum_handler::S3AxumHandler;
 
@@ -27,7 +28,7 @@ pub async fn run_server(args: ServerArgs) -> anyhow::Result<()> {
     let storage = Arc::new(XlStorage::new(mount_point.into()));
     let object_layer = Arc::new(ErasureServerPools::new(storage.clone()));
     let engine = FS3Engine::new(object_layer, storage.clone());
-    let policy = StoragePolicyEngine::new(storage);
+    let policy = StoragePolicyEngine::new(storage.clone());
     let handler = S3AxumHandler::new(engine, policy);
 
     let listener = TcpListener::bind(&args.address).await?;
@@ -37,7 +38,7 @@ pub async fn run_server(args: ServerArgs) -> anyhow::Result<()> {
         println!("Paths: {:?}", args.paths);
     }
 
-    let app = crate::axum_router(handler);
+    let app = crate::axum_router(handler).merge(RemoteStorageServer::router(storage.clone()));
     axum::serve(listener, app).await?;
 
     Ok(())

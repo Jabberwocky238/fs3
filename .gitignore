@@ -12,3 +12,4 @@
 *.exe
 test_*.meta
 test_*.json
+__pycache__/
